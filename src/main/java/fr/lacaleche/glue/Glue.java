@@ -1,5 +1,6 @@
 package fr.lacaleche.glue;
 
+import fr.lacaleche.glue.data.GlueComponentTypes;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
@@ -12,6 +13,8 @@ public class Glue implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        GlueComponentTypes.registerProperties();
+
         LOGGER.info("Glue library is ready !");
     }
 
