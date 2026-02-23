@@ -1,0 +1,6 @@
+{
+  "parent": "glue-test:block/placeholder",
+  "textures": {
+    "all": "glue-test:block/placeholder"
+  }
+}

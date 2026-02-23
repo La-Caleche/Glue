@@ -16,6 +16,7 @@
     "DebugRendererMixin",
     "DebugScreenOverlayMixin",
     "GuiMixin",
+    "LevelRendererMixin",
     "ParticleEngineMixin",
     "PoseStackMixin"
   ]

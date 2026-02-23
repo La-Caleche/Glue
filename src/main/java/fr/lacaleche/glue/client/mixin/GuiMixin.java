@@ -13,8 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Gui.class)
 public class GuiMixin {
 
-    @Inject(method = "renderHotbarAndDecorations", at = @At("HEAD"))
-    private void glue$renderHotbarAndDecorations(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+    @Inject(method = "renderDebugOverlay", at = @At("HEAD"))
+    private void glue$renderDebugOverlay(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
         RenderEvents.RENDER_HUD.invoker().accept(context);
     }
 

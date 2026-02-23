@@ -1,5 +1,6 @@
 package fr.lacaleche.glue.client.debug;
 
+import com.google.common.collect.Maps;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import fr.lacaleche.glue.math.Color;
@@ -17,24 +18,86 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public abstract class GlueDebugRenderer implements DebugRenderer.SimpleDebugRenderer {
 
     protected static final int LEFT_PADDING = 5;
 
+    public boolean enabled = false;
+    private final Map<ElementType, Map<BlockPos, Drawable>> drawables = Maps.newHashMap();
+
+    public void clear() {
+        this.drawables.clear();
+    }
+
+    protected Map<BlockPos, Drawable> getDrawables(ElementType type) {
+        return this.drawables.computeIfAbsent(type, (type_) -> Maps.newHashMap());
+    }
+
+    public void addDebugElement(BlockPos pos, ElementType type, int color, String message, int duration,
+                                Consumer<Drawable> consumer, boolean force) {
+        final Drawable drawable = this.createDrawable(color, message, duration);
+        this.getDrawables(type).put(pos, drawable);
+        if (consumer != null) {
+            consumer.accept(drawable);
+        }
+    }
+
+    public void addDebugElement(BlockPos pos, Consumer<ElementBuilder> consumer) {
+        final ElementBuilder builder = new ElementBuilder(this::handleDebugRequest);
+        consumer.accept(builder);
+        builder.create(pos);
+    }
+
+    private void handleDebugRequest(OccaDebugRequest request) {
+        addDebugElement(request.pos(), request.type(), request.color(), request.message(), request.duration(),
+                request.consumer(), request.force());
+    }
+
+    public void renderElements(PoseStack matrices, MultiBufferSource vertexConsumers, double cameraX, double cameraY,
+                               double cameraZ) {
+        if (!this.enabled)
+            return;
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null)
+            return;
+        long l = Util.getMillis();
+
+        this.drawables.computeIfPresent(ElementType.MARKER, (type, map) -> {
+            map.entrySet().removeIf((entry) -> l > entry.getValue().removalTime);
+            map.forEach((pos, drawable) -> this.renderMarker(matrices, vertexConsumers, pos, drawable));
+            return map;
+        });
+
+        this.drawables.computeIfPresent(ElementType.OUTLINE, (type, map) -> {
+            map.entrySet().removeIf((entry) -> l > entry.getValue().removalTime);
+            map.forEach((pos, drawable) -> this.renderOutline(client, matrices, vertexConsumers, pos, drawable, cameraX,
+                    cameraY, cameraZ));
+            return map;
+        });
+
+        this.drawables.computeIfPresent(ElementType.BOX, (type, map) -> {
+            map.entrySet().removeIf((entry) -> l > entry.getValue().removalTime);
+            map.forEach((pos, drawable) -> this.renderBox(matrices, vertexConsumers, pos, drawable, cameraX, cameraY,
+                    cameraZ));
+            return map;
+        });
+    }
+
     public void renderHud(GuiGraphics context) {
     }
 
     protected void renderMarker(PoseStack matrices, MultiBufferSource vertexConsumers, BlockPos pos,
-            Drawable drawable) {
+                                Drawable drawable) {
         DebugRenderer.renderFilledBox(matrices, vertexConsumers, pos, 0, drawable.getRed(), drawable.getBlue(),
                 drawable.getGreen(), drawable.getAlpha() * 0.75F);
         this.renderDrawableText(matrices, vertexConsumers, pos, drawable);
     }
 
     protected void renderBox(PoseStack matrices, MultiBufferSource vertexConsumers, BlockPos pos, Drawable drawable,
-            double cameraX, double cameraY, double cameraZ) {
+                             double cameraX, double cameraY, double cameraZ) {
         VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderType.lines());
 
         AABB box = (new AABB(BlockPos.ZERO)).inflate(0.002).deflate(0.0025 * drawable.size)
@@ -47,7 +110,7 @@ public abstract class GlueDebugRenderer implements DebugRenderer.SimpleDebugRend
     }
 
     protected void renderOutline(Minecraft client, PoseStack matrices, MultiBufferSource vertexConsumers, BlockPos pos,
-            Drawable drawable, double cameraX, double cameraY, double cameraZ) {
+                                 Drawable drawable, double cameraX, double cameraY, double cameraZ) {
         if (client.level == null)
             return;
         final VoxelShape voxelShape = client.level.getBlockState(pos).getOcclusionShape();
@@ -60,7 +123,7 @@ public abstract class GlueDebugRenderer implements DebugRenderer.SimpleDebugRend
     }
 
     protected void renderDrawableText(PoseStack matrices, MultiBufferSource vertexConsumers, BlockPos pos,
-            Drawable drawable) {
+                                      Drawable drawable) {
         if (!drawable.message.isEmpty()) {
             double d = (double) pos.getX() + 0.5;
             double e = (double) pos.getY() + 1.2;
@@ -79,10 +142,11 @@ public abstract class GlueDebugRenderer implements DebugRenderer.SimpleDebugRend
             }
             context.pose().pushMatrix();
             int width = client.font.width(text);
+
             context.pose().translate(client.getWindow().getGuiScaledWidth() - width - LEFT_PADDING,
-                    25F + i * (client.font.lineHeight + 1F));
-            context.fill(-1, -1, width, client.font.lineHeight, 0x90505050);
-            context.drawString(client.font, text, 0, 0, 0xFFFFFF, false);
+                    25 + i * (client.font.lineHeight + 1));
+            context.fill(-1, -1, width, client.font.lineHeight, -1873784752);
+            context.drawString(client.font, text, 0, 0, -2039584, false);
 
             context.pose().popMatrix();
         }
@@ -201,7 +265,7 @@ public abstract class GlueDebugRenderer implements DebugRenderer.SimpleDebugRend
     }
 
     public record OccaDebugRequest(BlockPos pos, ElementType type, int color, String message, int duration,
-            Consumer<Drawable> consumer, boolean force) {
+                                   Consumer<Drawable> consumer, boolean force) {
     }
 
 }

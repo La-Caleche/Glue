@@ -6,7 +6,20 @@ plugins {
 repositories {
 }
 
+val testmod: SourceSet by sourceSets.creating {
+    compileClasspath += sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().runtimeClasspath
+}
+
 loom {
+    runs {
+        register("testmodClient") {
+            client()
+            name("Testmod Client")
+            source(testmod)
+        }
+    }
+    createRemapConfigurations(testmod)
     accessWidenerPath = file("src/main/resources/glue.accesswidener")
 }
 
@@ -15,6 +28,15 @@ dependencies {
     mappings(loom.officialMojangMappings())
     modImplementation(libs.fabric.loader)
     modImplementation(libs.fabric.api)
+
+    "testmodImplementation"(sourceSets.main.get().output)
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 tasks {

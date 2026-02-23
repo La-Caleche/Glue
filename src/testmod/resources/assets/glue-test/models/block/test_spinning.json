@@ -1,0 +1,6 @@
+{
+	"parent": "glue-test:block/template_altar",
+	"textures": {
+		"all": "glue-test:block/placeholder"
+	}
+}

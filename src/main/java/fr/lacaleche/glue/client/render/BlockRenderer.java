@@ -51,9 +51,7 @@ public class BlockRenderer {
 
         final VoxelShape shape = blockstate.getShape(world, pos, CollisionContext.of(client.player));
 
-        final GlueOutlineRenderer renderer = GlueOutlineRenderers.getOutlineRenderers().keySet().stream()
-                .filter(r -> GlueOutlineRenderers.getOutlineRenderers().get(r).contains(block))
-                .findFirst().orElse(GlueOutlineRenderers.BASE_OUTLINE);
+        final GlueOutlineRenderer renderer = GlueOutlineRenderers.getOutlineRenderer(block);
 
         DebugEvents.BLOCK_OUTLINE.invoker().onRenderBlockOutline(client, world, pos, blockstate, camera, hitResult,
                 matrices, buffers);

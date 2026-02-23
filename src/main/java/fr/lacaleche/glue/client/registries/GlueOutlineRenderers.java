@@ -28,4 +28,12 @@ public class GlueOutlineRenderers {
         return Map.copyOf(OUTLINE_RENDERERS);
     }
 
+    public static GlueOutlineRenderer getOutlineRenderer(Block block) {
+        for (Map.Entry<GlueOutlineRenderer, Set<Block>> entry : OUTLINE_RENDERERS.entrySet()) {
+            if (entry.getValue().contains(block)) {
+                return entry.getKey();
+            }
+        }
+        return BASE_OUTLINE;
+    }
 }
