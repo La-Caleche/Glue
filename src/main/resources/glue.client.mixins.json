@@ -1,0 +1,23 @@
+{
+  "package": "fr.lacaleche.glue.client.mixin",
+  "required": true,
+  "compatibilityLevel": "JAVA_21",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "conformVisibility": true
+  },
+  "mixins": [
+    "CollisionGetterMixin",
+    "EntityMixin"
+  ],
+  "client": [
+    "DebugRendererMixin",
+    "DebugScreenOverlayMixin",
+    "EntityRenderDispatcherMixin",
+    "GuiMixin",
+    "ParticleEngineMixin",
+    "PoseStackMixin"
+  ]
+}

@@ -1,0 +1,11 @@
+[versions]
+minecraft = "1.21.8"
+fabric-loader = "0.18.4"
+fabric = "0.136.1+1.21.8"
+
+imgui = "1.86.11"
+
+[libraries]
+minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
+fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabric-loader" }
+fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabric" }

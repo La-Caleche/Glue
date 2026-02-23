@@ -1,0 +1,22 @@
+image: gradle:8.10.2-jdk21-alpine
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - ./gradlew --build-cache --refresh-dependencies clean publish
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    paths:
+      - build
+  artifacts:
+    paths:
+      - build/libs/*.jar
+  only:
+    - tags

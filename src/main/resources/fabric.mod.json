@@ -1,0 +1,34 @@
+{
+    "schemaVersion": 1,
+    "id": "glue",
+    "version": "${version}",
+    "name": "Glue",
+    "description": "Yet Another Minecraft Library that contains usefull tools for Minecraft modding",
+    "authors": [
+        "Malo <malo@lacaleche.cc>",
+        "Theo <theo@lacaleche.cc>"
+    ],
+    "contact": {
+        "homepage": "https://lacaleche.cc",
+        "sources": "https://gitlab.lacaleche.cc/loccamy/java/glue"
+    },
+    "icon": "assets/glue/icon.png",
+    "environment": "client",
+    "mixins": [
+        "glue.mixins.json"
+    ],
+    "depends": {
+        "fabricloader": ">=0.14.6",
+        "minecraft": "~1.21.8",
+        "java": ">=21",
+        "fabric-api": "*"
+    },
+    "accessWidener": "glue.accesswidener",
+    "suggests": {
+    },
+    "entrypoints": {
+        "main": [
+            "fr.lacaleche.glue.Glue"
+        ]
+    }
+}
