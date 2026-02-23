@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentMap;
  *
  * <p><b>All methods first check {@link FabricLoader#isModLoaded(String)} and short-circuit if the mod is absent.</b></p>
  */
-class ModCompatManager {
+public class ModCompatManager {
 
     /**
      * Invoke a <b>static</b> {@code boolean} method with no parameters on a target class.
