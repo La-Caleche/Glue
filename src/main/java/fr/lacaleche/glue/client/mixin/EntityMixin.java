@@ -6,18 +6,53 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.spongepowered.asm.mixin.Mixin;
 
 import fr.lacaleche.glue.client.extension.EntityRaycastExtension;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 import java.util.Objects;
 
+import static net.minecraft.world.phys.HitResult.Type.MISS;
+
 @Mixin(Entity.class)
 public class EntityMixin implements EntityRaycastExtension {
+
+    @Inject(method = "pick", at = @At("RETURN"), cancellable = true)
+    private void glue$pick(double maxDistance, float tickDelta, boolean includeFluids, CallbackInfoReturnable<HitResult> cir) {
+        final BlockHitResult vanillaResult = (BlockHitResult) cir.getReturnValue();
+        final BlockHitResult bigOutlineResult = glue$bigOutlineRaycast(maxDistance, tickDelta, includeFluids);
+        if (bigOutlineResult == null || bigOutlineResult.getType() == MISS) return;
+        if (vanillaResult == null || vanillaResult.getType() == MISS) {
+            cir.setReturnValue(bigOutlineResult);
+            return;
+        }
+
+        final Entity self = (Entity) (Object) this;
+
+        final BlockState vanillaState = self.level().getBlockState(vanillaResult.getBlockPos());
+        final BlockState bigOutlineState = self.level().getBlockState(bigOutlineResult.getBlockPos());
+        if (vanillaState.isAir() || vanillaState == bigOutlineState) {
+            cir.setReturnValue(bigOutlineResult);
+            return;
+        }
+
+        final Vec3 origin = self.getEyePosition(tickDelta);
+        final double vanillaDistance = vanillaResult.getLocation().distanceToSqr(origin);
+        final double bigOutlineDistance = bigOutlineResult.getLocation().distanceToSqr(origin);
+
+        if (bigOutlineDistance < vanillaDistance) {
+            cir.setReturnValue(bigOutlineResult);
+        }
+    }
 
     @Override
     public BlockHitResult glue$vanillaRaycast(double maxDistance, float tickDelta, boolean includeFluids) {
