@@ -29,6 +29,9 @@
     "entrypoints": {
         "main": [
             "fr.lacaleche.glue.Glue"
+        ],
+        "client": [
+            "fr.lacaleche.glue.client.GlueClient"
         ]
     }
 }
