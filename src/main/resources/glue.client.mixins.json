@@ -15,7 +15,6 @@
   "client": [
     "DebugRendererMixin",
     "DebugScreenOverlayMixin",
-    "EntityRenderDispatcherMixin",
     "GuiMixin",
     "ParticleEngineMixin",
     "PoseStackMixin"
