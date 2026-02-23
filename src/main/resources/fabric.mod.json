@@ -15,7 +15,8 @@
     "icon": "assets/glue/icon.png",
     "environment": "client",
     "mixins": [
-        "glue.mixins.json"
+        "glue.mixins.json",
+        "glue.client.mixins.json"
     ],
     "depends": {
         "fabricloader": ">=0.14.6",
