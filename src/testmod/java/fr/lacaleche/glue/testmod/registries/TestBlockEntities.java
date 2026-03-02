@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 
 public class TestBlockEntities {
 
-    public static final BlockEntitiesRegistry REGISTRY = new BlockEntitiesRegistry(TestmodClient.MOD_ID);
+    public static final BlockEntitiesRegistry REGISTRY = new BlockEntitiesRegistry(TestmodClient.MOD_ID, TestmodClient::id);
 
     public static final BlockEntityType<TestDebugBlockEntity> DEBUG_BLOCK_ENTITY = REGISTRY.register(
             "test_debug_block",

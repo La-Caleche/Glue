@@ -19,14 +19,6 @@ public class VoxelShaper {
 
     private final Map<Direction, VoxelShape> shapes = new HashMap<>();
 
-    public VoxelShape get(Direction direction) {
-        return shapes.get(direction);
-    }
-
-    public VoxelShape get(Axis axis) {
-        return shapes.get(axisAsFace(axis));
-    }
-
     public static VoxelShaper forHorizontal(VoxelShape shape, Direction facing) {
         return forDirectionsWithRotation(shape, facing, Plane.HORIZONTAL, new HorizontalRotationValues());
     }
@@ -43,17 +35,6 @@ public class VoxelShaper {
     public static VoxelShaper forAxis(VoxelShape shape, Axis along) {
         return forDirectionsWithRotation(shape, axisAsFace(along),
                 Arrays.asList(Direction.SOUTH, Direction.EAST, Direction.UP), new DefaultRotationValues());
-    }
-
-    public VoxelShaper withVerticalShapes(VoxelShape upShape) {
-        shapes.put(Direction.UP, upShape);
-        shapes.put(Direction.DOWN, rotatedCopy(upShape, new Vec3(180, 0, 0)));
-        return this;
-    }
-
-    public VoxelShaper withShape(VoxelShape shape, Direction facing) {
-        shapes.put(facing, shape);
-        return this;
     }
 
     public static Direction axisAsFace(Axis axis) {
@@ -126,6 +107,25 @@ public class VoxelShaper {
                 Math.max(v1.y, v2.y),
                 Math.max(v1.z, v2.z)
         );
+    }
+
+    public VoxelShape get(Direction direction) {
+        return shapes.get(direction);
+    }
+
+    public VoxelShape get(Axis axis) {
+        return shapes.get(axisAsFace(axis));
+    }
+
+    public VoxelShaper withVerticalShapes(VoxelShape upShape) {
+        shapes.put(Direction.UP, upShape);
+        shapes.put(Direction.DOWN, rotatedCopy(upShape, new Vec3(180, 0, 0)));
+        return this;
+    }
+
+    public VoxelShaper withShape(VoxelShape shape, Direction facing) {
+        shapes.put(facing, shape);
+        return this;
     }
 
     protected static class DefaultRotationValues implements Function<Direction, Vec3> {

@@ -2,6 +2,7 @@ package fr.lacaleche.glue.client.mixin;
 
 import com.google.common.collect.ImmutableList;
 import fr.lacaleche.glue.block.IHaveBigOutline;
+import fr.lacaleche.glue.client.extension.CollisionViewExtension;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.Entity;
@@ -14,8 +15,6 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
-
-import fr.lacaleche.glue.client.extension.CollisionViewExtension;
 
 @Mixin(CollisionGetter.class)
 public interface CollisionGetterMixin extends CollisionViewExtension {

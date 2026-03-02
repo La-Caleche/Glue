@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.client.registries;
+package fr.lacaleche.glue.registries;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;

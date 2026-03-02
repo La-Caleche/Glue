@@ -11,16 +11,14 @@ import net.minecraft.world.level.block.Block;
 
 import java.util.function.Function;
 
-public class ItemsRegistry {
-
-    private final String modId;
+public class ItemsRegistry extends GlueRegistry {
 
     public ItemsRegistry(String modId) {
-        this.modId = modId;
+        super(modId);
     }
 
-    private ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(this.modId, path);
+    public ItemsRegistry(String modId, Function<String, ResourceLocation> idFunction) {
+        super(modId, idFunction);
     }
 
     public Item register(ResourceKey<Item> itemKey, Item item) {
@@ -28,7 +26,7 @@ public class ItemsRegistry {
     }
 
     public Item register(ResourceLocation resourceLocation, Function<Item.Properties, Item> factory,
-            Item.Properties settings) {
+                         Item.Properties settings) {
         final ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, resourceLocation);
         Item item = factory.apply(settings.setId(itemKey));
         return register(itemKey, item);

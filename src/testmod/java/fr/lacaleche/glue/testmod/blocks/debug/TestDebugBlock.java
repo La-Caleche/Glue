@@ -2,7 +2,9 @@ package fr.lacaleche.glue.testmod.blocks.debug;
 
 import com.mojang.serialization.MapCodec;
 import fr.lacaleche.glue.block.GlueBlock;
+import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
 import fr.lacaleche.glue.shaper.GlueVoxelShape;
+import fr.lacaleche.glue.testmod.registries.TestOutlineRenderers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.BaseEntityBlock;
@@ -49,5 +51,10 @@ public class TestDebugBlock extends BaseEntityBlock implements GlueBlock {
     @Override
     public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new TestDebugBlockEntity(pos, state);
+    }
+
+    @Override
+    public GlueOutlineRenderer getOutlineRenderer() {
+        return TestOutlineRenderers.EXAMPLE_OUTLINE;
     }
 }

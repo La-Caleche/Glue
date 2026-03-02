@@ -1,16 +1,14 @@
 package fr.lacaleche.glue.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-
 import fr.lacaleche.glue.block.GlueBlock;
 import fr.lacaleche.glue.client.events.DebugEvents;
-import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
+import fr.lacaleche.glue.internal.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
 import fr.lacaleche.glue.client.transform.GlueTransformStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -31,14 +29,14 @@ import java.awt.*;
 public class BlockRenderer {
 
     public static VoxelShape getBreakParticleShape(BlockState blockState, ClientLevel world, BlockGetter blockView,
-            BlockPos blockPos) {
+                                                   BlockPos blockPos) {
         if (!(blockState.getBlock() instanceof GlueBlock))
             return null;
         return blockState.getBlock().getBlockSupportShape(blockState, blockView, blockPos);
     }
 
     public static boolean drawBlockOutline(Minecraft client, Level world, Vec3 camera, HitResult hitResult,
-            PoseStack matrices, MultiBufferSource buffers) {
+                                           PoseStack matrices, MultiBufferSource buffers) {
         if (!(hitResult instanceof BlockHitResult target) || world == null || client.player == null)
             return false;
 
@@ -46,12 +44,12 @@ public class BlockRenderer {
         final BlockState blockstate = world.getBlockState(pos);
         final Block block = blockstate.getBlock();
 
-        if (!world.getWorldBorder().isWithinBounds(pos) || !(blockstate.getBlock() instanceof GlueBlock))
+        if (!world.getWorldBorder().isWithinBounds(pos) || !(blockstate.getBlock() instanceof GlueBlock glueBlock))
             return false;
 
         final VoxelShape shape = blockstate.getShape(world, pos, CollisionContext.of(client.player));
 
-        final GlueOutlineRenderer renderer = GlueOutlineRenderers.getOutlineRenderer(block);
+        final GlueOutlineRenderer renderer = glueBlock.getOutlineRenderer();
 
         DebugEvents.BLOCK_OUTLINE.invoker().onRenderBlockOutline(client, world, pos, blockstate, camera, hitResult,
                 matrices, buffers);

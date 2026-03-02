@@ -2,6 +2,7 @@ package fr.lacaleche.glue.client.mixin;
 
 import com.google.common.collect.ImmutableList;
 import fr.lacaleche.glue.client.extension.CollisionViewExtension;
+import fr.lacaleche.glue.client.extension.EntityRaycastExtension;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.Entity;
@@ -12,8 +13,6 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.spongepowered.asm.mixin.Mixin;
-
-import fr.lacaleche.glue.client.extension.EntityRaycastExtension;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;

@@ -43,9 +43,6 @@ public class TestmodClient implements ClientModInitializer {
         TestBlocksRenderer.registerBlocksRenderer();
 
         TestOutlineRenderers.registerOutlineRenderer();
-
-        DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);
-        ParticleManagerEvents.BLOCK_BREAK.register(BlockRenderer::getBreakParticleShape);
     }
 
     public static ResourceLocation id(String path) {

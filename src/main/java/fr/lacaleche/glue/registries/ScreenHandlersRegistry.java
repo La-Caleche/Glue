@@ -9,22 +9,22 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 
-public class ScreenHandlersRegistry {
+import java.util.function.Function;
 
-  private final String modId;
+public class ScreenHandlersRegistry extends GlueRegistry {
 
-  public ScreenHandlersRegistry(String modId) {
-    this.modId = modId;
-  }
+    public ScreenHandlersRegistry(String modId) {
+        super(modId);
+    }
 
-  private ResourceLocation id(String path) {
-    return ResourceLocation.fromNamespaceAndPath(this.modId, path);
-  }
+    public ScreenHandlersRegistry(String modId, Function<String, ResourceLocation> idFunction) {
+        super(modId, idFunction);
+    }
 
-  public <T extends AbstractContainerMenu, D extends CustomPacketPayload> ExtendedScreenHandlerType<T, D> register(
-      String id, ExtendedScreenHandlerType.ExtendedFactory<T, D> factory,
-      StreamCodec<? super RegistryFriendlyByteBuf, D> packetCodec) {
-    return Registry.register(BuiltInRegistries.MENU, this.id(id),
-        new ExtendedScreenHandlerType<>(factory, packetCodec));
-  }
+    public <T extends AbstractContainerMenu, D extends CustomPacketPayload> ExtendedScreenHandlerType<T, D> register(
+            String id, ExtendedScreenHandlerType.ExtendedFactory<T, D> factory,
+            StreamCodec<? super RegistryFriendlyByteBuf, D> packetCodec
+    ) {
+        return Registry.register(BuiltInRegistries.MENU, this.id(id), new ExtendedScreenHandlerType<>(factory, packetCodec));
+    }
 }

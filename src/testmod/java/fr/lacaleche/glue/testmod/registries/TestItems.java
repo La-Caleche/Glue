@@ -7,7 +7,7 @@ import net.minecraft.world.item.Item;
 
 public class TestItems {
 
-    public static final ItemsRegistry REGISTRY = new ItemsRegistry(TestmodClient.MOD_ID);
+    public static final ItemsRegistry REGISTRY = new ItemsRegistry(TestmodClient.MOD_ID, TestmodClient::id);
 
     public static final Item TEST_DEBUG = REGISTRY.register(TestBlocks.TEST_DEBUG_BLOCK,
             new Item.Properties());

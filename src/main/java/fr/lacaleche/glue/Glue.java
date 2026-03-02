@@ -1,6 +1,11 @@
 package fr.lacaleche.glue;
 
-import fr.lacaleche.glue.data.GlueComponentTypes;
+import fr.lacaleche.glue.client.events.DrawSelectionEvents;
+import fr.lacaleche.glue.client.events.ParticleManagerEvents;
+import fr.lacaleche.glue.client.render.BlockRenderer;
+import fr.lacaleche.glue.internal.GlueComponentTypes;
+import fr.lacaleche.glue.internal.GlueOutlineRenderers;
+import fr.lacaleche.glue.internal.GlueRegistries;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
@@ -11,15 +16,20 @@ public class Glue implements ModInitializer {
     public static final String MOD_ID = "glue";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    @Override
-    public void onInitialize() {
-        GlueComponentTypes.registerProperties();
-
-        LOGGER.info("Glue library is ready !");
-    }
-
     public static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    }
+
+    @Override
+    public void onInitialize() {
+        GlueComponentTypes.registerComponentTypes();
+        GlueRegistries.bootstrap();
+        GlueOutlineRenderers.registerOutlineRenderers();
+
+        DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);
+        ParticleManagerEvents.BLOCK_BREAK.register(BlockRenderer::getBreakParticleShape);
+
+        LOGGER.info("Glue library is ready !");
     }
 
 }

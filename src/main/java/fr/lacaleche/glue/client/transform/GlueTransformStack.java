@@ -1,10 +1,9 @@
 package fr.lacaleche.glue.client.transform;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import fr.lacaleche.glue.client.extension.PoseStackExtension;
 import fr.lacaleche.glue.client.transform.flywheel.Transform;
 import fr.lacaleche.glue.client.transform.flywheel.TransformStack;
-import fr.lacaleche.glue.client.extension.PoseStackExtension;
-
 import net.minecraft.core.Direction;
 
 public interface GlueTransformStack extends Transform<GlueTransformStack>, TransformStack<GlueTransformStack> {

@@ -5,19 +5,19 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 
-public class BlockEntitiesRegistry {
+import java.util.function.Function;
 
-  private final String modId;
+public class BlockEntitiesRegistry extends GlueRegistry {
 
-  public BlockEntitiesRegistry(String modId) {
-    this.modId = modId;
-  }
+    public BlockEntitiesRegistry(String modId) {
+        super(modId);
+    }
 
-  private ResourceLocation id(String path) {
-    return ResourceLocation.fromNamespaceAndPath(this.modId, path);
-  }
+    public BlockEntitiesRegistry(String modId, Function<String, ResourceLocation> idFunction) {
+        super(modId, idFunction);
+    }
 
-  public <T extends BlockEntityType<?>> T register(String path, T blockEntityType) {
-    return Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, this.id(path), blockEntityType);
-  }
+    public <T extends BlockEntityType<?>> T register(String path, T blockEntityType) {
+        return Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, this.id(path), blockEntityType);
+    }
 }

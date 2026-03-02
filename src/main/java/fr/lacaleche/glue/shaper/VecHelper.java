@@ -4,7 +4,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.Vec3i;
-import net.minecraft.nbt.*;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.DoubleTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Mirror;
@@ -280,7 +282,7 @@ public class VecHelper {
         Vec3 sdivrcs = s.scale(1 / rcs);
         double t = qminusp.x * sdivrcs.z - qminusp.z * sdivrcs.x;
         double u = qminusp.x * rdivrcs.z - qminusp.z * rdivrcs.x;
-        return new double[] { t, u };
+        return new double[]{t, u};
     }
 
     public static double alignedDistanceToFace(Vec3 pos, BlockPos blockPos, Direction face) {

@@ -1,12 +1,12 @@
 package fr.lacaleche.glue.shaper;
 
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.List;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
+
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.List;
 
 public class Iterate {
 

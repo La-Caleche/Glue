@@ -1,7 +1,9 @@
 package fr.lacaleche.glue.math;
 
 public final class SeedUtil {
-    /** FNV-1a 64-bit (folded to int) for a quick, decent hash */
+    /**
+     * FNV-1a 64-bit (folded to int) for a quick, decent hash
+     */
     private static int fnv1a64ToInt(long... vals) {
         long h = 0xcbf29ce484222325L;
         for (long v : vals) {

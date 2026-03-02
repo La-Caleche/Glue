@@ -4,19 +4,19 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 
-public class RegistryKeys {
+import java.util.function.Function;
 
-  private final String modId;
+public class RegistryKeys extends GlueRegistry {
 
-  public RegistryKeys(String modId) {
-    this.modId = modId;
-  }
+    public RegistryKeys(String modId) {
+        super(modId);
+    }
 
-  private ResourceLocation id(String path) {
-    return ResourceLocation.fromNamespaceAndPath(this.modId, path);
-  }
+    public RegistryKeys(String modId, Function<String, ResourceLocation> idFunction) {
+        super(modId, idFunction);
+    }
 
-  public <T> ResourceKey<Registry<T>> of(String id) {
-    return ResourceKey.createRegistryKey(this.id(id));
-  }
+    public <T> ResourceKey<Registry<T>> of(String id) {
+        return ResourceKey.createRegistryKey(this.id(id));
+    }
 }

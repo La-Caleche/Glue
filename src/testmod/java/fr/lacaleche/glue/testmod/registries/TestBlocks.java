@@ -13,7 +13,7 @@ import fr.lacaleche.glue.testmod.blocks.demo.TestSpinningBlock;
 
 public class TestBlocks {
 
-    public static final BlocksRegistry REGISTRY = new BlocksRegistry(TestmodClient.MOD_ID);
+    public static final BlocksRegistry REGISTRY = new BlocksRegistry(TestmodClient.MOD_ID, TestmodClient::id);
 
     public static final Block TEST_DEBUG_BLOCK = REGISTRY.register("test_debug", TestDebugBlock::new,
             BlockBehaviour.Properties.of().noOcclusion().mapColor(MapColor.COLOR_RED).sound(SoundType.AMETHYST)

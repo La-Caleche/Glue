@@ -24,9 +24,8 @@ import java.util.function.Consumer;
 public abstract class GlueDebugRenderer implements DebugRenderer.SimpleDebugRenderer {
 
     protected static final int LEFT_PADDING = 5;
-
-    public boolean enabled = false;
     private final Map<ElementType, Map<BlockPos, Drawable>> drawables = Maps.newHashMap();
+    public boolean enabled = false;
 
     public void clear() {
         this.drawables.clear();

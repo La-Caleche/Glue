@@ -1,6 +1,6 @@
 package fr.lacaleche.glue.testmod.registries;
 
-import fr.lacaleche.glue.client.registries.BlocksRendererRegistry;
+import fr.lacaleche.glue.registries.BlocksRendererRegistry;
 import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.render.block.entity.TestDebugBlockEntityRenderer;
 import fr.lacaleche.glue.testmod.render.block.entity.TestSpinningBlockEntityRenderer;

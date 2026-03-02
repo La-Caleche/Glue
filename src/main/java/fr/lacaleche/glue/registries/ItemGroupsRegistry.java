@@ -5,19 +5,19 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTab;
 
-public class ItemGroupsRegistry {
+import java.util.function.Function;
 
-  private final String modId;
+public class ItemGroupsRegistry extends GlueRegistry {
 
-  public ItemGroupsRegistry(String modId) {
-    this.modId = modId;
-  }
+    public ItemGroupsRegistry(String modId) {
+        super(modId);
+    }
 
-  private ResourceLocation id(String path) {
-    return ResourceLocation.fromNamespaceAndPath(this.modId, path);
-  }
+    public ItemGroupsRegistry(String modId, Function<String, ResourceLocation> idFunction) {
+        super(modId, idFunction);
+    }
 
-  public CreativeModeTab register(String category, CreativeModeTab.Builder builder) {
-    return Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, this.id(category), builder.build());
-  }
+    public CreativeModeTab register(String category, CreativeModeTab.Builder builder) {
+        return Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, this.id(category), builder.build());
+    }
 }

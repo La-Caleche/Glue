@@ -2,25 +2,25 @@ package fr.lacaleche.glue.registries;
 
 import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
 import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 
-public class ParticlesRegistry {
+import java.util.function.Function;
 
-  private final String modId;
+public class ParticlesRegistry extends GlueRegistry {
 
-  public ParticlesRegistry(String modId) {
-    this.modId = modId;
-  }
+    public ParticlesRegistry(String modId) {
+        super(modId);
+    }
 
-  private ResourceLocation id(String path) {
-    return ResourceLocation.fromNamespaceAndPath(this.modId, path);
-  }
+    public ParticlesRegistry(String modId, Function<String, ResourceLocation> idFunction) {
+        super(modId, idFunction);
+    }
 
-  public SimpleParticleType register(String name) {
-    SimpleParticleType simpleParticleType = FabricParticleTypes.simple();
-    Registry.register(BuiltInRegistries.PARTICLE_TYPE, this.id(name), simpleParticleType);
-    return simpleParticleType;
-  }
+    public SimpleParticleType register(String name) {
+        SimpleParticleType simpleParticleType = FabricParticleTypes.simple();
+        Registry.register(BuiltInRegistries.PARTICLE_TYPE, this.id(name), simpleParticleType);
+        return simpleParticleType;
+    }
 }
