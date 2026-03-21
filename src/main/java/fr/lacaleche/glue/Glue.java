@@ -25,9 +25,6 @@ public class Glue implements ModInitializer {
         GlueComponentTypes.registerComponentTypes();
         GlueRegistries.bootstrap();
 
-        DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);
-        ParticleManagerEvents.BLOCK_BREAK.register(BlockRenderer::getBreakParticleShape);
-
         LOGGER.info("Glue library is ready !");
     }
 
