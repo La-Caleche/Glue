@@ -24,7 +24,6 @@ public class Glue implements ModInitializer {
     public void onInitialize() {
         GlueComponentTypes.registerComponentTypes();
         GlueRegistries.bootstrap();
-        GlueOutlineRenderers.registerOutlineRenderers();
 
         DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);
         ParticleManagerEvents.BLOCK_BREAK.register(BlockRenderer::getBreakParticleShape);
