@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.internal;
+package fr.lacaleche.glue.client.registries;
 
 import fr.lacaleche.glue.Glue;
 import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
@@ -8,7 +8,11 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 
-public class GlueRegistries {
+public class GlueClientRegistries {
+
+    public static final DefaultedRegistry<GlueOutlineRenderer> OUTLINE_RENDERERS = registerDefaulted(
+            "outline_renderer", Glue.id("base")
+    );
 
     private static <T> DefaultedRegistry<T> registerDefaulted(
             String name, ResourceLocation defaultId

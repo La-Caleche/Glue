@@ -1,10 +1,6 @@
 package fr.lacaleche.glue;
 
-import fr.lacaleche.glue.client.events.DrawSelectionEvents;
-import fr.lacaleche.glue.client.events.ParticleManagerEvents;
-import fr.lacaleche.glue.client.render.BlockRenderer;
 import fr.lacaleche.glue.internal.GlueComponentTypes;
-import fr.lacaleche.glue.internal.GlueOutlineRenderers;
 import fr.lacaleche.glue.internal.GlueRegistries;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.resources.ResourceLocation;

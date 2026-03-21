@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.internal;
+package fr.lacaleche.glue.client.registries;
 
 import fr.lacaleche.glue.Glue;
 import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
