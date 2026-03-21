@@ -29,6 +29,8 @@ dependencies {
     modImplementation(libs.fabric.loader)
     modImplementation(libs.fabric.api)
 
+    compileOnly(libs.iris)
+
     "testmodImplementation"(sourceSets.main.get().output)
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
