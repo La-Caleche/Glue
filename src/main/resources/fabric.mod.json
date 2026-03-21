@@ -13,7 +13,6 @@
         "sources": "https://gitlab.lacaleche.cc/loccamy/java/glue"
     },
     "icon": "assets/glue/icon.png",
-    "environment": "client",
     "mixins": [
         "glue.mixins.json",
         "glue.client.mixins.json"
