@@ -6,6 +6,7 @@ import fr.lacaleche.glue.client.events.DebugEvents;
 import fr.lacaleche.glue.internal.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
 import fr.lacaleche.glue.client.transform.GlueTransformStack;
+import fr.lacaleche.glue.internal.GlueRegistries;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -49,7 +50,7 @@ public class BlockRenderer {
 
         final VoxelShape shape = blockstate.getShape(world, pos, CollisionContext.of(client.player));
 
-        final GlueOutlineRenderer renderer = glueBlock.getOutlineRenderer();
+        final GlueOutlineRenderer renderer = GlueRegistries.OUTLINE_RENDERERS.getValue(glueBlock.getOutlineRenderer());
 
         DebugEvents.BLOCK_OUTLINE.invoker().onRenderBlockOutline(client, world, pos, blockstate, camera, hitResult,
                 matrices, buffers);
