@@ -4,6 +4,7 @@ plugins {
 }
 
 repositories {
+    maven("https://api.modrinth.com/maven")
 }
 
 val testmod: SourceSet by sourceSets.creating {
