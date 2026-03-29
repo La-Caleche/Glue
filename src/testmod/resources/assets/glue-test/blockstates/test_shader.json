@@ -1,0 +1,7 @@
+{
+    "variants": {
+        "": {
+            "model": "glue-test:block/test_shader"
+        }
+    }
+}

@@ -13,6 +13,8 @@ public class TestItems {
             new Item.Properties());
     public static final Item TEST_SPINNING_BLOCK = REGISTRY.register(TestBlocks.TEST_SPINNING_BLOCK,
             new Item.Properties());
+    public static final Item TEST_SHADER_BLOCK = REGISTRY.register(TestBlocks.TEST_SHADER_BLOCK,
+            new Item.Properties());
 
     public static final Item TEST_COMPONENT_ITEM = REGISTRY.register("test_component",
             TestComponentItem::new, new Item.Properties());

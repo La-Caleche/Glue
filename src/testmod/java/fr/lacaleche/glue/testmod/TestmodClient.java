@@ -6,6 +6,7 @@ import fr.lacaleche.glue.client.events.DrawSelectionEvents;
 import fr.lacaleche.glue.client.events.ParticleManagerEvents;
 import fr.lacaleche.glue.client.render.BlockRenderer;
 import fr.lacaleche.glue.testmod.registries.*;
+import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
@@ -43,6 +44,10 @@ public class TestmodClient implements ClientModInitializer {
         TestBlocksRenderer.registerBlocksRenderer();
 
         TestOutlineRenderers.registerOutlineRenderer();
+
+        // Shader system
+        TestShaders.registerShaders();
+        TestPostShaderHandler.register();
     }
 
     public static ResourceLocation id(String path) {
@@ -58,3 +63,4 @@ public class TestmodClient implements ClientModInitializer {
         }
     }
 }
+

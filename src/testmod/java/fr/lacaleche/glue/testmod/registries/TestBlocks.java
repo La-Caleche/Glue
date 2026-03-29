@@ -10,6 +10,7 @@ import net.minecraft.world.level.material.MapColor;
 import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.blocks.debug.TestDebugBlock;
 import fr.lacaleche.glue.testmod.blocks.demo.TestSpinningBlock;
+import fr.lacaleche.glue.testmod.blocks.demo.TestShaderBlock;
 
 public class TestBlocks {
 
@@ -20,6 +21,9 @@ public class TestBlocks {
                     .requiresCorrectToolForDrops().strength(1.5F, 6.0F));
 
     public static final Block TEST_SPINNING_BLOCK = REGISTRY.register("test_spinning", TestSpinningBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK).noOcclusion().isViewBlocking(Blocks::never));
+
+    public static final Block TEST_SHADER_BLOCK = REGISTRY.register("test_shader", TestShaderBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK).noOcclusion().isViewBlocking(Blocks::never));
 
     public static void registerBlocks() {

@@ -1,3 +1,4 @@
 {
-  "itemGroup.glue-test.test-group": "Test group"
+  "itemGroup.glue-test.test-group": "Test group",
+  "block.glue-test.test_shader": "Shader Test Block"
 }

@@ -1,3 +1,6 @@
 accessWidener v2 named
 
 accessible method net/minecraft/world/level/block/state/BlockBehaviour getBlockSupportShape (Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/phys/shapes/VoxelShape;
+
+# Shader rendering: access to projection matrix computation
+accessible method net/minecraft/client/renderer/GameRenderer getFov (Lnet/minecraft/client/Camera;FZ)F

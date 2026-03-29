@@ -1,0 +1,17 @@
+{
+    "targets": {},
+    "passes": [
+        {
+            "vertex_shader": "minecraft:core/blit_screen",
+            "fragment_shader": "glue-test:post/grayscale",
+            "inputs": [
+                {
+                    "sampler_name": "DiffuseSampler",
+                    "target": "minecraft:main",
+                    "bilinear": false
+                }
+            ],
+            "output": "minecraft:main"
+        }
+    ]
+}
