@@ -6,6 +6,7 @@ import fr.lacaleche.glue.client.events.DrawSelectionEvents;
 import fr.lacaleche.glue.client.events.ParticleManagerEvents;
 import fr.lacaleche.glue.client.render.BlockRenderer;
 import fr.lacaleche.glue.testmod.registries.*;
+import fr.lacaleche.glue.testmod.render.TestGuiOverlayRenderer;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.resources.ResourceLocation;
@@ -48,6 +49,7 @@ public class TestmodClient implements ClientModInitializer {
         // Shader system
         TestShaders.registerShaders();
         TestPostShaderHandler.register();
+        TestGuiOverlayRenderer.register();
     }
 
     public static ResourceLocation id(String path) {

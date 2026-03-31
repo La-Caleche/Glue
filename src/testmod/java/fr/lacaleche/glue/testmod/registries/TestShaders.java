@@ -37,12 +37,14 @@ public class TestShaders {
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .withCull(false)
                     .withDepthWrite(false)
-                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS),
+            "BLOCK_TRANSLUCENT"
     );
 
     /**
      * GUI overlay shader pipeline.
-     * Uses POSITION_TEX_COLOR format with translucent blend for HUD elements.
+     * Uses POSITION_COLOR format with translucent blend for HUD elements.
+     * Compatible with {@code guiGraphics.fill()} which emits position + color.
      */
     public static final RenderPipeline GRADIENT_GUI = CORE.register("gradient_gui",
             RenderPipelines.MATRICES_PROJECTION_SNIPPET,
@@ -51,7 +53,7 @@ public class TestShaders {
                     .withFragmentShader(TestmodClient.id("core/gradient_gui"))
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .withDepthWrite(false)
-                    .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
     );
 
     /**

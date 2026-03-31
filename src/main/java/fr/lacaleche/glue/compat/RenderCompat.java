@@ -7,33 +7,29 @@ import net.fabricmc.loader.api.FabricLoader;
 /**
  * Rendering compatibility layer for Iris/Oculus shader mods.
  * <p>
- * Provides two mechanisms for Iris compatibility:
+ * Provides:
  * <ul>
- *   <li><b>{@link #assignIrisProgram}</b> — Registers a pipeline so Iris applies the shader pack's
- *       rendering to it (for mod-added blocks/entities that should look vanilla under shaders).</li>
- *   <li><b>{@link #withVanillaRendering}</b> — Temporarily switches to vanilla rendering for a
- *       specific draw call (for custom visual effects that should NOT be affected by shader packs).
- *       This uses Iris's {@code VanillaRenderingPipeline} fallback, which is the designed mechanism
- *       for mod rendering that has its own shader code.</li>
+ *   <li><b>{@link #assignIrisProgram}</b> — Registers a pipeline with an Iris program category
+ *       so shader packs apply correct rendering (for mod-added blocks/entities).</li>
+ *   <li><b>{@link #isIrisShaderEnabled()}</b> — Checks if a shader pack is active.</li>
+ *   <li><b>{@link #isRenderingShadowPass()}</b> — Detects shadow passes for draw deduplication.</li>
  * </ul>
+ * <p>
+ * Custom visual effects with their own GLSL code bypass Iris entirely via
+ * {@link fr.lacaleche.glue.client.shader.GlDirectRenderer} (raw OpenGL).
  */
 public class RenderCompat {
 
+    /** Whether Iris or Oculus is loaded in the mod environment. */
     public static final boolean HAS_IRIS = FabricLoader.getInstance().isModLoaded("iris")
             || FabricLoader.getInstance().isModLoaded("oculus");
 
-    private static boolean bypassInitialized = false;
-    private static boolean bypassReady = false;
-
     /**
-     * Registers a custom pipeline with Iris so it renders correctly with shader packs.
+     * Registers a custom pipeline with Iris so shader packs render it correctly.
      * <p>
-     * This maps the pipeline to an Iris program category (e.g. "TRANSLUCENT") so that
-     * Iris's shader pack programs are applied. Use this for rendering that should
-     * look like vanilla under shader packs (new block/entity types).
-     * <p>
-     * Do NOT use this for custom visual effects with their own shader code —
-     * use {@link #withVanillaRendering} instead.
+     * Maps the pipeline to an Iris program category (e.g. "TRANSLUCENT") so that
+     * shader pack programs are applied. Use for rendering that should look correct
+     * under shader packs (new block/entity types).
      *
      * @param pipeline    The custom pipeline to register
      * @param programName The Iris program category (e.g. "BASIC", "TRANSLUCENT")
@@ -51,50 +47,42 @@ public class RenderCompat {
     }
 
     /**
-     * Executes a rendering callback using vanilla pipeline compilation, bypassing
-     * Iris's shader pack overrides.
-     * <p>
-     * This is the correct approach for custom shader effects that have their own GLSL code
-     * and should NOT be replaced by shader pack programs. Internally, it temporarily sets
-     * Iris's active pipeline to {@code VanillaRenderingPipeline} — this is Iris's designed
-     * fallback mechanism for mod rendering.
-     *
-     * @param renderAction The rendering code to execute with vanilla pipeline
-     */
-    public static void withVanillaRendering(Runnable renderAction) {
-        if (!HAS_IRIS || !ensureBypassReady()) {
-            renderAction.run();
-            return;
-        }
-
-        try {
-            IrisProxy.withVanillaRendering(renderAction);
-        } catch (Exception e) {
-            Glue.LOGGER.warn("[Glue] Iris vanilla rendering bypass failed, rendering without bypass", e);
-            renderAction.run();
-        }
-    }
-
-    /**
      * Checks if an Iris/Oculus shader pack is currently active.
      */
     public static boolean isIrisShaderEnabled() {
         return HAS_IRIS && IrisProxy.isIrisShaderEnabled();
     }
 
-    private static boolean ensureBypassReady() {
-        if (bypassInitialized) return bypassReady;
-        bypassInitialized = true;
+    /**
+     * Checks if Iris is currently rendering the shadow pass.
+     * <p>
+     * During shadow passes, block entities are re-rendered from the light's perspective
+     * to generate shadow maps. Custom rendering should skip shadow passes to avoid
+     * ghost duplicates at incorrect positions.
+     *
+     * @return true if in shadow pass, false otherwise (or if Iris is not loaded)
+     */
+    public static boolean isRenderingShadowPass() {
+        return HAS_IRIS && IrisProxy.isRenderingShadowPass();
+    }
 
-        try {
-            bypassReady = IrisProxy.initBypass();
-            if (bypassReady) {
-                Glue.LOGGER.info("[Glue] Iris vanilla rendering bypass ready.");
-            }
-        } catch (Exception e) {
-            Glue.LOGGER.warn("[Glue] Iris bypass setup failed.", e);
-            bypassReady = false;
+    /**
+     * Executes a rendering action with Iris's pipeline override bypassed.
+     * <p>
+     * When Iris shaders are active, custom pipelines (e.g. post-processing shaders)
+     * would be intercepted by Iris's {@code redirectIrisProgram} mixin, causing
+     * "Missing program" errors. This method temporarily sets Iris's bypass flag
+     * so the vanilla pipeline compilation proceeds normally.
+     * <p>
+     * Safe to call without Iris — the action runs directly.
+     *
+     * @param action The rendering code to execute with bypass enabled
+     */
+    public static void withIrisBypass(Runnable action) {
+        if (!HAS_IRIS) {
+            action.run();
+            return;
         }
-        return bypassReady;
+        IrisProxy.withBypass(action);
     }
 }

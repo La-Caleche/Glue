@@ -5,6 +5,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
@@ -62,19 +63,26 @@ class GlDirectRenderer {
      * Draws a colored quad using raw OpenGL, completely bypassing MC's pipeline system.
      * This is immune to all Iris/Sodium hooks.
      *
-     * @param mvpMatrix The combined Model-View-Projection matrix
-     * @param vertices  Flat array of vertex positions (x,y,z per vertex)
-     * @param colors    Flat array of vertex colors (r,g,b,a per vertex)
-     * @param vertexCount Number of vertices
+     * @param mvpMatrix    The combined Model-View-Projection matrix
+     * @param vertices     Flat array of vertex positions (x,y,z per vertex)
+     * @param colors       Flat array of vertex colors (r,g,b,a per vertex)
+     * @param vertexCount  Number of vertices
+     * @param useDepthTest If true, the quad is occluded by closer geometry.
+     *                     Use true for immediate draws, false for deferred (depth buffer is stale).
      */
-    static void drawQuad(Matrix4f mvpMatrix, float[] vertices, float[] colors, int vertexCount) {
+    static void drawQuad(Matrix4f mvpMatrix, float[] vertices, float[] colors, int vertexCount, boolean useDepthTest) {
         int program = getOrCreateProgram("glue_position_color");
 
-        // Save GL state
+        // Save GL state — including FBO binding which Iris may have changed
         int previousProgram = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+        int previousFbo = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
         boolean blendWasEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
+        int previousBlendSrc = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
+        int previousBlendDst = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
+        boolean depthTestWasEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
         boolean depthWriteWas = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
         boolean cullWasEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        int previousDepthFunc = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
         int previousVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
 
         GL20.glUseProgram(program);
@@ -115,15 +123,20 @@ class GlDirectRenderer {
             GL20.glVertexAttribPointer(colorAttrib, 4, GL11.GL_FLOAT, false, 0, 0);
         }
 
-        // Disable depth testing so quad renders on top of everything
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        // Depth testing: enabled for immediate draws (occlusion by world geometry),
+        // disabled for deferred draws (depth buffer is stale at LAST event time)
+        if (useDepthTest) {
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
+            GL11.glDepthFunc(GL11.GL_LEQUAL);
+        } else {
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+        }
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GL11.glDepthMask(false);
         GL11.glDisable(GL11.GL_CULL_FACE);
 
         // Draw as triangle fan (4 vertices = quad)
-        // GL_QUADS is deprecated in core profile, use triangle fan instead
         GL11.glDrawArrays(GL11.GL_TRIANGLE_FAN, 0, vertexCount);
 
         // Clean up VBO/VAO
@@ -132,11 +145,18 @@ class GlDirectRenderer {
         GL15.glDeleteBuffers(colorVbo);
         GL30.glDeleteVertexArrays(vao);
 
-        // Restore GL state
+        // Restore GL state (including Iris FBO)
         GL20.glUseProgram(previousProgram);
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, previousFbo);
+        if (depthTestWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST); else GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glDepthFunc(previousDepthFunc);
         GL11.glDepthMask(depthWriteWas);
-        if (!blendWasEnabled) GL11.glDisable(GL11.GL_BLEND);
+        if (blendWasEnabled) {
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(previousBlendSrc, previousBlendDst);
+        } else {
+            GL11.glDisable(GL11.GL_BLEND);
+        }
         if (cullWasEnabled) GL11.glEnable(GL11.GL_CULL_FACE);
     }
 

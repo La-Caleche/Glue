@@ -3,12 +3,15 @@ package fr.lacaleche.glue.client.shader;
 import com.mojang.blaze3d.framegraph.FrameGraphBuilder;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
+import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 
@@ -29,8 +32,11 @@ import java.util.Set;
 @Environment(EnvType.CLIENT)
 public class PostShaderHandle {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("PostShaderHandle");
+
     private final ResourceLocation id;
     private final Set<ResourceLocation> externalTargets;
+    private boolean warnedOnce = false;
 
     /**
      * @param id              The post effect resource location (maps to {@code post_effect/<id>.json})
@@ -68,16 +74,26 @@ public class PostShaderHandle {
 
     /**
      * Applies this post-processing chain to the given render target.
-     * This is a convenience method that loads the chain and processes it immediately.
+     * <p>
+     * Automatically bypasses Iris's pipeline override so the post shader
+     * compiles with vanilla GLSL instead of being intercepted by shader packs.
+     * After processing, rebinds the main render target to prevent leaving
+     * Iris's framebuffer state corrupted.
      *
      * @param target             The render target to process (typically the main framebuffer)
      * @param resourceAllocator  The resource allocator for temporary resources
      */
     public void apply(RenderTarget target, GraphicsResourceAllocator resourceAllocator) {
         PostChain chain = this.get();
-        if (chain != null) {
-            chain.process(target, resourceAllocator);
+        if (chain == null) {
+            if (!warnedOnce) {
+                LOGGER.warn("[Glue] Post chain '{}' is null — shader may have failed to compile or resource is missing", this.id);
+                warnedOnce = true;
+            }
+            return;
         }
+
+        RenderCompat.withIrisBypass(() -> chain.process(target, resourceAllocator));
     }
 
     /**
@@ -96,3 +112,4 @@ public class PostShaderHandle {
         }
     }
 }
+

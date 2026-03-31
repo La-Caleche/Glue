@@ -3,8 +3,8 @@ package fr.lacaleche.glue.testmod.render.block.entity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import fr.lacaleche.glue.client.shader.ShaderRenderer;
+import fr.lacaleche.glue.compat.RenderCompat;
 import fr.lacaleche.glue.testmod.blocks.demo.TestShaderBlockEntity;
-import fr.lacaleche.glue.testmod.registries.TestShaders;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -25,9 +25,22 @@ public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestSh
     public TestShaderBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
     }
 
+    /**
+     * Must return true because the quad renders 1.5+ blocks above the base block.
+     * Without this, MC culls the block entity when the block itself is off-screen
+     * (e.g. when looking up at the floating quad from close range).
+     */
+    @Override
+    public boolean shouldRenderOffScreen() {
+        return true;
+    }
+
     @Override
     public void render(TestShaderBlockEntity entity, float partialTick, PoseStack poseStack,
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay, Vec3 cameraPos) {
+        // Skip during Iris shadow pass — raw GL draws would create ghost quads
+        // at incorrect positions in the shadow map
+        if (RenderCompat.isRenderingShadowPass()) return;
         float time = (entity.getTicks() + partialTick) / 20f;
         float progress = entity.getAnimationProgress();
 
@@ -60,9 +73,8 @@ public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestSh
         float g4 = hsvG(hueShift + 0.75f);
         float b4 = hsvB(hueShift + 0.75f);
 
-        // Render the quad using ShaderRenderer with the world gradient pipeline
-        ShaderRenderer.world(TestShaders.GRADIENT_WORLD)
-                .format(ShaderRenderer.Format.POSITION_COLOR)
+        // Render the quad using raw GL via ShaderRenderer (Iris-compatible)
+        ShaderRenderer.world()
                 .matrix(poseStack.last().pose())
                 .position(-0.5f, -0.5f, 0f)
                 .size(1f, 1f)

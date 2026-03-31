@@ -1,4 +1,8 @@
 {
   "itemGroup.glue-test.test-group": "Test group",
-  "block.glue-test.test_shader": "Shader Test Block"
+  "block.glue-test.test_shader": "Shader Test Block",
+  "key.categories.glue_test": "Glue Test",
+  "key.glue-test.toggle_raycast_debug": "Toggle Raycast Debug",
+  "key.glue-test.toggle_blur": "Toggle Blur Post-Effect",
+  "key.glue-test.toggle_gui_overlay": "Toggle GUI Overlay"
 }
