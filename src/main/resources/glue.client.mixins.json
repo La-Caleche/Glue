@@ -18,6 +18,8 @@
     "GuiMixin",
     "LevelRendererMixin",
     "ParticleEngineMixin",
+    "PostChainAccessor",
+    "PostPassAccessor",
     "PoseStackMixin"
   ]
 }

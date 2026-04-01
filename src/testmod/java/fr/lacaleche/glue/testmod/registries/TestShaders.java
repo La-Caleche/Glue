@@ -17,7 +17,7 @@ import net.minecraft.client.renderer.RenderPipelines;
  * <ul>
  *   <li>A core shader pipeline for world-space gradient quad rendering</li>
  *   <li>A core shader pipeline for GUI/HUD overlay rendering</li>
- *   <li>Post-processing shaders (grayscale, blur)</li>
+ *   <li>Post-processing shaders (grayscale, blur, shattered screen)</li>
  * </ul>
  */
 public class TestShaders {
@@ -67,6 +67,13 @@ public class TestShaders {
      * Loaded from {@code post_effect/glue-test/blur.json}.
      */
     public static final PostShaderHandle BLUR = POST.register("blur");
+
+    /**
+     * Post-processing: Shattered screen effect.
+     * Voronoi-based crack pattern with chromatic aberration.
+     * Loaded from {@code post_effect/glue-test/shattered_screen.json}.
+     */
+    public static final PostShaderHandle SHATTERED_SCREEN = POST.register("shattered_screen");
 
     public static void registerShaders() {
         TestmodClient.LOGGER.info("Registering test shaders ({} core, {} post)",

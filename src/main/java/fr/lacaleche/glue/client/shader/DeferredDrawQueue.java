@@ -18,10 +18,10 @@ import java.util.List;
  * <ul>
  *   <li><b>Iris shaders active</b> — Defers draw commands to {@code WorldRenderEvents.LAST}
  *       to render after all world passes (terrain, entities, particles, clouds, weather).
- *       This prevents cloud occlusion and shadow pass ghost duplicates.</li>
+ *       Draws to whatever FBO Iris has currently bound at LAST event time.</li>
  *   <li><b>Iris shaders inactive (vanilla)</b> — Draws immediately during block entity
- *       rendering. The vanilla frame graph pipeline has different framebuffer bindings
- *       at {@code LAST} event time, so deferred drawing would render to the wrong target.</li>
+ *       rendering. The vanilla frame graph pipeline has correct framebuffer bindings
+ *       during rendering, so deferred drawing is not needed.</li>
  * </ul>
  * <p>
  * Must be initialized once during client startup via {@link #init()}.
@@ -61,7 +61,7 @@ public class DeferredDrawQueue {
         }
 
         if (RenderCompat.isIrisShaderEnabled()) {
-            // Defer: Iris manages framebuffers, and we need to draw after clouds
+            // Defer: Iris manages framebuffers, need to draw after world compositing
             if (debugCounter++ % 600 == 0) LOGGER.info("[DEBUG] Enqueuing deferred draw (Iris active), queue size: {}", pendingDraws.size());
             pendingDraws.add(new DrawCommand(new Matrix4f(mvp), vertices.clone(), colors.clone(), vertexCount));
         } else {
@@ -73,9 +73,11 @@ public class DeferredDrawQueue {
 
     /**
      * Flushes all deferred draw commands. Only used when Iris shaders are active.
-     * Depth test ON: at LAST event time, the depth buffer contains all world geometry
+     * <p>
+     * Draws to whatever FBO Iris has currently bound at LAST event time.
+     * Depth test is ON: at LAST event time, the depth buffer contains all world geometry
      * and is valid for occlusion testing. Depth writing is off (set in drawQuad),
-     * so the depth buffer is read-only — quads behind world geometry are correctly hidden.
+     * so the depth buffer is read-only.
      */
     private static void flush() {
         if (pendingDraws.isEmpty()) return;

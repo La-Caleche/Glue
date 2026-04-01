@@ -38,6 +38,17 @@ public class TestKeybinds {
                 }
             });
 
+    public static final KeyMapping TOGGLE_SHATTERED = KEYBINDINGS.register(
+            "toggle_shattered",
+            "key.categories.glue_test", GLFW.GLFW_KEY_V, client -> {
+                TestPostShaderHandler.triggerShattered();
+                if (client.player != null) {
+                    client.player.displayClientMessage(
+                            Component.literal("§7[Glue] §fShattered screen: §aTriggered!"),
+                            true);
+                }
+            });
+
     public static void registerKeybinds() {
     }
 }

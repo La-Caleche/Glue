@@ -1,0 +1,70 @@
+{
+    "targets": {
+        "swap": {}
+    },
+    "passes": [
+        {
+            "vertex_shader": "minecraft:post/blit",
+            "fragment_shader": "glue-test:post/shattered_screen",
+            "inputs": [
+                {
+                    "sampler_name": "In",
+                    "target": "minecraft:main",
+                    "bilinear": true
+                },
+                {
+                    "sampler_name": "Data",
+                    "location": "glue-test:broken_screen_data",
+                    "width": 1920,
+                    "height": 1080,
+                    "bilinear": true
+                }
+            ],
+            "output": "swap",
+            "uniforms": {
+                "ShatteredConfig": [
+                    {
+                        "name": "Intensity",
+                        "type": "float",
+                        "value": 1.0
+                    },
+                    {
+                        "name": "MaxOffset",
+                        "type": "float",
+                        "value": 0.03
+                    },
+                    {
+                        "name": "ChromaticStrength",
+                        "type": "float",
+                        "value": 0.5
+                    },
+                    {
+                        "name": "FlashIntensity",
+                        "type": "float",
+                        "value": 0.0
+                    }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:post/blit",
+            "fragment_shader": "minecraft:post/blit",
+            "inputs": [
+                {
+                    "sampler_name": "In",
+                    "target": "swap"
+                }
+            ],
+            "output": "minecraft:main",
+            "uniforms": {
+                "BlitConfig": [
+                    {
+                        "name": "ColorModulate",
+                        "type": "vec4",
+                        "value": [ 1.0, 1.0, 1.0, 1.0 ]
+                    }
+                ]
+            }
+        }
+    ]
+}
