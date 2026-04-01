@@ -18,11 +18,11 @@ public class TestItemGroups {
                         entries.accept(TestItems.TEST_DEBUG);
                         entries.accept(TestItems.TEST_COMPONENT_ITEM);
                         entries.accept(TestItems.TEST_SPINNING_BLOCK);
+                        entries.accept(TestItems.TEST_SHADER_BLOCK);
                     })
     );
 
     public static void registerItemGroups() {
-        TestmodClient.LOGGER.info("Registering outline renderers");
+        TestmodClient.LOGGER.info("Registering item groups");
     }
-
 }

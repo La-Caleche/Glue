@@ -3,7 +3,6 @@ package fr.lacaleche.glue.testmod.render.block.entity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import fr.lacaleche.glue.client.transform.GlueTransformStack;
 import fr.lacaleche.glue.testmod.blocks.demo.TestSpinningBlockEntity;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -12,10 +11,11 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-
 import net.minecraft.world.phys.Vec3;
 
 public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<TestSpinningBlockEntity> {
+
+    private static final ItemStack DISPLAY_ITEM = new ItemStack(Items.DIAMOND_SWORD);
 
     private final ItemRenderer itemRenderer;
 
@@ -26,9 +26,9 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
     @Override
     public void render(TestSpinningBlockEntity entity, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay, Vec3 cameraPos) {
+        entity.tick();
 
-        final ItemStack stack = new ItemStack(Items.DIAMOND_SWORD);
-        float time = entity.getTick() + tickDelta;
+        float time = entity.getTicks() + tickDelta;
 
         GlueTransformStack.of(matrices).pushPose()
                 .rotateCentered((float) Math.toRadians(time * 2), Direction.UP)
@@ -37,7 +37,7 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
                 .translate(0, Math.sin(time * 0.025) * 0.1, 0)
                 .then(() -> {
                     this.itemRenderer.renderStatic(
-                            stack,
+                            DISPLAY_ITEM,
                             ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
                             light,
                             overlay,

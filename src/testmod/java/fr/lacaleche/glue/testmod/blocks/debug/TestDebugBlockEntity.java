@@ -7,14 +7,17 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class TestDebugBlockEntity extends BlockEntity {
 
-    private long tick = 0;
+    private long ticks = 0;
 
     public TestDebugBlockEntity(BlockPos pos, BlockState state) {
         super(TestBlockEntities.DEBUG_BLOCK_ENTITY, pos, state);
     }
 
-    public long getTick() {
-        return tick++;
+    public void tick() {
+        this.ticks++;
     }
 
+    public long getTicks() {
+        return this.ticks;
+    }
 }

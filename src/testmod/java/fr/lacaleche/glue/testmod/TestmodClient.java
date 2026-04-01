@@ -2,9 +2,6 @@ package fr.lacaleche.glue.testmod;
 
 import fr.lacaleche.glue.client.debug.DebugManager;
 import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
-import fr.lacaleche.glue.client.events.DrawSelectionEvents;
-import fr.lacaleche.glue.client.events.ParticleManagerEvents;
-import fr.lacaleche.glue.client.render.BlockRenderer;
 import fr.lacaleche.glue.testmod.registries.*;
 import fr.lacaleche.glue.testmod.render.TestGuiOverlayRenderer;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
@@ -38,6 +35,7 @@ public class TestmodClient implements ClientModInitializer {
 
         TestBlocks.registerBlocks();
         TestItems.registerItems();
+        TestDataComponents.registerDataComponents();
 
         TestItemGroups.registerItemGroups();
 
@@ -65,4 +63,3 @@ public class TestmodClient implements ClientModInitializer {
         }
     }
 }
-

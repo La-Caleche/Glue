@@ -7,13 +7,17 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class TestSpinningBlockEntity extends BlockEntity {
 
-    public int ticks = 0;
+    private int ticks = 0;
 
     public TestSpinningBlockEntity(BlockPos pos, BlockState blockState) {
         super(TestBlockEntities.SPINNING_BLOCK_ENTITY, pos, blockState);
     }
 
-    public int getTick() {
-        return this.ticks++;
+    public void tick() {
+        this.ticks++;
+    }
+
+    public int getTicks() {
+        return this.ticks;
     }
 }

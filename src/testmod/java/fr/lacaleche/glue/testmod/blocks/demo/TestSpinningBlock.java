@@ -1,5 +1,6 @@
 package fr.lacaleche.glue.testmod.blocks.demo;
 
+import com.mojang.serialization.MapCodec;
 import fr.lacaleche.glue.block.GlueBlock;
 import fr.lacaleche.glue.block.IHaveBigOutline;
 import net.minecraft.core.BlockPos;
@@ -9,8 +10,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-
-import com.mojang.serialization.MapCodec;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;

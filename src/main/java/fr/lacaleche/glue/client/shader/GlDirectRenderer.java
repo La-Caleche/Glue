@@ -16,11 +16,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Raw OpenGL renderer that bypasses MC's entire pipeline system AND Iris's hooks.
- * <p>
- * Compiles and caches GL shader programs from inline GLSL, then renders quads
- * using direct GL calls. None of GlDevice, GlRenderPass, GlCommandEncoder,
- * DynamicUniforms, or their Iris mixins are involved.
+ * Raw OpenGL renderer that bypasses MC's pipeline and all Iris hooks.
+ * Compiles inline GLSL, caches programs, renders quads via direct GL calls.
  */
 @Environment(EnvType.CLIENT)
 class GlDirectRenderer {
@@ -59,21 +56,9 @@ class GlDirectRenderer {
             }
             """;
 
-    /**
-     * Draws a colored quad using raw OpenGL, completely bypassing MC's pipeline system.
-     * This is immune to all Iris/Sodium hooks.
-     *
-     * @param mvpMatrix    The combined Model-View-Projection matrix
-     * @param vertices     Flat array of vertex positions (x,y,z per vertex)
-     * @param colors       Flat array of vertex colors (r,g,b,a per vertex)
-     * @param vertexCount  Number of vertices
-     * @param useDepthTest If true, the quad is occluded by closer geometry.
-     *                     Use true for immediate draws, false for deferred (depth buffer is stale).
-     */
     static void drawQuad(Matrix4f mvpMatrix, float[] vertices, float[] colors, int vertexCount, boolean useDepthTest) {
         int program = getOrCreateProgram("glue_position_color");
 
-        // Save GL state — including FBO binding which Iris may have changed
         int previousProgram = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
         int previousFbo = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
         boolean blendWasEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
@@ -87,7 +72,6 @@ class GlDirectRenderer {
 
         GL20.glUseProgram(program);
 
-        // Set MVP uniform
         int mvpLoc = GL20.glGetUniformLocation(program, "MVP");
         if (mvpLoc >= 0) {
             try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -97,11 +81,9 @@ class GlDirectRenderer {
             }
         }
 
-        // Set up VAO/VBO
         int vao = GL30.glGenVertexArrays();
         GL30.glBindVertexArray(vao);
 
-        // Position VBO
         int posVbo = GL15.glGenBuffers();
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, posVbo);
         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, vertices, GL15.GL_STREAM_DRAW);
@@ -112,7 +94,6 @@ class GlDirectRenderer {
             GL20.glVertexAttribPointer(posAttrib, 3, GL11.GL_FLOAT, false, 0, 0);
         }
 
-        // Color VBO
         int colorVbo = GL15.glGenBuffers();
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, colorVbo);
         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, colors, GL15.GL_STREAM_DRAW);
@@ -123,8 +104,6 @@ class GlDirectRenderer {
             GL20.glVertexAttribPointer(colorAttrib, 4, GL11.GL_FLOAT, false, 0, 0);
         }
 
-        // Depth testing: enabled for immediate draws (occlusion by world geometry),
-        // disabled for deferred draws (depth buffer is stale at LAST event time)
         if (useDepthTest) {
             GL11.glEnable(GL11.GL_DEPTH_TEST);
             GL11.glDepthFunc(GL11.GL_LEQUAL);
@@ -136,16 +115,13 @@ class GlDirectRenderer {
         GL11.glDepthMask(false);
         GL11.glDisable(GL11.GL_CULL_FACE);
 
-        // Draw as triangle fan (4 vertices = quad)
         GL11.glDrawArrays(GL11.GL_TRIANGLE_FAN, 0, vertexCount);
 
-        // Clean up VBO/VAO
         GL30.glBindVertexArray(previousVao);
         GL15.glDeleteBuffers(posVbo);
         GL15.glDeleteBuffers(colorVbo);
         GL30.glDeleteVertexArrays(vao);
 
-        // Restore GL state (including Iris FBO)
         GL20.glUseProgram(previousProgram);
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, previousFbo);
         if (depthTestWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST); else GL11.glDisable(GL11.GL_DEPTH_TEST);
@@ -160,21 +136,13 @@ class GlDirectRenderer {
         if (cullWasEnabled) GL11.glEnable(GL11.GL_CULL_FACE);
     }
 
-    /**
-     * Gets the current projection matrix by reconstructing it from MC's GameRenderer
-     * using the effective FOV (includes sprinting, potions, etc.).
-     * This avoids reading from Iris-modified UBO buffers.
-     */
     static Matrix4f getProjectionMatrix() {
         Minecraft mc = Minecraft.getInstance();
-        // Use effective FOV which includes modifiers like sprinting, potions, etc.
         float fov = mc.options.fov().get().floatValue();
         try {
-            // getFov returns the effective FOV accounting for all modifiers
-            fov = mc.gameRenderer.getFov(mc.gameRenderer.getMainCamera(), mc.getDeltaTracker().getGameTimeDeltaPartialTick(true), true);
-        } catch (Exception e) {
-            // Fall back to base FOV setting if getFov fails
-        }
+            fov = mc.gameRenderer.getFov(mc.gameRenderer.getMainCamera(),
+                    mc.getDeltaTracker().getGameTimeDeltaPartialTick(true), true);
+        } catch (Exception ignored) {}
         return mc.gameRenderer.getProjectionMatrix(fov);
     }
 
@@ -218,9 +186,6 @@ class GlDirectRenderer {
         return shader;
     }
 
-    /**
-     * Cleanup cached programs. Should be called on resource reload.
-     */
     static void cleanup() {
         for (int program : programCache.values()) {
             GL20.glDeleteProgram(program);

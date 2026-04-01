@@ -7,10 +7,12 @@ import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 public class FramebufferHelper {
+
     public static RenderTarget resizeOrCreate(RenderTarget framebuffer, int width, int height) {
         if (framebuffer == null) {
-            framebuffer = new TextureTarget("SceneRenderer", width, height, true);
-        } else if (framebuffer.width != width || framebuffer.height != height) {
+            return new TextureTarget("SceneRenderer", width, height, true);
+        }
+        if (framebuffer.width != width || framebuffer.height != height) {
             framebuffer.resize(width, height);
         }
         return framebuffer;
@@ -32,17 +34,8 @@ public class FramebufferHelper {
     }
 
     /**
-     * Gets the GL framebuffer object (FBO) ID for a render target.
-     * <p>
-     * Uses the same mechanism as Iris's {@code iris$bindFramebuffer()} — obtains the FBO
-     * from the color texture's {@code GlTexture.getFbo()} method, which creates or retrieves
-     * the FBO associated with the color+depth texture pair.
-     * <p>
-     * This is critical for Iris compatibility: Iris may redirect the main render target's
-     * framebuffer, so we must use the SAME FBO that Iris uses when we draw raw GL.
-     *
-     * @param target The render target
-     * @return The GL FBO ID, or -1 if the texture is not a GlTexture
+     * Gets the GL FBO ID for a render target via its color texture.
+     * Uses the same mechanism as Iris's {@code iris$bindFramebuffer()}.
      */
     public static int getFramebufferId(RenderTarget target) {
         if (target.getColorTexture() instanceof GlTexture glTexture) {
@@ -52,4 +45,3 @@ public class FramebufferHelper {
         return -1;
     }
 }
-
