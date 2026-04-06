@@ -13,13 +13,18 @@
     "EntityMixin"
   ],
   "client": [
+    "CompositeRenderTypeAccessor",
+    "CompositeStateAccessor",
     "DebugRendererMixin",
     "DebugScreenOverlayMixin",
+    "GlueDrawBufferFixMixin",
+    "GluePostCompositeMixin",
     "GuiMixin",
     "LevelRendererMixin",
     "ParticleEngineMixin",
     "PostChainAccessor",
     "PostPassAccessor",
-    "PoseStackMixin"
+    "PoseStackMixin",
+    "TextureStateShardAccessor"
   ]
 }

@@ -25,24 +25,70 @@ public class DeferredDrawQueue {
         WorldRenderEvents.LAST.register(context -> flush());
     }
 
+    // ── Colored quad ─────────────────────────────────────────────
+
     static void enqueue(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
         if (RenderCompat.isIrisShaderEnabled()) {
-            pendingDraws.add(new DrawCommand(new Matrix4f(mvp), vertices.clone(), colors.clone(), vertexCount));
+            pendingDraws.add(new QuadCommand(new Matrix4f(mvp), vertices.clone(), colors.clone(), vertexCount));
         } else {
             GlDirectRenderer.drawQuad(mvp, vertices, colors, vertexCount, true);
         }
     }
 
+    // ── Textured quad ────────────────────────────────────────────
+
+    static void enqueueTextured(Matrix4f mvp, float[] vertices, float[] uvs,
+                                float[] colors, int textureId, int vertexCount) {
+        if (RenderCompat.isRenderingShadowPass()) return;
+
+        if (RenderCompat.isIrisShaderEnabled()) {
+            pendingDraws.add(new TexturedQuadCommand(
+                    new Matrix4f(mvp), vertices.clone(), uvs.clone(), colors.clone(), textureId, vertexCount));
+        } else {
+            GlDirectRenderer.drawTexturedQuad(mvp, vertices, uvs, colors, textureId, vertexCount, true);
+        }
+    }
+
+    // ── Arbitrary deferred action ────────────────────────────────
+
+    /**
+     * Defers an arbitrary rendering action to after Iris shadow passes.
+     * If Iris is not active, the action executes immediately.
+     */
+    public static void defer(Runnable action) {
+        if (RenderCompat.isRenderingShadowPass()) return;
+
+        if (RenderCompat.isIrisShaderEnabled()) {
+            pendingDraws.add(new RunnableCommand(action));
+        } else {
+            action.run();
+        }
+    }
+
+    // ── Flush ────────────────────────────────────────────────────
+
     private static void flush() {
         if (pendingDraws.isEmpty()) return;
 
         for (DrawCommand cmd : pendingDraws) {
-            GlDirectRenderer.drawQuad(cmd.mvp, cmd.vertices, cmd.colors, cmd.vertexCount, true);
+            switch (cmd) {
+                case QuadCommand q ->
+                        GlDirectRenderer.drawQuad(q.mvp, q.vertices, q.colors, q.vertexCount, true);
+                case TexturedQuadCommand t ->
+                        GlDirectRenderer.drawTexturedQuad(t.mvp, t.vertices, t.uvs, t.colors, t.textureId, t.vertexCount, true);
+                case RunnableCommand r ->
+                        r.action.run();
+            }
         }
         pendingDraws.clear();
     }
 
-    private record DrawCommand(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) {}
+    // ── Command types ────────────────────────────────────────────
+
+    private sealed interface DrawCommand permits QuadCommand, TexturedQuadCommand, RunnableCommand {}
+    private record QuadCommand(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) implements DrawCommand {}
+    private record TexturedQuadCommand(Matrix4f mvp, float[] vertices, float[] uvs, float[] colors, int textureId, int vertexCount) implements DrawCommand {}
+    private record RunnableCommand(Runnable action) implements DrawCommand {}
 }

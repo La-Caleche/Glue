@@ -27,6 +27,17 @@ public class TestKeybinds {
                 }
             });
 
+    public static final KeyMapping TOGGLE_GRAYSCALE = KEYBINDINGS.register(
+            "toggle_grayscale",
+            "key.categories.glue_test", GLFW.GLFW_KEY_C, client -> {
+                boolean state = TestPostShaderHandler.toggleGrayscale();
+                if (client.player != null) {
+                    client.player.displayClientMessage(
+                            Component.literal("§7[Glue] §fGrayscale post-effect: " + (state ? "§aON" : "§cOFF")),
+                            true);
+                }
+            });
+
     public static final KeyMapping TOGGLE_GUI_OVERLAY = KEYBINDINGS.register(
             "toggle_gui_overlay",
             "key.categories.glue_test", GLFW.GLFW_KEY_G, client -> {

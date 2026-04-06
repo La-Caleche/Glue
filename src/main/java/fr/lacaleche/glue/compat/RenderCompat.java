@@ -49,4 +49,20 @@ public class RenderCompat {
         }
         IrisProxy.withBypass(action);
     }
+
+    /**
+     * Runs an action with FULL Iris bypass:
+     * <ul>
+     *   <li>{@code bypass=true} — our shader runs, not Iris's replacement</li>
+     *   <li>{@code safeToMultiply=true} — output goes to MC's screen buffer, not Iris's gbuffer MRT</li>
+     * </ul>
+     * Use for custom shaders that need their fragment output to reach the screen directly.
+     */
+    public static void withIrisFullBypass(Runnable action) {
+        if (!HAS_IRIS) {
+            action.run();
+            return;
+        }
+        IrisProxy.withFullBypass(action);
+    }
 }

@@ -30,7 +30,7 @@ public class TestPostShaderHandler {
     private static final float MAX_OFFSET = 0.05f;
     private static final float CHROMATIC_STRENGTH = 0.8f;
 
-    private static boolean nearShaderBlock = false;
+    private static boolean grayscaleEnabled = false;
     private static boolean blurEnabled = false;
     private static int shatteredTick = -1;
 
@@ -42,6 +42,11 @@ public class TestPostShaderHandler {
     public static boolean toggleBlur() {
         blurEnabled = !blurEnabled;
         return blurEnabled;
+    }
+
+    public static boolean toggleGrayscale() {
+        grayscaleEnabled = !grayscaleEnabled;
+        return grayscaleEnabled;
     }
 
     public static boolean isBlurEnabled() {
@@ -65,10 +70,6 @@ public class TestPostShaderHandler {
                 shatteredTick = -1;
             }
         }
-
-        Player player = client.player;
-        nearShaderBlock = player != null && client.level != null
-                && checkNearShaderBlock(client.level, player);
     }
 
     private static void onWorldRenderLast(WorldRenderContext context) {
@@ -79,7 +80,7 @@ public class TestPostShaderHandler {
 
         boolean anyApplied = false;
 
-        if (nearShaderBlock) {
+        if (grayscaleEnabled) {
             TestShaders.GRAYSCALE.apply(mc.getMainRenderTarget(), RESOURCE_POOL);
             anyApplied = true;
         }
@@ -134,20 +135,5 @@ public class TestPostShaderHandler {
 
         float inv = 1.0f - (t / FLASH_TICKS);
         return inv * inv * inv;
-    }
-
-    private static boolean checkNearShaderBlock(Level level, Player player) {
-        BlockPos playerPos = player.blockPosition();
-        int range = (int) EFFECT_RANGE;
-
-        for (BlockPos pos : BlockPos.betweenClosed(
-                playerPos.offset(-range, -range, -range),
-                playerPos.offset(range, range, range))) {
-            if (level.getBlockState(pos).getBlock() instanceof TestShaderBlock
-                    && player.position().distanceTo(pos.getCenter()) <= EFFECT_RANGE) {
-                return true;
-            }
-        }
-        return false;
     }
 }

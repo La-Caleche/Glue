@@ -1,35 +1,95 @@
 package fr.lacaleche.glue.testmod.render.block.entity;
 
+import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import fr.lacaleche.glue.client.shader.ShaderRenderer;
+import fr.lacaleche.glue.client.shader.GluePipeline;
+import fr.lacaleche.glue.client.shader.ShadedBufferSource;
 import fr.lacaleche.glue.compat.RenderCompat;
 import fr.lacaleche.glue.testmod.blocks.demo.TestShaderBlockEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Renders an animated floating quad above the TestShaderBlock using a custom shader pipeline.
- * <p>
- * Demonstrates world-space shader rendering with:
- * <ul>
- *   <li>Time-based rotation animation</li>
- *   <li>Per-vertex gradient colors that cycle over time</li>
- *   <li>Translucent blending</li>
- * </ul>
+ * Pipeline transparency diagnostic — registers flat-black shader with
+ * 6 different pipeline configurations to identify which renders opaque.
+ *
+ * <p>Right-click to cycle. Action bar shows config name.</p>
+ * <ol>
+ *   <li>ENTITIES_TRANSLUCENT + Translucent blend</li>
+ *   <li>ENTITIES_TRANSLUCENT + No blend (opaque)</li>
+ *   <li>ENTITIES + Translucent blend</li>
+ *   <li>ENTITIES + No blend (opaque)</li>
+ *   <li>BLOCK + Translucent blend</li>
+ *   <li>BLOCK + No blend (opaque)</li>
+ * </ol>
  */
 public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestShaderBlockEntity> {
 
-    public TestShaderBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
+    private static final ItemStack DISPLAY_ITEM = new ItemStack(Items.DIAMOND_SWORD);
+
+    private static final ResourceLocation BLACK_VERT = ResourceLocation.fromNamespaceAndPath("glue-test", "core/flat_black");
+    private static final ResourceLocation BLACK_FRAG = ResourceLocation.fromNamespaceAndPath("glue-test", "core/flat_black");
+
+    private static GluePipeline[] pipelines;
+
+    private static GluePipeline[] getPipelines() {
+        if (pipelines == null) {
+            pipelines = new GluePipeline[] {
+                // 0: ENTITIES_TRANSLUCENT + TRANSLUCENT blend (current default)
+                GluePipeline.entityCustom(
+                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_et_tb"),
+                        BLACK_VERT, BLACK_FRAG,
+                        BlendFunction.TRANSLUCENT, "ENTITIES_TRANSLUCENT"
+                ),
+                // 1: ENTITIES_TRANSLUCENT + NO blend
+                GluePipeline.entityCustom(
+                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_et_nb"),
+                        BLACK_VERT, BLACK_FRAG,
+                        null, "ENTITIES_TRANSLUCENT"
+                ),
+                // 2: ENTITIES + TRANSLUCENT blend
+                GluePipeline.entityCustom(
+                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_e_tb"),
+                        BLACK_VERT, BLACK_FRAG,
+                        BlendFunction.TRANSLUCENT, "ENTITIES"
+                ),
+                // 3: ENTITIES + NO blend
+                GluePipeline.entityCustom(
+                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_e_nb"),
+                        BLACK_VERT, BLACK_FRAG,
+                        null, "ENTITIES"
+                ),
+                // 4: BLOCK + TRANSLUCENT blend
+                GluePipeline.entityCustom(
+                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_b_tb"),
+                        BLACK_VERT, BLACK_FRAG,
+                        BlendFunction.TRANSLUCENT, "BLOCK"
+                ),
+                // 5: BLOCK + NO blend
+                GluePipeline.entityCustom(
+                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_b_nb"),
+                        BLACK_VERT, BLACK_FRAG,
+                        null, "BLOCK"
+                )
+            };
+        }
+        return pipelines;
     }
 
-    /**
-     * Must return true because the quad renders 1.5+ blocks above the base block.
-     * Without this, MC culls the block entity when the block itself is off-screen
-     * (e.g. when looking up at the floating quad from close range).
-     */
+    private final ItemRenderer itemRenderer;
+
+    public TestShaderBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
+        this.itemRenderer = context.getItemRenderer();
+    }
+
     @Override
     public boolean shouldRenderOffScreen() {
         return true;
@@ -38,73 +98,28 @@ public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestSh
     @Override
     public void render(TestShaderBlockEntity entity, float partialTick, PoseStack poseStack,
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay, Vec3 cameraPos) {
-        // Skip during Iris shadow pass — raw GL draws would create ghost quads
-        // at incorrect positions in the shadow map
         if (RenderCompat.isRenderingShadowPass()) return;
-        float time = (entity.getTicks() + partialTick) / 20f;
-        float progress = entity.getAnimationProgress();
+
+        int shaderIndex = entity.getShaderIndex();
+        GluePipeline activePipeline = getPipelines()[shaderIndex];
 
         poseStack.pushPose();
+        poseStack.translate(0.5, 2.5, 0.5);
+        poseStack.mulPose(Axis.YP.rotationDegrees(2 * 45f));
 
-        // Float above the block
-        poseStack.translate(0.5, 1.5 + Math.sin(time * 2) * 0.15, 0.5);
+        ShadedBufferSource shadedSource = activePipeline.wrap(bufferSource);
 
-        // Slow rotation around Y axis
-        poseStack.mulPose(Axis.YP.rotationDegrees(time * 45f));
+        itemRenderer.renderStatic(
+                DISPLAY_ITEM,
+                ItemDisplayContext.FIXED,
+                packedLight,
+                packedOverlay,
+                poseStack,
+                shadedSource,
+                entity.getLevel(),
+                0);
 
-        // Slight tilt for visual flair
-        poseStack.mulPose(Axis.XP.rotationDegrees(15f));
-
-        // Compute time-cycling gradient colors
-        float hueShift = progress;
-        float r1 = hsvR(hueShift);
-        float g1 = hsvG(hueShift);
-        float b1 = hsvB(hueShift);
-
-        float r2 = hsvR(hueShift + 0.25f);
-        float g2 = hsvG(hueShift + 0.25f);
-        float b2 = hsvB(hueShift + 0.25f);
-
-        float r3 = hsvR(hueShift + 0.5f);
-        float g3 = hsvG(hueShift + 0.5f);
-        float b3 = hsvB(hueShift + 0.5f);
-
-        float r4 = hsvR(hueShift + 0.75f);
-        float g4 = hsvG(hueShift + 0.75f);
-        float b4 = hsvB(hueShift + 0.75f);
-
-        // Render the quad using raw GL via ShaderRenderer (Iris-compatible)
-        ShaderRenderer.world()
-                .matrix(poseStack.last().pose())
-                .position(-0.5f, -0.5f, 0f)
-                .size(1f, 1f)
-                .cornerColors(
-                        r1, g1, b1, 0.85f,
-                        r2, g2, b2, 0.85f,
-                        r3, g3, b3, 0.85f,
-                        r4, g4, b4, 0.85f
-                )
-                .draw(bufferSource);
-
+        shadedSource.endBatch();
         poseStack.popPose();
-    }
-
-    // Simple HSV-to-RGB conversion for rainbow cycling (saturation=1, value=1)
-    private static float hsvR(float h) {
-        h = ((h % 1f) + 1f) % 1f;
-        float k = (5f + h * 6f) % 6f;
-        return 1f - Math.max(0, Math.min(Math.min(k, 4f - k), 1f));
-    }
-
-    private static float hsvG(float h) {
-        h = ((h % 1f) + 1f) % 1f;
-        float k = (3f + h * 6f) % 6f;
-        return 1f - Math.max(0, Math.min(Math.min(k, 4f - k), 1f));
-    }
-
-    private static float hsvB(float h) {
-        h = ((h % 1f) + 1f) % 1f;
-        float k = (1f + h * 6f) % 6f;
-        return 1f - Math.max(0, Math.min(Math.min(k, 4f - k), 1f));
     }
 }

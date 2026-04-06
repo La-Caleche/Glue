@@ -33,4 +33,22 @@ class IrisProxy {
             ImmediateState.bypass = wasBypassed;
         }
     }
+
+    /**
+     * Sets both bypass (skip shader replacement) AND safeToMultiply
+     * (redirect FBO from Iris gbuffer to MC's main render target).
+     * This ensures our custom shader runs AND outputs to the screen buffer.
+     */
+    static void withFullBypass(Runnable action) {
+        boolean wasBypassed = ImmediateState.bypass;
+        boolean wasSafe = ImmediateState.safeToMultiply;
+        ImmediateState.bypass = true;
+        ImmediateState.safeToMultiply = true;
+        try {
+            action.run();
+        } finally {
+            ImmediateState.bypass = wasBypassed;
+            ImmediateState.safeToMultiply = wasSafe;
+        }
+    }
 }

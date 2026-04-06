@@ -33,6 +33,13 @@ public class FramebufferHelper {
         return -1;
     }
 
+    public static int getDepthTextureId(RenderTarget framebuffer) {
+        if (framebuffer.getDepthTexture() instanceof GlTexture glTexture) {
+            return glTexture.glId();
+        }
+        return -1;
+    }
+
     /**
      * Gets the GL FBO ID for a render target via its color texture.
      * Uses the same mechanism as Iris's {@code iris$bindFramebuffer()}.
