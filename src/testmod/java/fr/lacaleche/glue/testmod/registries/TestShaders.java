@@ -28,6 +28,12 @@ public class TestShaders {
     public static final PostShaderHandle GRAYSCALE = POST.register("grayscale");
     public static final PostShaderHandle BLUR = POST.register("blur");
     public static final PostShaderHandle SHATTERED_SCREEN = POST.register("shattered_screen");
+    public static final PostShaderHandle DEPARTURE_VORTEX = POST.register("departure_vortex");
+    public static final PostShaderHandle ARRIVAL_SHOCKWAVE = POST.register("arrival_shockwave");
+    public static final PostShaderHandle END_LOCKED_PULSE = POST.register("end_locked_pulse");
+    public static final PostShaderHandle SUN_SURFACE = POST.register("sun_surface");
+    public static final PostShaderHandle CHROMATIC_ABERRATION = POST.register("chromatic_aberration");
+    public static final PostShaderHandle IMPACT_FRAME = POST.register("impact_frame");
 
     public static void registerShaders() {
         TestmodClient.LOGGER.info("Registering test shaders ({} core, {} post)",

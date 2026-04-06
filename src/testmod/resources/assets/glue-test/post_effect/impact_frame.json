@@ -1,0 +1,63 @@
+{
+    "targets": {
+        "swap": {}
+    },
+    "passes": [
+        {
+            "vertex_shader": "minecraft:post/blit",
+            "fragment_shader": "glue-test:post/impact_frame",
+            "inputs": [
+                {
+                    "sampler_name": "In",
+                    "target": "minecraft:main",
+                    "bilinear": false
+                }
+            ],
+            "output": "swap",
+            "uniforms": {
+                "ImpactConfig": [
+                    {
+                        "name": "Threshold",
+                        "type": "float",
+                        "value": 0.6
+                    },
+                    {
+                        "name": "ThresholdLerp",
+                        "type": "float",
+                        "value": 0.05
+                    },
+                    {
+                        "name": "Invert",
+                        "type": "float",
+                        "value": 0.0
+                    },
+                    {
+                        "name": "MaxEstimatedGrayscale",
+                        "type": "float",
+                        "value": 1.0
+                    }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:post/blit",
+            "fragment_shader": "minecraft:post/blit",
+            "inputs": [
+                {
+                    "sampler_name": "In",
+                    "target": "swap"
+                }
+            ],
+            "output": "minecraft:main",
+            "uniforms": {
+                "BlitConfig": [
+                    {
+                        "name": "ColorModulate",
+                        "type": "vec4",
+                        "value": [ 1.0, 1.0, 1.0, 1.0 ]
+                    }
+                ]
+            }
+        }
+    ]
+}

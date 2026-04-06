@@ -2,64 +2,112 @@ package fr.lacaleche.glue.testmod.render;
 
 import com.mojang.blaze3d.resource.CrossFrameResourcePool;
 import fr.lacaleche.glue.client.events.RenderEvents;
+import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.compat.RenderCompat;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.Mth;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class TestPostShaderHandler {
 
     private static final CrossFrameResourcePool RESOURCE_POOL = new CrossFrameResourcePool(3);
-    private static final int SHATTERED_CONFIG_SIZE = 16;
 
-    private static final int FLASH_TICKS = 4;
-    private static final int HOLD_TICKS = 15;
-    private static final int FADEOUT_TICKS = 40;
-    private static final int TOTAL_TICKS = FLASH_TICKS + HOLD_TICKS + FADEOUT_TICKS;
+    private static final List<PostShaderHandle> toggleEffects = new ArrayList<>();
+    private static final List<TimedEffect> timedEffects = new ArrayList<>();
 
-    private static final float MAX_OFFSET = 0.05f;
-    private static final float CHROMATIC_STRENGTH = 0.8f;
+    public static final TimedEffect SHATTERED = TimedEffect.builder(TestShaders.SHATTERED_SCREEN)
+            .ubo("ShatteredConfig", 16)
+            .duration(59)
+            .curve(t -> t)
+            .uniforms(w -> {
+                float t = w.progress() * 59f;
+                float intensity = computeShatterIntensity(t);
+                float flash = computeFlashIntensity(t);
+                w.putFloat(intensity).putFloat(0.05f).putFloat(0.8f).putFloat(flash);
+            })
+            .build();
 
-    private static boolean grayscaleEnabled = false;
-    private static boolean blurEnabled = false;
-    private static int shatteredTick = -1;
+    public static final TimedEffect DEPARTURE = TimedEffect.builder(TestShaders.DEPARTURE_VORTEX)
+            .ubo("VortexConfig", 4)
+            .duration(30)
+            .curveLinear()
+            .build();
+
+    public static final TimedEffect ARRIVAL = TimedEffect.builder(TestShaders.ARRIVAL_SHOCKWAVE)
+            .ubo("ShockwaveConfig", 4)
+            .duration(20)
+            .curveReverse()
+            .build();
+
+    public static final TimedEffect DENIAL = TimedEffect.builder(TestShaders.END_LOCKED_PULSE)
+            .ubo("PulseConfig", 4)
+            .duration(8)
+            .curveReverse()
+            .build();
+
+    public static final TimedEffect SUN = TimedEffect.builder(TestShaders.SUN_SURFACE)
+            .ubo("SunConfig", 4)
+            .duration(200)
+            .curveReverse()
+            .build();
+
+    public static final TimedEffect CHROMATIC = TimedEffect.builder(TestShaders.CHROMATIC_ABERRATION)
+            .ubo("ChromaticConfig", 4)
+            .duration(15)
+            .curve(t -> (1.0f - t) * 0.05f)
+            .build();
+
+    public static final TimedEffect IMPACT = TimedEffect.builder(TestShaders.IMPACT_FRAME)
+            .ubo("ImpactConfig", 16)
+            .duration(10)
+            .uniforms(w -> w.putFloat(0.6f).putFloat(0.05f).putFloat(0.0f).putFloat(5.0f))
+            .build();
+
+    static {
+        timedEffects.add(SHATTERED);
+        timedEffects.add(DEPARTURE);
+        timedEffects.add(ARRIVAL);
+        timedEffects.add(DENIAL);
+        timedEffects.add(SUN);
+        timedEffects.add(CHROMATIC);
+        timedEffects.add(IMPACT);
+    }
 
     public static void register() {
         RenderEvents.POST_WORLD_RENDER.register(TestPostShaderHandler::onPostWorldRender);
         ClientTickEvents.END_CLIENT_TICK.register(TestPostShaderHandler::onClientTick);
     }
 
+    public static boolean toggleEffect(PostShaderHandle handle) {
+        if (toggleEffects.contains(handle)) {
+            toggleEffects.remove(handle);
+            return false;
+        } else {
+            toggleEffects.add(handle);
+            return true;
+        }
+    }
+
+    public static boolean isToggled(PostShaderHandle handle) {
+        return toggleEffects.contains(handle);
+    }
+
     public static boolean toggleBlur() {
-        blurEnabled = !blurEnabled;
-        return blurEnabled;
+        return toggleEffect(TestShaders.BLUR);
     }
 
     public static boolean toggleGrayscale() {
-        grayscaleEnabled = !grayscaleEnabled;
-        return grayscaleEnabled;
-    }
-
-    public static boolean isBlurEnabled() {
-        return blurEnabled;
-    }
-
-    public static void triggerShattered() {
-        shatteredTick = 0;
-    }
-
-    public static boolean isShatteredActive() {
-        return shatteredTick >= 0 && shatteredTick < TOTAL_TICKS;
+        return toggleEffect(TestShaders.GRAYSCALE);
     }
 
     private static void onClientTick(Minecraft client) {
         if (client.isPaused()) return;
-
-        if (shatteredTick >= 0) {
-            shatteredTick++;
-            if (shatteredTick >= TOTAL_TICKS) {
-                shatteredTick = -1;
-            }
+        for (TimedEffect effect : timedEffects) {
+            effect.tick();
         }
     }
 
@@ -69,22 +117,19 @@ public class TestPostShaderHandler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
+        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        RenderTarget target = mc.getMainRenderTarget();
         boolean anyApplied = false;
 
-        if (grayscaleEnabled) {
-            TestShaders.GRAYSCALE.apply(mc.getMainRenderTarget(), RESOURCE_POOL);
+        for (PostShaderHandle toggle : toggleEffects) {
+            toggle.apply(target, RESOURCE_POOL);
             anyApplied = true;
         }
 
-        if (blurEnabled) {
-            TestShaders.BLUR.apply(mc.getMainRenderTarget(), RESOURCE_POOL);
-            anyApplied = true;
-        }
-
-        if (isShatteredActive()) {
-            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-            applyShatteredScreen(mc, partialTick);
-            anyApplied = true;
+        for (TimedEffect effect : timedEffects) {
+            if (effect.render(mc, RESOURCE_POOL, partialTick)) {
+                anyApplied = true;
+            }
         }
 
         if (anyApplied) {
@@ -92,39 +137,18 @@ public class TestPostShaderHandler {
         }
     }
 
-    private static void applyShatteredScreen(Minecraft mc, float partialTick) {
-        float intensity = getShatterIntensity(partialTick);
-        float flash = getFlashIntensity(partialTick);
-
-        TestShaders.SHATTERED_SCREEN.setUniform("ShatteredConfig", SHATTERED_CONFIG_SIZE, builder -> {
-            builder.putFloat(intensity);
-            builder.putFloat(MAX_OFFSET);
-            builder.putFloat(CHROMATIC_STRENGTH);
-            builder.putFloat(flash);
-        });
-
-        TestShaders.SHATTERED_SCREEN.apply(mc.getMainRenderTarget(), RESOURCE_POOL);
-    }
-
-    private static float getShatterIntensity(float partialTick) {
-        if (shatteredTick < 0) return 0.0f;
-        float t = Mth.clamp(shatteredTick + partialTick, 0, TOTAL_TICKS);
-
-        if (t < FLASH_TICKS + HOLD_TICKS) {
-            return Mth.clamp(t / 2.0f, 0.0f, 1.0f);
+    private static float computeShatterIntensity(float t) {
+        if (t < 19f) {
+            return Math.min(t / 2.0f, 1.0f);
         }
-
-        float fadeProgress = (t - FLASH_TICKS - HOLD_TICKS) / FADEOUT_TICKS;
-        float inv = 1.0f - Mth.clamp(fadeProgress, 0.0f, 1.0f);
+        float fade = (t - 19f) / 40f;
+        float inv = 1.0f - Math.min(fade, 1.0f);
         return inv * inv;
     }
 
-    private static float getFlashIntensity(float partialTick) {
-        if (shatteredTick < 0) return 0.0f;
-        float t = Mth.clamp(shatteredTick + partialTick, 0, TOTAL_TICKS);
-        if (t >= FLASH_TICKS) return 0.0f;
-
-        float inv = 1.0f - (t / FLASH_TICKS);
+    private static float computeFlashIntensity(float t) {
+        if (t >= 4f) return 0.0f;
+        float inv = 1.0f - (t / 4f);
         return inv * inv * inv;
     }
 }

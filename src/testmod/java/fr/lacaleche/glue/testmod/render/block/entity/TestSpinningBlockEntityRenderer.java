@@ -59,7 +59,7 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
                 .rotateYDegrees(time * STAR_SPIN_SPEED)
                 .scale(0.8f, 0.8f, 0.8f)
                 .then(() -> itemRenderer.renderStatic(NETHER_STAR, ItemDisplayContext.FIXED,
-                        light, overlay, matrices, shadedSource, entity.getLevel(), 0))
+                        light, overlay, matrices, vertexConsumers, entity.getLevel(), 0))
                 .popPose();
 
         stack.pushPose()
