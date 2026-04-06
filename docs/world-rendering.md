@@ -1,6 +1,6 @@
 # World Rendering (ShaderRenderer)
 
-`ShaderRenderer` is a fluent builder for rendering colored quads in world space using raw OpenGL. It completely bypasses MC's pipeline system and all Iris/Sodium hooks.
+`ShaderRenderer` is a fluent builder for rendering colored or textured quads in world space using raw OpenGL. It bypasses MC's pipeline system and all Iris/Sodium hooks.
 
 ## How It Works
 
@@ -48,6 +48,41 @@ ShaderRenderer.world()
         .draw();
 ```
 
+## Textured Quad (FBO Capture)
+
+Render MC content into an offscreen FBO and display it as a textured quad:
+
+```java
+ShaderRenderer.world()
+        .matrix(poseStack.last().pose())
+        .position(-0.5f, -0.5f, 0f)
+        .size(1f, 1f)
+        .capture(256, 256, (captureStack, captureSource) -> {
+            // Render into the capture FBO
+            itemRenderer.renderStatic(stack, ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
+                    light, overlay, captureStack, captureSource, level, 0);
+        })
+        .color(1f, 1f, 1f, 1f)
+        .draw();
+```
+
+The `capture()` method:
+1. Creates/resizes a temporary FBO
+2. Binds it and renders the provided content
+3. Restores the previous FBO
+4. Stores the capture texture ID for use in `draw()`
+
+## Deferred Execution
+
+For custom GL rendering that should be deferred when Iris is active:
+
+```java
+ShaderRenderer.defer(() -> {
+    // Raw GL code that runs after world compositing
+    // Silently dropped during Iris shadow passes
+});
+```
+
 ## Centered Quad
 
 ```java
@@ -55,7 +90,7 @@ ShaderRenderer.world()
         .matrix(poseStack.last().pose())
         .position(0f, 0f, 0f)
         .size(1f, 1f)
-        .centered(true)  // Centers around position
+        .centered(true)
         .color(1f, 1f, 1f, 0.5f)
         .draw();
 ```
@@ -71,11 +106,14 @@ ShaderRenderer.world()
 | `centered(bool)` | Center around position |
 | `color(r, g, b, a)` | Uniform color (all corners) |
 | `cornerColors(...)` | Per-corner gradient (TL, TR, BR, BL) |
+| `capture(w, h, renderer)` | Render MC content into a capture FBO and use as texture |
 | `draw()` | Submit to draw queue |
 | `draw(MultiBufferSource)` | Same as `draw()` — param ignored, for BER API compat |
+| `defer(Runnable)` | Queue a raw GL action through the deferred draw system |
 
 ## Important Notes
 
 - Always check `RenderCompat.isRenderingShadowPass()` before drawing — raw GL in shadow passes creates ghost quads
 - The `draw(MultiBufferSource)` overload ignores the buffer source — it exists for convenient use in `BlockEntityRenderer.render()`
 - `DeferredDrawQueue.init()` must be called once during client init (Glue does this automatically)
+- `capture()` uses a shared static FBO — don't call it from multiple threads
