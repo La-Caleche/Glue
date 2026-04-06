@@ -20,16 +20,10 @@ in vec3 worldPos;
 out vec4 fragColor;
 
 void main() {
-    // Sample the original texture (vanilla baseline)
     vec4 color = texture(Sampler0, texCoord0);
-
-    // Alpha cutout (matches ALPHA_CUTOUT define in pipeline)
-    if (color.a < ALPHA_CUTOUT) {
-        discard;
-    }
-
-    // Apply vanilla entity shading
     color *= vertexColor * ColorModulator;
+    if (color.a < ALPHA_CUTOUT) discard;
+
     color.rgb = mix(overlayColor.rgb, color.rgb, overlayColor.a);
     color *= lightMapColor;
 

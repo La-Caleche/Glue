@@ -207,11 +207,7 @@ class GlDirectRenderer {
                     if (capturedZ >= sceneZ) discard;
                 }
 
-                // Un-premultiply alpha and preserve transparency
-                float alpha = sqrt(color.a);
-                vec3 rgb = color.rgb / max(alpha, 0.001);
-
-                fragColor = vec4(rgb, alpha);
+                fragColor = color;
             }
             """;
 

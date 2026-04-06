@@ -1,7 +1,11 @@
 package fr.lacaleche.glue.testmod.render.block.entity;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
+import fr.lacaleche.glue.client.shader.GluePipeline;
+import fr.lacaleche.glue.client.shader.ShadedBufferSource;
+import fr.lacaleche.glue.client.transform.GlueTransformStack;
+import fr.lacaleche.glue.compat.RenderCompat;
+import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.blocks.demo.TestSpinningBlockEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -30,6 +34,27 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
 
     private final ItemRenderer itemRenderer;
 
+    private static final String[] SHADER_NAMES = {
+            "hologram", "enchanted_glow", "frozen", "xray", "inferno"
+    };
+
+    private static GluePipeline[] pipelines;
+
+    private static GluePipeline[] getPipelines() {
+        if (pipelines == null) {
+            pipelines = new GluePipeline[SHADER_NAMES.length];
+            for (int i = 0; i < SHADER_NAMES.length; i++) {
+                String name = SHADER_NAMES[i];
+                pipelines[i] = GluePipeline.entity(
+                        TestmodClient.id(name),
+                        TestmodClient.id("core/" + name),
+                        TestmodClient.id("core/" + name)
+                );
+            }
+        }
+        return pipelines;
+    }
+
     public TestSpinningBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
         this.itemRenderer = context.getItemRenderer();
     }
@@ -37,22 +62,29 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
     @Override
     public void render(TestSpinningBlockEntity entity, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay, Vec3 cameraPos) {
+        if (RenderCompat.isRenderingShadowPass()) return;
+
+        int shaderIndex = 2;
+        GluePipeline activePipeline = getPipelines()[shaderIndex % getPipelines().length];
 
         float time = (entity.getTicks() + tickDelta) / 20f;
         float globalBob = (float) Math.sin(time * BOB_SPEED) * BOB_AMP;
         long seed = entity.getBlockPos().asLong();
+        var stack = GlueTransformStack.of(matrices);
 
-        matrices.pushPose();
-        matrices.translate(0.5, STAR_HEIGHT + globalBob, 0.5);
-        matrices.mulPose(Axis.YP.rotationDegrees(time * STAR_SPIN_SPEED));
-        matrices.scale(0.8f, 0.8f, 0.8f);
-        itemRenderer.renderStatic(NETHER_STAR, ItemDisplayContext.FIXED,
-                light, overlay, matrices, vertexConsumers, entity.getLevel(), 0);
-        matrices.popPose();
+        ShadedBufferSource shadedSource = activePipeline.wrap(vertexConsumers);
 
-        matrices.pushPose();
-        matrices.translate(0.5, AMETHYST_HEIGHT + (globalBob * 0.5f), 0.5);
-        matrices.mulPose(Axis.YP.rotationDegrees(time * GROUP_SPIN_SPEED));
+        stack.pushPose()
+                .translate(0.5, STAR_HEIGHT + globalBob, 0.5)
+                .rotateYDegrees(time * STAR_SPIN_SPEED)
+                .scale(0.8f, 0.8f, 0.8f)
+                .then(() -> itemRenderer.renderStatic(NETHER_STAR, ItemDisplayContext.FIXED,
+                        light, overlay, matrices, shadedSource, entity.getLevel(), 0))
+                .popPose();
+
+        stack.pushPose()
+                .translate(0.5, AMETHYST_HEIGHT + (globalBob * 0.5f), 0.5)
+                .rotateYDegrees(time * GROUP_SPIN_SPEED);
 
         for (int i = 0; i < SHARD_COUNT; i++) {
             float angle = i * (360f / SHARD_COUNT);
@@ -64,19 +96,20 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
             float bobOffset = rng * 6.28f;
             float shardBob = (float) Math.sin(time * (1.0f + rng) + bobOffset) * 0.04f;
 
-            matrices.pushPose();
-            matrices.mulPose(Axis.YP.rotationDegrees(angle));
-            matrices.translate(ORBIT_RADIUS, shardBob, 0);
-            matrices.mulPose(Axis.XP.rotationDegrees(tiltX));
-            matrices.mulPose(Axis.ZP.rotationDegrees(tiltZ));
-            matrices.mulPose(Axis.YP.rotationDegrees(time * selfSpeed));
-            matrices.scale(SHARD_SCALE, SHARD_SCALE, SHARD_SCALE);
-            itemRenderer.renderStatic(AMETHYST, ItemDisplayContext.FIXED,
-                    light, overlay, matrices, vertexConsumers, entity.getLevel(), 0);
-            matrices.popPose();
+            stack.pushPose()
+                    .rotateYDegrees(angle)
+                    .translate(ORBIT_RADIUS, shardBob, 0)
+                    .rotateXDegrees(tiltX)
+                    .rotateZDegrees(tiltZ)
+                    .rotateYDegrees(time * selfSpeed)
+                    .scale(SHARD_SCALE, SHARD_SCALE, SHARD_SCALE)
+                    .then(() -> itemRenderer.renderStatic(AMETHYST, ItemDisplayContext.FIXED,
+                            light, overlay, matrices, shadedSource, entity.getLevel(), 0))
+                    .popPose();
         }
 
-        matrices.popPose();
+        shadedSource.endBatch();
+        stack.popPose();
     }
 
     private static float pseudoRandom(long seed, int index) {

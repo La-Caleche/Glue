@@ -46,6 +46,8 @@ public class ShadedBufferSource implements MultiBufferSource {
     private static RenderTarget captureFbo;
     private static volatile boolean capturing = false;
     private static boolean blitPathLogged = false;
+    private static boolean frameCleared = false;
+    private static boolean depthCopied = false;
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-capture");
 
     public ShadedBufferSource(MultiBufferSource fallbackDelegate, GluePipeline pipeline) {
@@ -64,7 +66,9 @@ public class ShadedBufferSource implements MultiBufferSource {
             return ownSource.getBuffer(shadedType);
         }
 
-        return fallbackDelegate.getBuffer(renderType);
+        // No texture extracted — skip this layer entirely (e.g. translucent glow)
+        // to prevent unshaded full quads from rendering as black squares
+        return NoopVertexConsumer.INSTANCE;
     }
 
     /**
@@ -80,8 +84,11 @@ public class ShadedBufferSource implements MultiBufferSource {
             // Ensure capture FBO exists and matches screen size
             captureFbo = FramebufferHelper.resizeOrCreate(captureFbo, w, h);
 
-            // Clear color only (depth will be copied from scene in mixin)
-            FramebufferHelper.clear(captureFbo, 0f, 0f, 0f, 0f);
+            // Clear only once per frame — subsequent endBatch() calls accumulate
+            if (!frameCleared) {
+                FramebufferHelper.clear(captureFbo, 0f, 0f, 0f, 0f);
+                frameCleared = true;
+            }
 
             // Mark capture mode — mixin will redirect draws to our FBO
             capturing = true;
@@ -101,7 +108,11 @@ public class ShadedBufferSource implements MultiBufferSource {
                         irisActive, irisActive ? "PostCompositeMixin" : "DeferredDrawQueue.LAST");
             }
             if (!irisActive) {
-                DeferredDrawQueue.defer(ShadedBufferSource::blitCaptureToScreen);
+                DeferredDrawQueue.defer(() -> {
+                    blitCaptureToScreen();
+                    frameCleared = false;
+                    depthCopied = false;
+                });
             }
             // With Iris: postCompositeBlit() called by GluePostCompositeMixin
 
@@ -132,6 +143,14 @@ public class ShadedBufferSource implements MultiBufferSource {
         return sceneDepthTextureId;
     }
 
+    public static boolean isDepthCopied() {
+        return depthCopied;
+    }
+
+    public static void setDepthCopied(boolean value) {
+        depthCopied = value;
+    }
+
     /**
      * Blits the capture FBO to MC's main render target with depth-aware occlusion.
      */
@@ -150,7 +169,10 @@ public class ShadedBufferSource implements MultiBufferSource {
      * At this point Iris has finished ALL compositing, so our blit won't be overwritten.
      */
     public static void postCompositeBlit() {
+        if (!frameCleared) return;
         blitCaptureToScreen();
+        frameCleared = false;
+        depthCopied = false;
     }
 
     /**

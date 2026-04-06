@@ -43,23 +43,23 @@ public interface Rotate<Self extends Rotate<Self>> {
     }
 
     default Self rotateDegrees(float degrees, float axisX, float axisY, float axisZ) {
-        return rotate(Mth.RAD_TO_DEG * degrees, axisX, axisY, axisZ);
+        return rotate(Mth.DEG_TO_RAD * degrees, axisX, axisY, axisZ);
     }
 
     default Self rotateDegrees(float degrees, Axis axis) {
-        return rotate(Mth.RAD_TO_DEG * degrees, axis);
+        return rotate(Mth.DEG_TO_RAD * degrees, axis);
     }
 
     default Self rotateDegrees(float degrees, Vector3fc axis) {
-        return rotate(Mth.RAD_TO_DEG * degrees, axis);
+        return rotate(Mth.DEG_TO_RAD * degrees, axis);
     }
 
     default Self rotateDegrees(float degrees, Direction axis) {
-        return rotate(Mth.RAD_TO_DEG * degrees, axis);
+        return rotate(Mth.DEG_TO_RAD * degrees, axis);
     }
 
     default Self rotateDegrees(float degrees, Direction.Axis axis) {
-        return rotate(Mth.RAD_TO_DEG * degrees, axis);
+        return rotate(Mth.DEG_TO_RAD * degrees, axis);
     }
 
     default Self rotateX(float radians) {
@@ -75,15 +75,15 @@ public interface Rotate<Self extends Rotate<Self>> {
     }
 
     default Self rotateXDegrees(float degrees) {
-        return rotateX(Mth.RAD_TO_DEG * degrees);
+        return rotateX(Mth.DEG_TO_RAD * degrees);
     }
 
     default Self rotateYDegrees(float degrees) {
-        return rotateY(Mth.RAD_TO_DEG * degrees);
+        return rotateY(Mth.DEG_TO_RAD * degrees);
     }
 
     default Self rotateZDegrees(float degrees) {
-        return rotateZ(Mth.RAD_TO_DEG * degrees);
+        return rotateZ(Mth.DEG_TO_RAD * degrees);
     }
 
     default Self rotateToFace(Direction facing) {

@@ -84,23 +84,22 @@ public class GlueDrawBufferFixMixin {
             ShadedBufferSource.setSceneDepthTextureId(origDepthName);
         }
 
-        // Copy scene depth from original FBO → capture FBO
-        // This gives the item correct depth relative to scene geometry
-        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, originalFbo);
-        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, captureFboId);
-        GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
+        // Copy scene depth only once per frame — subsequent draws depth-test naturally
+        if (!ShadedBufferSource.isDepthCopied()) {
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, originalFbo);
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, captureFboId);
+            GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
+            ShadedBufferSource.setDepthCopied(true);
+        }
 
         // Now redirect draw to capture FBO
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, captureFboId);
         GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0});
         GL11.glViewport(0, 0, w, h);
 
-        // Disable blending so FBO stores raw non-premultiplied colors
-        GL11.glDisable(GL11.GL_BLEND);
-
         if (!logged) {
             logged = true;
-            LOGGER.info("[Glue-Mixin] Redirected draw to capture FBO {}, origFBO={}, sceneDepthTex={}, blend disabled",
+            LOGGER.info("[Glue-Mixin] Redirected draw to capture FBO {}, origFBO={}, sceneDepthTex={}",
                     captureFboId, originalFbo, origDepthName);
         }
     }

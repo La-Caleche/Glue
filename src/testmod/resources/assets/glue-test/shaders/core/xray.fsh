@@ -19,10 +19,9 @@ out vec4 fragColor;
 
 void main() {
     vec4 color = texture(Sampler0, texCoord0);
+    color *= vertexColor * ColorModulator;
     if (color.a < ALPHA_CUTOUT) discard;
 
-    // Apply vanilla shading for base color reference
-    color *= vertexColor * ColorModulator;
     color.rgb = mix(overlayColor.rgb, color.rgb, overlayColor.a);
     color *= lightMapColor;
 

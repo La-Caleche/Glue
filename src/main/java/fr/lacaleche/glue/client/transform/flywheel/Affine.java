@@ -48,23 +48,23 @@ public interface Affine<Self extends Affine<Self>> extends Translate<Self>, Rota
     }
 
     default Self rotateCenteredDegrees(float degrees, float axisX, float axisY, float axisZ) {
-        return rotateCentered(Mth.RAD_TO_DEG * degrees, axisX, axisY, axisZ);
+        return rotateCentered(Mth.DEG_TO_RAD * degrees, axisX, axisY, axisZ);
     }
 
     default Self rotateCenteredDegrees(float degrees, Axis axis) {
-        return rotateCentered(Mth.RAD_TO_DEG * degrees, axis);
+        return rotateCentered(Mth.DEG_TO_RAD * degrees, axis);
     }
 
     default Self rotateCenteredDegrees(float degrees, Vector3fc axis) {
-        return rotateCentered(Mth.RAD_TO_DEG * degrees, axis);
+        return rotateCentered(Mth.DEG_TO_RAD * degrees, axis);
     }
 
     default Self rotateCenteredDegrees(float degrees, Direction axis) {
-        return rotateCentered(Mth.RAD_TO_DEG * degrees, axis);
+        return rotateCentered(Mth.DEG_TO_RAD * degrees, axis);
     }
 
     default Self rotateCenteredDegrees(float degrees, Direction.Axis axis) {
-        return rotateCentered(Mth.RAD_TO_DEG * degrees, axis);
+        return rotateCentered(Mth.DEG_TO_RAD * degrees, axis);
     }
 
     default Self rotateXCentered(float radians) {
@@ -80,14 +80,14 @@ public interface Affine<Self extends Affine<Self>> extends Translate<Self>, Rota
     }
 
     default Self rotateXCenteredDegrees(float degrees) {
-        return rotateXCentered(Mth.RAD_TO_DEG * degrees);
+        return rotateXCentered(Mth.DEG_TO_RAD * degrees);
     }
 
     default Self rotateYCenteredDegrees(float degrees) {
-        return rotateYCentered(Mth.RAD_TO_DEG * degrees);
+        return rotateYCentered(Mth.DEG_TO_RAD * degrees);
     }
 
     default Self rotateZCenteredDegrees(float degrees) {
-        return rotateZCentered(Mth.RAD_TO_DEG * degrees);
+        return rotateZCentered(Mth.DEG_TO_RAD * degrees);
     }
 }
