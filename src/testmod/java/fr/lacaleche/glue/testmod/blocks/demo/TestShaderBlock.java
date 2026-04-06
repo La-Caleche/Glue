@@ -17,16 +17,14 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * A test block that demonstrates custom shader rendering capabilities.
- * Right-click to cycle through shader effects (hologram, enchanted, frozen, xray, inferno).
+ * Right-click to cycle through shader effects (hologram, enchanted_glow, frozen, xray, inferno).
  */
 public class TestShaderBlock extends BaseEntityBlock {
 
     public static final MapCodec<TestShaderBlock> CODEC = simpleCodec(TestShaderBlock::new);
 
     private static final String[] SHADER_NAMES = {
-            "ET+Translucent", "ET+NoBlend",
-            "E+Translucent", "E+NoBlend",
-            "B+Translucent", "B+NoBlend"
+            "Hologram", "Enchanted Glow", "Frozen", "X-Ray", "Inferno"
     };
 
     public TestShaderBlock(Properties properties) {
@@ -55,7 +53,7 @@ public class TestShaderBlock extends BaseEntityBlock {
         if (level.getBlockEntity(pos) instanceof TestShaderBlockEntity entity) {
             entity.cycleShader();
             if (!level.isClientSide()) {
-                String name = SHADER_NAMES[entity.getShaderIndex()];
+                String name = SHADER_NAMES[entity.getShaderIndex() % SHADER_NAMES.length];
                 player.displayClientMessage(
                         net.minecraft.network.chat.Component.literal("§b[Glue] §fShader: §e" + name),
                         true);

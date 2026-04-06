@@ -21,12 +21,12 @@ import org.jetbrains.annotations.Nullable;
 public class TestShaderBlockEntity extends BlockEntity {
 
     /** Total number of available shader effects */
-    public static final int SHADER_COUNT = 6;
+    public static final int SHADER_COUNT = 5;
 
     /** Animation tick counter */
     private int ticks = 0;
 
-    /** Current shader index (0 = hologram, 1 = enchanted, 2 = frozen, 3 = xray, 4 = inferno) */
+    /** Current shader index (0 = hologram, 1 = enchanted_glow, 2 = frozen, 3 = xray, 4 = inferno) */
     private int shaderIndex = 0;
 
     public TestShaderBlockEntity(BlockPos pos, BlockState state) {

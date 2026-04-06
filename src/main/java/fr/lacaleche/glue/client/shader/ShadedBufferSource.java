@@ -91,18 +91,19 @@ public class ShadedBufferSource implements MultiBufferSource {
                 capturing = false;
             }
 
-            // With Iris: blit from GluePostCompositeMixin (AFTER hand renders)
+            // With Iris: blit from GluePostCompositeMixin (AFTER Iris composites)
             // Without Iris: blit at LAST (adequate timing)
+            // NOTE: hand occlusion with Iris is a known limitation — Iris clears FBO 3 depth
             boolean irisActive = RenderCompat.isIrisShaderEnabled();
             if (!blitPathLogged) {
                 blitPathLogged = true;
-                LOGGER.info("[Glue-Path] irisActive={}, blit will fire from {}",
+                LOGGER.info("[Glue-Path] irisActive={}, blit from {}",
                         irisActive, irisActive ? "PostCompositeMixin" : "DeferredDrawQueue.LAST");
             }
             if (!irisActive) {
                 DeferredDrawQueue.defer(ShadedBufferSource::blitCaptureToScreen);
             }
-            // With Iris: postCompositeBlit() called by the mixin after renderLevel
+            // With Iris: postCompositeBlit() called by GluePostCompositeMixin
 
         } else {
             ownSource.endBatch();

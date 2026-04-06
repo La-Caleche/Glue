@@ -189,6 +189,9 @@ class GlDirectRenderer {
             #version 150
 
             uniform sampler2D CaptureColor;
+            uniform sampler2D CaptureDepth;
+            uniform sampler2D SceneDepth;
+            uniform int HasSceneDepth;
 
             in vec2 texCoord;
             out vec4 fragColor;
@@ -196,6 +199,13 @@ class GlDirectRenderer {
             void main() {
                 vec4 color = texture(CaptureColor, texCoord);
                 if (color.a < 0.005) discard;
+
+                // Depth-based occlusion: discard if behind scene geometry (includes hand)
+                if (HasSceneDepth == 1) {
+                    float capturedZ = texture(CaptureDepth, texCoord).r;
+                    float sceneZ = texture(SceneDepth, texCoord).r;
+                    if (capturedZ >= sceneZ) discard;
+                }
 
                 // Un-premultiply alpha
                 float alpha = sqrt(color.a);
@@ -220,13 +230,8 @@ class GlDirectRenderer {
         RenderTarget mainTarget = Minecraft.getInstance().getMainRenderTarget();
         int mainFboId = FramebufferHelper.getFramebufferId(mainTarget);
 
-        if (!blitLogged) {
-            blitLogged = true;
-            LOGGER.info("[Glue-Blit] captureColor={}, captureDepth={}, sceneDepth={}, mainFBO={}",
-                    captureColorId, captureDepthId, sceneDepthId, mainFboId);
-        }
 
-        // Draw to MC's main render target (different FBO from scene depth source → no hazard)
+        // Draw to MC's main render target (FBO 3) for opaque output
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, mainFboId);
         GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0});
         GL11.glViewport(0, 0, mainTarget.width, mainTarget.height);
@@ -238,6 +243,30 @@ class GlDirectRenderer {
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, captureColorId);
         int loc0 = GL20.glGetUniformLocation(program, "CaptureColor");
         if (loc0 >= 0) GL20.glUniform1i(loc0, 0);
+
+        // TU1: capture depth (our item's depth)
+        GL13.glActiveTexture(GL13.GL_TEXTURE1);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, captureDepthId);
+        int loc1 = GL20.glGetUniformLocation(program, "CaptureDepth");
+        if (loc1 >= 0) GL20.glUniform1i(loc1, 1);
+
+        // TU2: Iris scene depth (includes hand) for shader-based occlusion
+        int irisDepthId = getIrisMainDepthGlId();
+        boolean hasSceneDepth = irisDepthId > 0;
+        if (hasSceneDepth) {
+            GL13.glActiveTexture(GL13.GL_TEXTURE2);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, irisDepthId);
+            int loc2 = GL20.glGetUniformLocation(program, "SceneDepth");
+            if (loc2 >= 0) GL20.glUniform1i(loc2, 2);
+        }
+        int locHas = GL20.glGetUniformLocation(program, "HasSceneDepth");
+        if (locHas >= 0) GL20.glUniform1i(locHas, hasSceneDepth ? 1 : 0);
+
+        if (!blitLogged) {
+            blitLogged = true;
+            LOGGER.info("[Glue-Blit] captureColor={}, captureDepth={}, irisDepth={}, mainFBO={}",
+                    captureColorId, captureDepthId, irisDepthId, mainFboId);
+        }
 
         // Fullscreen quad (NDC)
         float[] verts = { -1f,-1f,0f,  1f,-1f,0f,  1f,1f,0f,  -1f,1f,0f };
@@ -263,6 +292,38 @@ class GlDirectRenderer {
         GL15.glDeleteBuffers(uvVbo);
         GL30.glDeleteVertexArrays(vao);
         state.restore();
+    }
+
+    /**
+     * Gets Iris's main depth texture GL ID (includes hand depth).
+     * Returns -1 if Iris is not active or reflection fails.
+     */
+    private static int getIrisMainDepthGlId() {
+        try {
+            var irisClass = Class.forName("net.irisshaders.iris.Iris");
+            var mgr = irisClass.getMethod("getPipelineManager").invoke(null);
+            var pipeline = mgr.getClass().getMethod("getPipelineNullable").invoke(mgr);
+            if (pipeline == null) return -1;
+
+            var pipeClass = Class.forName("net.irisshaders.iris.pipeline.IrisRenderingPipeline");
+            if (!pipeClass.isInstance(pipeline)) return -1;
+
+            var rtsClass = Class.forName("net.irisshaders.iris.targets.RenderTargets");
+            java.lang.reflect.Field rtsField = pipeClass.getDeclaredField("renderTargets");
+            rtsField.setAccessible(true);
+            Object rts = rtsField.get(pipeline);
+
+            // getDepthTexture() returns GpuTexture (which is GlTexture via mixin)
+            var depthTex = rtsClass.getMethod("getDepthTexture").invoke(rts);
+            if (depthTex == null) return -1;
+
+            // GlTexture.glId() returns the raw GL texture name
+            var glTexClass = Class.forName("com.mojang.blaze3d.opengl.GlTexture");
+            if (glTexClass.isInstance(depthTex)) {
+                return (int) glTexClass.getMethod("glId").invoke(depthTex);
+            }
+        } catch (Exception ignored) {}
+        return -1;
     }
 
     // ── Shared utilities ─────────────────────────────────────────

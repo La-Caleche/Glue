@@ -1,87 +1,61 @@
 package fr.lacaleche.glue.testmod.render.block.entity;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import fr.lacaleche.glue.client.shader.GluePipeline;
 import fr.lacaleche.glue.client.shader.ShadedBufferSource;
 import fr.lacaleche.glue.compat.RenderCompat;
+import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.blocks.demo.TestShaderBlockEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Pipeline transparency diagnostic — registers flat-black shader with
- * 6 different pipeline configurations to identify which renders opaque.
+ * Shader showcase renderer — renders a floating diamond sword with one of five
+ * custom shader effects. Right-click the block to cycle through them.
  *
- * <p>Right-click to cycle. Action bar shows config name.</p>
  * <ol>
- *   <li>ENTITIES_TRANSLUCENT + Translucent blend</li>
- *   <li>ENTITIES_TRANSLUCENT + No blend (opaque)</li>
- *   <li>ENTITIES + Translucent blend</li>
- *   <li>ENTITIES + No blend (opaque)</li>
- *   <li>BLOCK + Translucent blend</li>
- *   <li>BLOCK + No blend (opaque)</li>
+ *   <li>Hologram — translucent holographic scan-line effect</li>
+ *   <li>Enchanted Glow — animated enchantment shimmer</li>
+ *   <li>Frozen — icy crystal overlay</li>
+ *   <li>X-Ray — see-through wireframe look</li>
+ *   <li>Inferno — animated fire/lava distortion</li>
  * </ol>
  */
 public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestShaderBlockEntity> {
 
     private static final ItemStack DISPLAY_ITEM = new ItemStack(Items.DIAMOND_SWORD);
 
-    private static final ResourceLocation BLACK_VERT = ResourceLocation.fromNamespaceAndPath("glue-test", "core/flat_black");
-    private static final ResourceLocation BLACK_FRAG = ResourceLocation.fromNamespaceAndPath("glue-test", "core/flat_black");
+    private static final String[] SHADER_NAMES = {
+            "hologram", "enchanted_glow", "frozen", "xray", "inferno"
+    };
 
     private static GluePipeline[] pipelines;
 
     private static GluePipeline[] getPipelines() {
         if (pipelines == null) {
-            pipelines = new GluePipeline[] {
-                // 0: ENTITIES_TRANSLUCENT + TRANSLUCENT blend (current default)
-                GluePipeline.entityCustom(
-                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_et_tb"),
-                        BLACK_VERT, BLACK_FRAG,
-                        BlendFunction.TRANSLUCENT, "ENTITIES_TRANSLUCENT"
-                ),
-                // 1: ENTITIES_TRANSLUCENT + NO blend
-                GluePipeline.entityCustom(
-                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_et_nb"),
-                        BLACK_VERT, BLACK_FRAG,
-                        null, "ENTITIES_TRANSLUCENT"
-                ),
-                // 2: ENTITIES + TRANSLUCENT blend
-                GluePipeline.entityCustom(
-                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_e_tb"),
-                        BLACK_VERT, BLACK_FRAG,
-                        BlendFunction.TRANSLUCENT, "ENTITIES"
-                ),
-                // 3: ENTITIES + NO blend
-                GluePipeline.entityCustom(
-                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_e_nb"),
-                        BLACK_VERT, BLACK_FRAG,
-                        null, "ENTITIES"
-                ),
-                // 4: BLOCK + TRANSLUCENT blend
-                GluePipeline.entityCustom(
-                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_b_tb"),
-                        BLACK_VERT, BLACK_FRAG,
-                        BlendFunction.TRANSLUCENT, "BLOCK"
-                ),
-                // 5: BLOCK + NO blend
-                GluePipeline.entityCustom(
-                        ResourceLocation.fromNamespaceAndPath("glue-test", "black_b_nb"),
-                        BLACK_VERT, BLACK_FRAG,
-                        null, "BLOCK"
-                )
-            };
+            pipelines = new GluePipeline[SHADER_NAMES.length];
+            for (int i = 0; i < SHADER_NAMES.length; i++) {
+                String name = SHADER_NAMES[i];
+                pipelines[i] = GluePipeline.entity(
+                        TestmodClient.id(name),
+                        TestmodClient.id("core/" + name),
+                        TestmodClient.id("core/" + name)
+                );
+            }
         }
         return pipelines;
+    }
+
+    /** Returns the display name for the given shader index. */
+    public static String getShaderName(int index) {
+        return SHADER_NAMES[index % SHADER_NAMES.length];
     }
 
     private final ItemRenderer itemRenderer;
@@ -101,7 +75,7 @@ public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestSh
         if (RenderCompat.isRenderingShadowPass()) return;
 
         int shaderIndex = entity.getShaderIndex();
-        GluePipeline activePipeline = getPipelines()[shaderIndex];
+        GluePipeline activePipeline = getPipelines()[shaderIndex % getPipelines().length];
 
         poseStack.pushPose();
         poseStack.translate(0.5, 2.5, 0.5);
@@ -123,3 +97,4 @@ public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestSh
         poseStack.popPose();
     }
 }
+
