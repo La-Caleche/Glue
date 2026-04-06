@@ -8,7 +8,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import java.util.function.Consumer;
 
 /**
- * Defines custom render events for OccaMod.
+ * Defines custom render events for Glue.
  */
 public class RenderEvents {
 
@@ -36,4 +36,22 @@ public class RenderEvents {
                 }
             }
     );
+
+    /**
+     * Event fired AFTER Glue has blitted custom shader output to the main framebuffer,
+     * but BEFORE HUD/GUI rendering. This is the correct place to apply post-processing
+     * effects (blur, grayscale, etc.) so they affect both vanilla and custom shader content.
+     *
+     * <p>Timing (with Iris): fires after Iris composite + Glue blit, before depth clear.</p>
+     * <p>Timing (vanilla): fires at WorldRenderEvents.LAST, after Glue blit.</p>
+     */
+    public static final Event<Runnable> POST_WORLD_RENDER = EventFactory.createArrayBacked(
+            Runnable.class,
+            listeners -> () -> {
+                for (Runnable listener : listeners) {
+                    listener.run();
+                }
+            }
+    );
 }
+

@@ -1,17 +1,12 @@
 package fr.lacaleche.glue.testmod.render;
 
 import com.mojang.blaze3d.resource.CrossFrameResourcePool;
+import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.compat.RenderCompat;
-import fr.lacaleche.glue.testmod.blocks.demo.TestShaderBlock;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
 
 /**
  * Applies post-processing shaders: grayscale (proximity), blur (toggle), shattered screen (one-shot).
@@ -19,7 +14,6 @@ import net.minecraft.world.level.Level;
 public class TestPostShaderHandler {
 
     private static final CrossFrameResourcePool RESOURCE_POOL = new CrossFrameResourcePool(3);
-    private static final double EFFECT_RANGE = 8.0;
     private static final int SHATTERED_CONFIG_SIZE = 16; // 4 floats × 4 bytes
 
     private static final int FLASH_TICKS = 4;
@@ -35,7 +29,8 @@ public class TestPostShaderHandler {
     private static int shatteredTick = -1;
 
     public static void register() {
-        WorldRenderEvents.LAST.register(TestPostShaderHandler::onWorldRenderLast);
+        // Use POST_WORLD_RENDER so effects apply AFTER Glue blit (includes custom shaders)
+        RenderEvents.POST_WORLD_RENDER.register(TestPostShaderHandler::onPostWorldRender);
         ClientTickEvents.END_CLIENT_TICK.register(TestPostShaderHandler::onClientTick);
     }
 
@@ -72,7 +67,7 @@ public class TestPostShaderHandler {
         }
     }
 
-    private static void onWorldRenderLast(WorldRenderContext context) {
+    private static void onPostWorldRender() {
         if (RenderCompat.isRenderingShadowPass()) return;
 
         Minecraft mc = Minecraft.getInstance();
@@ -91,7 +86,7 @@ public class TestPostShaderHandler {
         }
 
         if (isShatteredActive()) {
-            float partialTick = context.tickCounter().getGameTimeDeltaPartialTick(false);
+            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
             applyShatteredScreen(mc, partialTick);
             anyApplied = true;
         }
