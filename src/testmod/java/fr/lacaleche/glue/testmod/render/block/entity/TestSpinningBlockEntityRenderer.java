@@ -1,13 +1,12 @@
 package fr.lacaleche.glue.testmod.render.block.entity;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import fr.lacaleche.glue.client.transform.GlueTransformStack;
+import com.mojang.math.Axis;
 import fr.lacaleche.glue.testmod.blocks.demo.TestSpinningBlockEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -15,7 +14,19 @@ import net.minecraft.world.phys.Vec3;
 
 public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<TestSpinningBlockEntity> {
 
-    private static final ItemStack DISPLAY_ITEM = new ItemStack(Items.DIAMOND_SWORD);
+    private static final ItemStack NETHER_STAR = new ItemStack(Items.NETHER_STAR);
+    private static final ItemStack AMETHYST = new ItemStack(Items.AMETHYST_SHARD);
+
+    private static final float STAR_HEIGHT = 2.2f;
+    private static final float AMETHYST_HEIGHT = 1.75f;
+    private static final float ORBIT_RADIUS = 1f;
+    private static final float GROUP_SPIN_SPEED = 40f;
+    private static final float STAR_SPIN_SPEED = 60f;
+    private static final float BOB_SPEED = 1.5f;
+    private static final float BOB_AMP = 0.05f;
+
+    private static final int SHARD_COUNT = 4;
+    private static final float SHARD_SCALE = 0.5f;
 
     private final ItemRenderer itemRenderer;
 
@@ -26,26 +37,51 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
     @Override
     public void render(TestSpinningBlockEntity entity, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay, Vec3 cameraPos) {
-        entity.tick();
 
-        float time = entity.getTicks() + tickDelta;
+        float time = (entity.getTicks() + tickDelta) / 20f;
+        float globalBob = (float) Math.sin(time * BOB_SPEED) * BOB_AMP;
+        long seed = entity.getBlockPos().asLong();
 
-        GlueTransformStack.of(matrices).pushPose()
-                .rotateCentered((float) Math.toRadians(time * 2), Direction.UP)
-                .rotateCentered((float) Math.toRadians(15), Direction.EAST)
-                .translate(0.8, 1.75, -0.5)
-                .translate(0, Math.sin(time * 0.025) * 0.1, 0)
-                .then(() -> {
-                    this.itemRenderer.renderStatic(
-                            DISPLAY_ITEM,
-                            ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
-                            light,
-                            overlay,
-                            matrices,
-                            vertexConsumers,
-                            entity.getLevel(),
-                            0);
-                })
-                .popPose();
+        matrices.pushPose();
+        matrices.translate(0.5, STAR_HEIGHT + globalBob, 0.5);
+        matrices.mulPose(Axis.YP.rotationDegrees(time * STAR_SPIN_SPEED));
+        matrices.scale(0.8f, 0.8f, 0.8f);
+        itemRenderer.renderStatic(NETHER_STAR, ItemDisplayContext.FIXED,
+                light, overlay, matrices, vertexConsumers, entity.getLevel(), 0);
+        matrices.popPose();
+
+        matrices.pushPose();
+        matrices.translate(0.5, AMETHYST_HEIGHT + (globalBob * 0.5f), 0.5);
+        matrices.mulPose(Axis.YP.rotationDegrees(time * GROUP_SPIN_SPEED));
+
+        for (int i = 0; i < SHARD_COUNT; i++) {
+            float angle = i * (360f / SHARD_COUNT);
+            float rng = pseudoRandom(seed, i);
+
+            float selfSpeed = 20f + rng * 40f;
+            float tiltX = 10f + rng * 30f;
+            float tiltZ = (rng - 0.5f) * 20f;
+            float bobOffset = rng * 6.28f;
+            float shardBob = (float) Math.sin(time * (1.0f + rng) + bobOffset) * 0.04f;
+
+            matrices.pushPose();
+            matrices.mulPose(Axis.YP.rotationDegrees(angle));
+            matrices.translate(ORBIT_RADIUS, shardBob, 0);
+            matrices.mulPose(Axis.XP.rotationDegrees(tiltX));
+            matrices.mulPose(Axis.ZP.rotationDegrees(tiltZ));
+            matrices.mulPose(Axis.YP.rotationDegrees(time * selfSpeed));
+            matrices.scale(SHARD_SCALE, SHARD_SCALE, SHARD_SCALE);
+            itemRenderer.renderStatic(AMETHYST, ItemDisplayContext.FIXED,
+                    light, overlay, matrices, vertexConsumers, entity.getLevel(), 0);
+            matrices.popPose();
+        }
+
+        matrices.popPose();
+    }
+
+    private static float pseudoRandom(long seed, int index) {
+        long h = seed * 6364136223846793005L + index * 1442695040888963407L;
+        h = (h ^ (h >>> 33)) * 0xff51afd7ed558ccdL;
+        return (float) ((h >>> 40) & 0xFFFFF) / (float) 0xFFFFF;
     }
 }

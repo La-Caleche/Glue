@@ -74,12 +74,15 @@ public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestSh
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay, Vec3 cameraPos) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
+        float time = (entity.getTicks() + partialTick) / 20f;
+
         int shaderIndex = entity.getShaderIndex();
         GluePipeline activePipeline = getPipelines()[shaderIndex % getPipelines().length];
 
         poseStack.pushPose();
-        poseStack.translate(0.5, 2.5, 0.5);
-        poseStack.mulPose(Axis.YP.rotationDegrees(2 * 45f));
+        poseStack.translate(0.5, 2.1 + Math.sin(time * 2) * 0.15, 0.5);
+        poseStack.mulPose(Axis.YP.rotationDegrees(time * 45f));
+        poseStack.mulPose(Axis.XP.rotationDegrees(15f));
 
         ShadedBufferSource shadedSource = activePipeline.wrap(bufferSource);
 
