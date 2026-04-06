@@ -207,11 +207,11 @@ class GlDirectRenderer {
                     if (capturedZ >= sceneZ) discard;
                 }
 
-                // Un-premultiply alpha
+                // Un-premultiply alpha and preserve transparency
                 float alpha = sqrt(color.a);
                 vec3 rgb = color.rgb / max(alpha, 0.001);
 
-                fragColor = vec4(rgb, 1.0);
+                fragColor = vec4(rgb, alpha);
             }
             """;
 
@@ -277,7 +277,8 @@ class GlDirectRenderer {
         int posVbo = uploadAttrib(program, "Position", verts, 3);
         int uvVbo  = uploadAttrib(program, "UV", uvs, 2);
 
-        GL11.glDisable(GL11.GL_BLEND);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDepthMask(false);
         GL11.glDisable(GL11.GL_CULL_FACE);
