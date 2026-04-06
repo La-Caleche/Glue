@@ -7,10 +7,6 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 import java.util.Optional;
 
-/**
- * Mixin invoker for {@link RenderStateShard.EmptyTextureStateShard#cutoutTexture()},
- * which is protected. Exposes it so we can extract the texture ResourceLocation.
- */
 @Mixin(RenderStateShard.EmptyTextureStateShard.class)
 public interface TextureStateShardAccessor {
     @Invoker("cutoutTexture")

@@ -2,10 +2,6 @@ package fr.lacaleche.glue.client.shader;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
-/**
- * Silently discards all vertex data. Used to skip render layers
- * that cannot be routed through a custom shader pipeline.
- */
 public class NoopVertexConsumer implements VertexConsumer {
 
     public static final NoopVertexConsumer INSTANCE = new NoopVertexConsumer();

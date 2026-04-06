@@ -3,9 +3,12 @@ package fr.lacaleche.glue.client.debug;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.opengl.GlTextureView;
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.TextureFormat;
+import fr.lacaleche.glue.compat.RenderCompat;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
@@ -16,34 +19,15 @@ import org.lwjgl.system.MemoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.*;
 
-/**
- * Debug HUD that displays all active framebuffer objects (FBOs).
- * Supports both Iris render targets and vanilla FBOs.
- *
- * <p>Toggle with the configured keybind (default: F8).</p>
- *
- * <h3>Controls:</h3>
- * <ul>
- *     <li>Left/Right or Scroll — Change page</li>
- *     <li>Up/Down — Move sidebar cursor</li>
- *     <li>Enter — Toggle buffer visibility</li>
- *     <li>-/+ — Adjust grid size (1×1 to 4×4)</li>
- *     <li>[/] — Cycle filter mode (All/Color/Depth)</li>
- *     <li>` — Toggle alt texture visibility</li>
- * </ul>
- */
 public class FboDebugHud {
 
     public static final FboDebugHud INSTANCE = new FboDebugHud();
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-debug-hud");
     private static final int THUMB_SIZE = 256;
-
-    // ── Core state ───────────────────────────────────────────────────
 
     private boolean active;
     private boolean useIris;
@@ -52,11 +36,8 @@ public class FboDebugHud {
 
     private RenderTarget depthCopyTarget;
 
-    // Vanilla color snapshot
     private int snapColorId = -1;
     private int snapW = -1, snapH = -1;
-
-    // ── Pagination & filtering ───────────────────────────────────────
 
     private int currentPage;
     private int gridSize = 2;
@@ -68,21 +49,16 @@ public class FboDebugHud {
     private List<String> allBufferNames = List.of();
     private final Set<Integer> keysDown = new HashSet<>();
 
-    // ── Types ────────────────────────────────────────────────────────
-
     private record CapturedTexture(int id, String name, int width, int height, boolean isAlt, boolean isDepth) {}
 
     enum FilterMode {
         ALL("All"), COLOR("Color"), DEPTH("Depth");
         final String label;
         FilterMode(String l) { this.label = l; }
-        FilterMode next() { var v = values(); return v[(ordinal() + 1) % v.length]; }
-        FilterMode prev() { var v = values(); return v[(ordinal() - 1 + v.length) % v.length]; }
+        FilterMode next() { FilterMode[] v = values(); return v[(ordinal() + 1) % v.length]; }
+        FilterMode prev() { FilterMode[] v = values(); return v[(ordinal() - 1 + v.length) % v.length]; }
     }
 
-    // ── Public API ───────────────────────────────────────────────────
-
-    /** Toggles the HUD on/off. */
     public void toggle() {
         active = !active;
         if (active) {
@@ -109,14 +85,13 @@ public class FboDebugHud {
         return active;
     }
 
-    /** Called from a mixin at the end of world rendering to capture depth. */
     public void captureDepthNow() {
         if (!active) return;
 
         RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
         if (main == null || main.getDepthTexture() == null) return;
 
-        int irisDepthId = getIrisSceneDepthGlId();
+        int irisDepthId = RenderCompat.getIrisSceneDepthGlId();
         if (irisDepthId != -1) {
             depthLinearizer.capture(irisDepthId,
                     main.getDepthTexture().getWidth(0),
@@ -124,7 +99,6 @@ public class FboDebugHud {
             return;
         }
 
-        // Vanilla: copy to a separate target first (main depth is on the active FBO)
         ensureDepthCopyTarget(main.width, main.height);
         depthCopyTarget.copyDepthFrom(main);
         GpuTexture copied = depthCopyTarget.getDepthTexture();
@@ -139,8 +113,6 @@ public class FboDebugHud {
         currentPage = Math.max(0, currentPage);
         return true;
     }
-
-    // ── Input ────────────────────────────────────────────────────────
 
     public void tick() {
         if (!active) return;
@@ -178,8 +150,6 @@ public class FboDebugHud {
         return false;
     }
 
-    // ── Render ───────────────────────────────────────────────────────
-
     public void render(GuiGraphics graphics) {
         if (!active) return;
 
@@ -198,7 +168,7 @@ public class FboDebugHud {
         int start = currentPage * perPage;
         int end = Math.min(start + perPage, visible.size());
 
-        var mc = Minecraft.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         int screenW = mc.getWindow().getGuiScaledWidth();
         int screenH = mc.getWindow().getGuiScaledHeight();
         int headerH = 24, sidebarW = 110;
@@ -222,7 +192,7 @@ public class FboDebugHud {
 
     private void renderHeader(GuiGraphics g, int w, int h, int page, int totalPages, int shown, int total) {
         g.fill(0, 0, w, h, 0xFF222222);
-        var font = Minecraft.getInstance().font;
+        Font font = Minecraft.getInstance().font;
         String info = (useIris ? "Iris" : "Vanilla")
                 + " | Page " + page + "/" + totalPages
                 + " | Filter: " + filterMode.label
@@ -238,7 +208,7 @@ public class FboDebugHud {
         g.fill(0, topY, w, screenH, 0xFF1A1A1A);
         g.fill(w - 1, topY, w, screenH, 0xFF333333);
 
-        var font = Minecraft.getInstance().font;
+        Font font = Minecraft.getInstance().font;
         int lineH = 11;
         int maxVisible = (screenH - topY - 4) / lineH;
 
@@ -263,7 +233,6 @@ public class FboDebugHud {
             y += lineH;
         }
 
-        // Scrollbar
         if (all.size() > maxVisible) {
             int barH = screenH - topY;
             int thumbH = Math.max(8, barH * maxVisible / all.size());
@@ -277,7 +246,7 @@ public class FboDebugHud {
     private void renderGrid(GuiGraphics g, int x, int y, int w, int h, List<CapturedTexture> textures) {
         int cellW = w / gridSize, cellH = h / gridSize, pad = 2;
         TextureManager tm = Minecraft.getInstance().getTextureManager();
-        var font = Minecraft.getInstance().font;
+        Font font = Minecraft.getInstance().font;
 
         for (int i = 0; i < textures.size(); i++) {
             CapturedTexture t = textures.get(i);
@@ -301,86 +270,21 @@ public class FboDebugHud {
         return s.length() <= max ? s : s.substring(0, max - 1) + "~";
     }
 
-    // ── Iris target capture ─────────────────────────────────────────
-
     private boolean captureIrisTargets() {
-        try {
-            var irisClass = Class.forName("net.irisshaders.iris.Iris");
-            var mgr = irisClass.getMethod("getPipelineManager").invoke(null);
-            var pipeline = mgr.getClass().getMethod("getPipelineNullable").invoke(mgr);
-            if (pipeline == null) return false;
+        Object[] targets = RenderCompat.getIrisRenderTargetArray();
+        if (targets == null) return false;
 
-            var pipeClass = Class.forName("net.irisshaders.iris.pipeline.IrisRenderingPipeline");
-            if (!pipeClass.isInstance(pipeline)) return false;
-
-            var rtsClass = Class.forName("net.irisshaders.iris.targets.RenderTargets");
-            var rtClass = Class.forName("net.irisshaders.iris.targets.RenderTarget");
-
-            Field rtsField = pipeClass.getDeclaredField("renderTargets");
-            rtsField.setAccessible(true);
-            Object rts = rtsField.get(pipeline);
-
-            Field arrField = rtsClass.getDeclaredField("targets");
-            arrField.setAccessible(true);
-            Object[] targets = (Object[]) arrField.get(rts);
-
-            for (int i = 0; i < targets.length; i++) {
-                if (targets[i] != null) captureIrisTarget(targets[i], rtClass, "C" + i);
+        for (int i = 0; i < targets.length; i++) {
+            if (targets[i] == null) continue;
+            String name = "C" + i;
+            int[] data = RenderCompat.getIrisTargetTextures(targets[i], name);
+            if (data != null) {
+                irisCapturedTextures.add(new CapturedTexture(data[0], name, data[2], data[3], false, false));
+                irisCapturedTextures.add(new CapturedTexture(data[1], name + "_alt", data[2], data[3], true, false));
             }
-            return !irisCapturedTextures.isEmpty();
-        } catch (ClassNotFoundException e) {
-            return false;
-        } catch (Exception e) {
-            LOGGER.warn("[Glue-FBO-HUD] Failed to capture Iris targets", e);
-            return false;
         }
+        return !irisCapturedTextures.isEmpty();
     }
-
-    private void captureIrisTarget(Object target, Class<?> rtClass, String name) {
-        try {
-            Field mf = rtClass.getDeclaredField("mainTexture"); mf.setAccessible(true);
-            Field af = rtClass.getDeclaredField("altTexture");  af.setAccessible(true);
-            Field wf = rtClass.getDeclaredField("width");       wf.setAccessible(true);
-            Field hf = rtClass.getDeclaredField("height");      hf.setAccessible(true);
-
-            int mainId = (int) mf.get(target), altId = (int) af.get(target);
-            int w = (int) wf.get(target), h = (int) hf.get(target);
-            irisCapturedTextures.add(new CapturedTexture(mainId, name, w, h, false, false));
-            irisCapturedTextures.add(new CapturedTexture(altId, name + "_alt", w, h, true, false));
-        } catch (Exception e) {
-            LOGGER.warn("[Glue-FBO-HUD] Failed to capture Iris target: {}", name, e);
-        }
-    }
-
-    private int getIrisSceneDepthGlId() {
-        try {
-            var irisClass = Class.forName("net.irisshaders.iris.Iris");
-            var mgr = irisClass.getMethod("getPipelineManager").invoke(null);
-            var pipeline = mgr.getClass().getMethod("getPipelineNullable").invoke(mgr);
-            if (pipeline == null) return -1;
-
-            var pipeClass = Class.forName("net.irisshaders.iris.pipeline.IrisRenderingPipeline");
-            if (!pipeClass.isInstance(pipeline)) return -1;
-
-            var rtsClass = Class.forName("net.irisshaders.iris.targets.RenderTargets");
-            Field rtsField = pipeClass.getDeclaredField("renderTargets");
-            rtsField.setAccessible(true);
-            Object rts = rtsField.get(pipeline);
-
-            // noHand depth texture
-            for (String fieldName : new String[]{"noHand", "noTranslucents"}) {
-                try {
-                    Field f = rtsClass.getDeclaredField(fieldName);
-                    f.setAccessible(true);
-                    Object depthTex = f.get(rts);
-                    if (depthTex instanceof Integer id && id > 0) return id;
-                } catch (NoSuchFieldException ignored) {}
-            }
-        } catch (Exception ignored) {}
-        return -1;
-    }
-
-    // ── Vanilla capture ─────────────────────────────────────────────
 
     private List<CapturedTexture> buildIrisTextureList() {
         List<CapturedTexture> out = new ArrayList<>(irisCapturedTextures);
@@ -413,8 +317,6 @@ public class FboDebugHud {
         return out;
     }
 
-    // ── Resource management ─────────────────────────────────────────
-
     private void cleanup() {
         if (snapColorId != -1) { GL11.glDeleteTextures(snapColorId); snapColorId = -1; }
         snapW = snapH = -1;
@@ -425,7 +327,7 @@ public class FboDebugHud {
     private void ensureDepthCopyTarget(int w, int h) {
         if (depthCopyTarget != null && depthCopyTarget.width == w && depthCopyTarget.height == h) return;
         if (depthCopyTarget != null) depthCopyTarget.destroyBuffers();
-        depthCopyTarget = new com.mojang.blaze3d.pipeline.TextureTarget("Glue Debug Depth Copy", w, h, true);
+        depthCopyTarget = new TextureTarget("Glue Debug Depth Copy", w, h, true);
     }
 
     private void ensureColorSnapshot(int w, int h) {
@@ -440,8 +342,6 @@ public class FboDebugHud {
         snapW = w;
         snapH = h;
     }
-
-    // ── Depth linearizer ─────────────────────────────────────────────
 
     private static class DepthLinearizer {
         private int textureId = -1;
@@ -466,7 +366,6 @@ public class FboDebugHud {
                 GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL11.GL_DEPTH_COMPONENT, GL11.GL_FLOAT, raw);
                 GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
 
-                // Downsample and find value range
                 float min = 1f, max = 0f;
                 float[] samples = new float[THUMB_SIZE * THUMB_SIZE];
                 for (int y = 0; y < THUMB_SIZE; y++) {
@@ -479,7 +378,6 @@ public class FboDebugHud {
                 }
                 if (max <= min) { min = 0f; max = 1f; }
 
-                // Normalize to RGBA grayscale
                 ByteBuffer rgba = MemoryUtil.memAlloc(THUMB_SIZE * THUMB_SIZE * 4);
                 try {
                     float range = max - min;
@@ -525,13 +423,11 @@ public class FboDebugHud {
         }
     }
 
-    // ── GL texture wrappers ─────────────────────────────────────────
-
     private static class ExternalTexture extends AbstractTexture {
         final int wrappedId;
         ExternalTexture(int id, int width, int height) {
             this.wrappedId = id;
-            var gl = new ExternalGlTexture(id, width, height);
+            ExternalGlTexture gl = new ExternalGlTexture(id, width, height);
             this.texture = gl;
             this.textureView = new ExternalTextureView(gl);
         }

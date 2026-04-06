@@ -9,10 +9,6 @@ import org.joml.Matrix4f;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Iris-aware draw queue for raw GL rendering.
- * Defers draws to WorldRenderEvents.LAST when Iris is active, executes immediately otherwise.
- */
 @Environment(EnvType.CLIENT)
 public class DeferredDrawQueue {
 
@@ -25,8 +21,6 @@ public class DeferredDrawQueue {
         WorldRenderEvents.LAST.register(context -> flush());
     }
 
-    // ── Colored quad ─────────────────────────────────────────────
-
     static void enqueue(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
@@ -36,8 +30,6 @@ public class DeferredDrawQueue {
             GlDirectRenderer.drawQuad(mvp, vertices, colors, vertexCount, true);
         }
     }
-
-    // ── Textured quad ────────────────────────────────────────────
 
     static void enqueueTextured(Matrix4f mvp, float[] vertices, float[] uvs,
                                 float[] colors, int textureId, int vertexCount) {
@@ -51,12 +43,6 @@ public class DeferredDrawQueue {
         }
     }
 
-    // ── Arbitrary deferred action ────────────────────────────────
-
-    /**
-     * Defers an arbitrary rendering action to after Iris shadow passes.
-     * If Iris is not active, the action executes immediately.
-     */
     public static void defer(Runnable action) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
@@ -66,8 +52,6 @@ public class DeferredDrawQueue {
             action.run();
         }
     }
-
-    // ── Flush ────────────────────────────────────────────────────
 
     private static void flush() {
         if (pendingDraws.isEmpty()) return;
@@ -84,8 +68,6 @@ public class DeferredDrawQueue {
         }
         pendingDraws.clear();
     }
-
-    // ── Command types ────────────────────────────────────────────
 
     private sealed interface DrawCommand permits QuadCommand, TexturedQuadCommand, RunnableCommand {}
     private record QuadCommand(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) implements DrawCommand {}

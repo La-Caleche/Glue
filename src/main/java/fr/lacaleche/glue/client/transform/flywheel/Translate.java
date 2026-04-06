@@ -82,12 +82,6 @@ public interface Translate<Self extends Translate<Self>> {
         return translate(-CENTER);
     }
 
-    /**
-     * Translates this object randomly by a very small amount.
-     *
-     * @param seed The seed to use to generate the random offsets.
-     * @return {@code this}
-     */
     default Self nudge(int seed) {
         long randomBits = (long) seed * 31L * 493286711L;
         randomBits = randomBits * randomBits * 4392167121L + randomBits * 98761L;

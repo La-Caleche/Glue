@@ -27,10 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-/**
- * Handle to a lazily-loaded post-processing {@link PostChain}.
- * Supports dynamic uniform updates and Iris-compatible framebuffer blitting.
- */
 @Environment(EnvType.CLIENT)
 public class PostShaderHandle {
 
@@ -58,10 +54,6 @@ public class PostShaderHandle {
         return Minecraft.getInstance().getShaderManager().getPostChain(this.id, this.externalTargets);
     }
 
-    /**
-     * Updates a UBO block across all passes in this chain.
-     * The writer must put values in the same order as the GLSL layout(std140) declaration.
-     */
     public void setUniform(String blockName, int bufferSize, Consumer<Std140Builder> writer) {
         PostChain chain = this.get();
         if (chain == null) return;
@@ -87,12 +79,6 @@ public class PostShaderHandle {
         }
     }
 
-    /**
-     * Applies this post chain to the given render target.
-     * Handles Iris compatibility: when a shader pack is active, Iris redirects the
-     * main FBO to its own composite output. We blit the scene to/from MC's render
-     * target so PostChain reads/writes the correct textures.
-     */
     public void apply(RenderTarget target, GraphicsResourceAllocator resourceAllocator) {
         PostChain chain = this.get();
         if (chain == null) {

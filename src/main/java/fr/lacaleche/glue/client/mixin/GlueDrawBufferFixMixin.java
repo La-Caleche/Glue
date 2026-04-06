@@ -18,12 +18,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.lang.reflect.Field;
 import java.util.Collection;
 
-/**
- * Redirects custom shader draws to a private capture FBO when bypass + capture mode is active.
- * The capture FBO uses its own depth buffer (cleared to 1.0 = far plane), so the item
- * always passes depth test regardless of scene depth. Blending is disabled to store
- * raw fragment colors.
- */
 @Mixin(GlCommandEncoder.class)
 public class GlueDrawBufferFixMixin {
 
@@ -69,10 +63,8 @@ public class GlueDrawBufferFixMixin {
         int w = mc.getWindow().getWidth();
         int h = mc.getWindow().getHeight();
 
-        // Save the ORIGINAL FBO (Iris's entity rendering FBO) — it has valid scene depth
         int originalFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
 
-        // Query original FBO's depth texture for later blit comparison
         int origDepthType = GL30.glGetFramebufferAttachmentParameteri(
                 GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
                 GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
@@ -84,7 +76,6 @@ public class GlueDrawBufferFixMixin {
             ShadedBufferSource.setSceneDepthTextureId(origDepthName);
         }
 
-        // Copy scene depth only once per frame — subsequent draws depth-test naturally
         if (!ShadedBufferSource.isDepthCopied()) {
             GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, originalFbo);
             GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, captureFboId);
@@ -92,7 +83,6 @@ public class GlueDrawBufferFixMixin {
             ShadedBufferSource.setDepthCopied(true);
         }
 
-        // Now redirect draw to capture FBO
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, captureFboId);
         GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0});
         GL11.glViewport(0, 0, w, h);

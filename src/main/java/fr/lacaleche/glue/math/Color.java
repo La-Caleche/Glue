@@ -111,12 +111,6 @@ public final class Color {
         return color & 0xFF;
     }
 
-    /**
-     * Returns a brighter color
-     *
-     * @param factor the higher the value, the brighter the color
-     * @return the brighter color
-     */
     public Color brighter(double factor) {
         int r = getRed(), g = getGreen(), b = getBlue();
         int i = (int) (1.0 / (1.0 - (1 / factor)));
@@ -132,12 +126,6 @@ public final class Color {
                 getAlpha());
     }
 
-    /**
-     * Returns a darker color
-     *
-     * @param factor the higher the value, the darker the color
-     * @return the darker color
-     */
     public Color darker(double factor) {
         return ofRGBA(Math.max((int) (getRed() * (1 / factor)), 0),
                 Math.max((int) (getGreen() * (1 / factor)), 0),

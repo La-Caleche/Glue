@@ -4,6 +4,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.particle.Particle;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -11,12 +14,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.List;
+
 public interface DebugEvents {
 
-    /**
-     * Event triggered to render custom debug features on top of a targeted block
-     * outline.
-     */
     Event<BlockOutline> BLOCK_OUTLINE = EventFactory.createArrayBacked(
             BlockOutline.class,
             listeners -> (client, world, pos, blockState, camera, hitResult, matrices, buffers) -> {
@@ -24,6 +25,7 @@ public interface DebugEvents {
                     listener.onRenderBlockOutline(client, world, pos, blockState, camera, hitResult, matrices, buffers);
                 }
             });
+
     Event<F3Screen> F3_SCREEN_LEFT = EventFactory.createArrayBacked(
             F3Screen.class,
             listeners -> (client, list) -> {
@@ -31,6 +33,7 @@ public interface DebugEvents {
                     listener.onRenderF3(client, list);
                 }
             });
+
     Event<F3Screen> F3_SCREEN_RIGHT = EventFactory.createArrayBacked(
             F3Screen.class,
             listeners -> (client, list) -> {
@@ -38,6 +41,7 @@ public interface DebugEvents {
                     listener.onRenderF3(client, list);
                 }
             });
+
     Event<GuiDebugLayers> GUI_DEBUG_LAYERS = EventFactory.createArrayBacked(
             GuiDebugLayers.class,
             listeners -> (guiGraphics, tickDelta, screenWidth, screenHeight) -> {
@@ -45,6 +49,7 @@ public interface DebugEvents {
                     listener.onRenderGuiDebug(guiGraphics, tickDelta, screenWidth, screenHeight);
                 }
             });
+
     Event<WorldDebug> WORLD_DEBUG = EventFactory.createArrayBacked(
             WorldDebug.class,
             listeners -> (matrices, vertexConsumers, cameraX, cameraY, cameraZ) -> {
@@ -52,6 +57,7 @@ public interface DebugEvents {
                     listener.onRenderWorldDebug(matrices, vertexConsumers, cameraX, cameraY, cameraZ);
                 }
             });
+
     Event<ParticleSpawn> PARTICLE_SPAWN = EventFactory.createArrayBacked(
             ParticleSpawn.class,
             listeners -> (particle, level, x, y, z, xSpeed, ySpeed, zSpeed) -> {
@@ -68,13 +74,12 @@ public interface DebugEvents {
 
     @FunctionalInterface
     interface F3Screen {
-        void onRenderF3(Minecraft client, java.util.List<String> list);
+        void onRenderF3(Minecraft client, List<String> list);
     }
 
     @FunctionalInterface
     interface GuiDebugLayers {
-        void onRenderGuiDebug(net.minecraft.client.gui.GuiGraphics guiGraphics, float tickDelta, int screenWidth,
-                              int screenHeight);
+        void onRenderGuiDebug(GuiGraphics guiGraphics, float tickDelta, int screenWidth, int screenHeight);
     }
 
     @FunctionalInterface
@@ -85,9 +90,7 @@ public interface DebugEvents {
 
     @FunctionalInterface
     interface ParticleSpawn {
-        void onParticleSpawn(net.minecraft.client.particle.Particle particle,
-                             net.minecraft.client.multiplayer.ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed,
-                             double zSpeed);
+        void onParticleSpawn(Particle particle, ClientLevel level,
+                             double x, double y, double z, double xSpeed, double ySpeed, double zSpeed);
     }
-
 }

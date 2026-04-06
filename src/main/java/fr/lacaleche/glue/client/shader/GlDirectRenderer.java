@@ -2,6 +2,7 @@ package fr.lacaleche.glue.client.shader;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
+import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
@@ -20,22 +21,12 @@ import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Raw OpenGL renderer that bypasses MC's pipeline and all Iris hooks.
- * Compiles inline GLSL, caches programs, renders quads via direct GL calls.
- *
- * <p>Supports two drawing modes:</p>
- * <ul>
- *   <li><b>Position + Color</b> — flat colored quads (gradient, solid)</li>
- *   <li><b>Position + UV + Color</b> — textured quads with optional tint (FBO captures, sprites)</li>
- * </ul>
- */
 @Environment(EnvType.CLIENT)
 class GlDirectRenderer {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("glue-blit");
     private static final Map<String, Integer> programCache = new HashMap<>();
-
-    // ── Position + Color shader ──────────────────────────────────
+    private static boolean blitLogged = false;
 
     private static final String VERT_POSITION_COLOR = """
             #version 150
@@ -68,8 +59,6 @@ class GlDirectRenderer {
                 fragColor = color;
             }
             """;
-
-    // ── Position + UV + Color shader ─────────────────────────────
 
     private static final String VERT_POSITION_TEX_COLOR = """
             #version 150
@@ -110,8 +99,6 @@ class GlDirectRenderer {
             }
             """;
 
-    // ── Flat colored quad ────────────────────────────────────────
-
     static void drawQuad(Matrix4f mvpMatrix, float[] vertices, float[] colors, int vertexCount, boolean useDepthTest) {
         int program = getOrCreateProgram("glue_position_color", VERT_POSITION_COLOR, FRAG_POSITION_COLOR);
         SavedGlState state = SavedGlState.save();
@@ -135,8 +122,6 @@ class GlDirectRenderer {
         state.restore();
     }
 
-    // ── Textured quad ────────────────────────────────────────────
-
     static void drawTexturedQuad(Matrix4f mvpMatrix, float[] vertices, float[] uvs,
                                  float[] colors, int textureId, int vertexCount, boolean useDepthTest) {
         int program = getOrCreateProgram("glue_position_tex_color", VERT_POSITION_TEX_COLOR, FRAG_POSITION_TEX_COLOR);
@@ -145,7 +130,6 @@ class GlDirectRenderer {
         GL20.glUseProgram(program);
         uploadMvpUniform(program, mvpMatrix);
 
-        // Bind the texture
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
         int samplerLoc = GL20.glGetUniformLocation(program, "Sampler");
@@ -168,8 +152,6 @@ class GlDirectRenderer {
         GL30.glDeleteVertexArrays(vao);
         state.restore();
     }
-
-    // ── Depth-aware FBO blit ────────────────────────────────────
 
     private static final String VERT_BLIT = """
             #version 150
@@ -200,7 +182,6 @@ class GlDirectRenderer {
                 vec4 color = texture(CaptureColor, texCoord);
                 if (color.a < 0.005) discard;
 
-                // Depth-based occlusion: discard if behind scene geometry (includes hand)
                 if (HasSceneDepth == 1) {
                     float capturedZ = texture(CaptureDepth, texCoord).r;
                     float sceneZ = texture(SceneDepth, texCoord).r;
@@ -211,14 +192,6 @@ class GlDirectRenderer {
             }
             """;
 
-    /**
-     * Blits a captured FBO to MC's main render target with depth occlusion.
-     * Scene depth is read from the CURRENT FBO (Iris's, different from draw target),
-     * avoiding the GL read-write texture hazard.
-     */
-    private static final Logger LOGGER = LoggerFactory.getLogger("glue-blit");
-    private static boolean blitLogged = false;
-
     static void blitCapture(int captureColorId, int captureDepthId, int sceneDepthId) {
         int program = getOrCreateProgram("glue_depth_blit", VERT_BLIT, FRAG_DEPTH_BLIT);
         SavedGlState state = SavedGlState.save();
@@ -226,28 +199,23 @@ class GlDirectRenderer {
         RenderTarget mainTarget = Minecraft.getInstance().getMainRenderTarget();
         int mainFboId = FramebufferHelper.getFramebufferId(mainTarget);
 
-
-        // Draw to MC's main render target (FBO 3) for opaque output
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, mainFboId);
         GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0});
         GL11.glViewport(0, 0, mainTarget.width, mainTarget.height);
 
         GL20.glUseProgram(program);
 
-        // TU0: capture color
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, captureColorId);
         int loc0 = GL20.glGetUniformLocation(program, "CaptureColor");
         if (loc0 >= 0) GL20.glUniform1i(loc0, 0);
 
-        // TU1: capture depth (our item's depth)
         GL13.glActiveTexture(GL13.GL_TEXTURE1);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, captureDepthId);
         int loc1 = GL20.glGetUniformLocation(program, "CaptureDepth");
         if (loc1 >= 0) GL20.glUniform1i(loc1, 1);
 
-        // TU2: Iris scene depth (includes hand) for shader-based occlusion
-        int irisDepthId = getIrisMainDepthGlId();
+        int irisDepthId = RenderCompat.getIrisMainDepthGlId();
         boolean hasSceneDepth = irisDepthId > 0;
         if (hasSceneDepth) {
             GL13.glActiveTexture(GL13.GL_TEXTURE2);
@@ -264,7 +232,6 @@ class GlDirectRenderer {
                     captureColorId, captureDepthId, irisDepthId, mainFboId);
         }
 
-        // Fullscreen quad (NDC)
         float[] verts = { -1f,-1f,0f,  1f,-1f,0f,  1f,1f,0f,  -1f,1f,0f };
         float[] uvs   = {  0f,0f,       1f,0f,      1f,1f,      0f,1f    };
 
@@ -281,7 +248,6 @@ class GlDirectRenderer {
 
         GL11.glDrawArrays(GL11.GL_TRIANGLE_FAN, 0, 4);
 
-        // Cleanup
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
 
         GL30.glBindVertexArray(state.vao);
@@ -289,68 +255,6 @@ class GlDirectRenderer {
         GL15.glDeleteBuffers(uvVbo);
         GL30.glDeleteVertexArrays(vao);
         state.restore();
-    }
-
-    /**
-     * Gets Iris's main depth texture GL ID (includes hand depth).
-     * Returns -1 if Iris is not active or reflection fails.
-     */
-    private static int getIrisMainDepthGlId() {
-        try {
-            var irisClass = Class.forName("net.irisshaders.iris.Iris");
-            var mgr = irisClass.getMethod("getPipelineManager").invoke(null);
-            var pipeline = mgr.getClass().getMethod("getPipelineNullable").invoke(mgr);
-            if (pipeline == null) return -1;
-
-            var pipeClass = Class.forName("net.irisshaders.iris.pipeline.IrisRenderingPipeline");
-            if (!pipeClass.isInstance(pipeline)) return -1;
-
-            var rtsClass = Class.forName("net.irisshaders.iris.targets.RenderTargets");
-            java.lang.reflect.Field rtsField = pipeClass.getDeclaredField("renderTargets");
-            rtsField.setAccessible(true);
-            Object rts = rtsField.get(pipeline);
-
-            // getDepthTexture() returns GpuTexture (which is GlTexture via mixin)
-            var depthTex = rtsClass.getMethod("getDepthTexture").invoke(rts);
-            if (depthTex == null) return -1;
-
-            // GlTexture.glId() returns the raw GL texture name
-            var glTexClass = Class.forName("com.mojang.blaze3d.opengl.GlTexture");
-            if (glTexClass.isInstance(depthTex)) {
-                return (int) glTexClass.getMethod("glId").invoke(depthTex);
-            }
-        } catch (Exception ignored) {}
-        return -1;
-    }
-
-    // ── Shared utilities ─────────────────────────────────────────
-
-    /**
-     * Query the depth texture attached to a GL FBO by its ID.
-     * Returns -1 if the attachment is a renderbuffer (can't be sampled).
-     */
-    private static int getDepthTextureFromFbo(int fboId) {
-        if (fboId <= 0) return -1;
-        int prevRead = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
-        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, fboId);
-
-        int objType = GL30.glGetFramebufferAttachmentParameteri(
-                GL30.GL_READ_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
-                GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
-        int objName = GL30.glGetFramebufferAttachmentParameteri(
-                GL30.GL_READ_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
-                GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME);
-
-        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevRead);
-
-        boolean isTexture = (objType == GL11.GL_TEXTURE);
-        LOGGER.info("[Glue-Depth] FBO {} depth: type={} (texture={}), name={}",
-                fboId, objType == GL11.GL_TEXTURE ? "TEXTURE" :
-                       objType == GL30.GL_RENDERBUFFER ? "RENDERBUFFER" : "0x" + Integer.toHexString(objType),
-                isTexture, objName);
-
-        if (!isTexture || objName <= 0) return -1;
-        return objName;
     }
 
     static Matrix4f getProjectionMatrix() {
@@ -400,8 +304,6 @@ class GlDirectRenderer {
         GL11.glDisable(GL11.GL_CULL_FACE);
     }
 
-    // ── Program cache ────────────────────────────────────────────
-
     private static int getOrCreateProgram(String name, String vertSource, String fragSource) {
         return programCache.computeIfAbsent(name, k -> compileProgram(vertSource, fragSource));
     }
@@ -448,8 +350,6 @@ class GlDirectRenderer {
         }
         programCache.clear();
     }
-
-    // ── GL state save/restore ────────────────────────────────────
 
     private record SavedGlState(
             int program, int fbo, int vao,

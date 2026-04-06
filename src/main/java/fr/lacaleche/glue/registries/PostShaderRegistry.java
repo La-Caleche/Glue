@@ -11,10 +11,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 
-/**
- * Registry for post-processing shader handles.
- * Shaders are loaded from {@code post_effect/<namespace>/<path>.json}.
- */
 @Environment(EnvType.CLIENT)
 public class PostShaderRegistry extends GlueRegistry {
 

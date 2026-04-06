@@ -2,6 +2,7 @@ package fr.lacaleche.glue.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import fr.lacaleche.glue.Glue;
+
 import fr.lacaleche.glue.client.debug.FboDebugHud;
 import fr.lacaleche.glue.client.events.DrawSelectionEvents;
 import fr.lacaleche.glue.client.events.ParticleManagerEvents;
@@ -14,13 +15,14 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.KeyMapping;
+import org.lwjgl.glfw.GLFW;
 
 public class GlueClient implements ClientModInitializer {
 
     private static final KeyMapping FBO_DEBUG_KEY = new KeyMapping(
             "key.glue.fbo_debug_hud",
             InputConstants.Type.KEYSYM,
-            org.lwjgl.glfw.GLFW.GLFW_KEY_F8,
+            GLFW.GLFW_KEY_F8,
             "key.categories.glue"
     );
 
@@ -32,10 +34,8 @@ public class GlueClient implements ClientModInitializer {
         DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);
         ParticleManagerEvents.BLOCK_BREAK.register(BlockRenderer::getBreakParticleShape);
 
-        // Register deferred draw queue for raw GL rendering (Iris compatibility)
         DeferredDrawQueue.init();
 
-        // FBO Debug HUD (F8)
         KeyBindingHelper.registerKeyBinding(FBO_DEBUG_KEY);
 
         RenderEvents.RENDER_HUD.register(guiGraphics -> {

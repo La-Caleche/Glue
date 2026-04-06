@@ -5,6 +5,7 @@ import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.util.ARGB;
 
 public class FramebufferHelper {
 
@@ -21,7 +22,7 @@ public class FramebufferHelper {
     public static void clear(RenderTarget framebuffer, float r, float g, float b, float a) {
         RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
                 framebuffer.getColorTexture(),
-                net.minecraft.util.ARGB.colorFromFloat(a, r, g, b),
+                ARGB.colorFromFloat(a, r, g, b),
                 framebuffer.getDepthTexture(),
                 1.0d);
     }
@@ -40,10 +41,6 @@ public class FramebufferHelper {
         return -1;
     }
 
-    /**
-     * Gets the GL FBO ID for a render target via its color texture.
-     * Uses the same mechanism as Iris's {@code iris$bindFramebuffer()}.
-     */
     public static int getFramebufferId(RenderTarget target) {
         if (target.getColorTexture() instanceof GlTexture glTexture) {
             GlDevice device = (GlDevice) RenderSystem.getDevice();

@@ -129,7 +129,6 @@ public class VoxelShaper {
     }
 
     protected static class DefaultRotationValues implements Function<Direction, Vec3> {
-        // assume facing up as the default rotation
         @Override
         public Vec3 apply(Direction direction) {
             return new Vec3(direction == Direction.UP ? 0 : (Plane.VERTICAL.test(direction) ? 180 : 90),

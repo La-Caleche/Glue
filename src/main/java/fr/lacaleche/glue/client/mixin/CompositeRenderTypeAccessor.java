@@ -5,10 +5,6 @@ import net.minecraft.client.renderer.RenderType;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-/**
- * Mixin accessor for {@link RenderType.CompositeRenderType} to extract
- * the composite state and render pipeline.
- */
 @Mixin(RenderType.CompositeRenderType.class)
 public interface CompositeRenderTypeAccessor {
     @Accessor("state")

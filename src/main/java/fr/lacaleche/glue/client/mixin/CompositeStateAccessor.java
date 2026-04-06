@@ -5,10 +5,6 @@ import net.minecraft.client.renderer.RenderStateShard;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-/**
- * Mixin accessor for {@link RenderType.CompositeState} to extract
- * the texture state shard for shader pipeline swapping.
- */
 @Mixin(RenderType.CompositeState.class)
 public interface CompositeStateAccessor {
     @Accessor("textureState")

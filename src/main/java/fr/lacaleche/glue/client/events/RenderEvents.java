@@ -7,14 +7,8 @@ import net.minecraft.client.gui.GuiGraphics;
 
 import java.util.function.Consumer;
 
-/**
- * Defines custom render events for Glue.
- */
 public class RenderEvents {
 
-    /**
-     * Event triggered to render custom HUD elements.
-     */
     public static final Event<Consumer<GuiGraphics>> RENDER_HUD = EventFactory.createArrayBacked(
             Consumer.class,
             listeners -> guiContext -> {
@@ -24,10 +18,6 @@ public class RenderEvents {
             }
     );
 
-    /**
-     * Event triggered during the main render cycle.
-     * Allows adding custom rendering logic with access to tickDelta and screen dimensions.
-     */
     public static final Event<QuadConsumer<GuiGraphics, Float, Integer, Integer>> MAIN_RENDER = EventFactory.createArrayBacked(
             QuadConsumer.class,
             listeners -> (guiContext, tickDelta, screenWidth, screenHeight) -> {
@@ -37,14 +27,6 @@ public class RenderEvents {
             }
     );
 
-    /**
-     * Event fired AFTER Glue has blitted custom shader output to the main framebuffer,
-     * but BEFORE HUD/GUI rendering. This is the correct place to apply post-processing
-     * effects (blur, grayscale, etc.) so they affect both vanilla and custom shader content.
-     *
-     * <p>Timing (with Iris): fires after Iris composite + Glue blit, before depth clear.</p>
-     * <p>Timing (vanilla): fires at WorldRenderEvents.LAST, after Glue blit.</p>
-     */
     public static final Event<Runnable> POST_WORLD_RENDER = EventFactory.createArrayBacked(
             Runnable.class,
             listeners -> () -> {
@@ -54,4 +36,3 @@ public class RenderEvents {
             }
     );
 }
-
