@@ -1,7 +1,5 @@
 #version 150
 
-// Inferno — Fiery lava/ember effect with heat distortion.
-
 #moj_import <minecraft:fog.glsl>
 #moj_import <minecraft:dynamictransforms.glsl>
 
@@ -17,7 +15,6 @@ in vec3 worldPos;
 
 out vec4 fragColor;
 
-// Simple noise for fire turbulence
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
@@ -52,15 +49,12 @@ void main() {
     color.rgb = mix(overlayColor.rgb, color.rgb, overlayColor.a);
     color *= lightMapColor;
 
-    // ── Inferno / Fire effect ────────────────────────────────
     float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
 
-    // Fire turbulence from FBM noise
     vec2 fireUV = worldPos.xy * 4.0;
-    fireUV.y -= worldPos.y * 2.0; // upward flow
+    fireUV.y -= worldPos.y * 2.0;
     float fire = fbm(fireUV);
 
-    // Fire color ramp: black → red → orange → yellow → white
     float t = clamp(luminance * 1.5 + fire * 0.4, 0.0, 1.0);
     vec3 fireColor;
     if (t < 0.25) {
@@ -73,12 +67,7 @@ void main() {
         fireColor = mix(vec3(1.0, 0.9, 0.3), vec3(1.0, 1.0, 0.9), (t - 0.75) * 4.0);
     }
 
-    // Blend fire with base
-    color.rgb = mix(color.rgb * 0.3, fireColor, 0.8);
-
-    // Emissive glow — brighter than normal
-    color.rgb *= 1.5;
-    color.rgb = clamp(color.rgb, 0.0, 1.0);
+    color.rgb = clamp(mix(color.rgb * 0.3, fireColor, 0.8) * 1.5, 0.0, 1.0);
 
     fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
 }

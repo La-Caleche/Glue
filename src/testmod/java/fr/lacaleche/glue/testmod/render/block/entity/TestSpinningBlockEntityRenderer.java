@@ -5,8 +5,8 @@ import fr.lacaleche.glue.client.shader.GluePipeline;
 import fr.lacaleche.glue.client.shader.ShadedBufferSource;
 import fr.lacaleche.glue.client.transform.GlueTransformStack;
 import fr.lacaleche.glue.compat.RenderCompat;
-import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.blocks.demo.TestSpinningBlockEntity;
+import fr.lacaleche.glue.testmod.render.TestShaderPipelines;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -34,27 +34,6 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
 
     private final ItemRenderer itemRenderer;
 
-    private static final String[] SHADER_NAMES = {
-            "hologram", "enchanted_glow", "frozen", "xray", "inferno"
-    };
-
-    private static GluePipeline[] pipelines;
-
-    private static GluePipeline[] getPipelines() {
-        if (pipelines == null) {
-            pipelines = new GluePipeline[SHADER_NAMES.length];
-            for (int i = 0; i < SHADER_NAMES.length; i++) {
-                String name = SHADER_NAMES[i];
-                pipelines[i] = GluePipeline.entity(
-                        TestmodClient.id(name),
-                        TestmodClient.id("core/" + name),
-                        TestmodClient.id("core/" + name)
-                );
-            }
-        }
-        return pipelines;
-    }
-
     public TestSpinningBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
         this.itemRenderer = context.getItemRenderer();
     }
@@ -65,12 +44,13 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
         if (RenderCompat.isRenderingShadowPass()) return;
 
         int shaderIndex = 2;
-        GluePipeline activePipeline = getPipelines()[shaderIndex % getPipelines().length];
+        GluePipeline[] pipelines = TestShaderPipelines.get();
+        GluePipeline activePipeline = pipelines[shaderIndex % pipelines.length];
 
         float time = (entity.getTicks() + tickDelta) / 20f;
         float globalBob = (float) Math.sin(time * BOB_SPEED) * BOB_AMP;
         long seed = entity.getBlockPos().asLong();
-        var stack = GlueTransformStack.of(matrices);
+        GlueTransformStack stack = GlueTransformStack.of(matrices);
 
         ShadedBufferSource shadedSource = activePipeline.wrap(vertexConsumers);
 

@@ -8,13 +8,10 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 
-/**
- * Applies post-processing shaders: grayscale (proximity), blur (toggle), shattered screen (one-shot).
- */
 public class TestPostShaderHandler {
 
     private static final CrossFrameResourcePool RESOURCE_POOL = new CrossFrameResourcePool(3);
-    private static final int SHATTERED_CONFIG_SIZE = 16; // 4 floats × 4 bytes
+    private static final int SHATTERED_CONFIG_SIZE = 16;
 
     private static final int FLASH_TICKS = 4;
     private static final int HOLD_TICKS = 15;
@@ -29,7 +26,6 @@ public class TestPostShaderHandler {
     private static int shatteredTick = -1;
 
     public static void register() {
-        // Use POST_WORLD_RENDER so effects apply AFTER Glue blit (includes custom shaders)
         RenderEvents.POST_WORLD_RENDER.register(TestPostShaderHandler::onPostWorldRender);
         ClientTickEvents.END_CLIENT_TICK.register(TestPostShaderHandler::onClientTick);
     }

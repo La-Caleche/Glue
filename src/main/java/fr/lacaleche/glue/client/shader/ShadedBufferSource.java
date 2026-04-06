@@ -35,7 +35,6 @@ import java.util.*;
 @Environment(EnvType.CLIENT)
 public class ShadedBufferSource implements MultiBufferSource {
 
-    private final MultiBufferSource fallbackDelegate;
     private final GluePipeline pipeline;
 
     private final SequencedMap<RenderType, ByteBufferBuilder> fixedBuffers = new LinkedHashMap<>();
@@ -51,7 +50,6 @@ public class ShadedBufferSource implements MultiBufferSource {
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-capture");
 
     public ShadedBufferSource(MultiBufferSource fallbackDelegate, GluePipeline pipeline) {
-        this.fallbackDelegate = fallbackDelegate;
         this.pipeline = pipeline;
         this.ownSource = MultiBufferSource.immediateWithBuffers(fixedBuffers, sharedBuffer);
     }

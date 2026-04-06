@@ -15,18 +15,6 @@ public class TestShaders {
     public static final CoreShaderRegistry CORE = new CoreShaderRegistry(TestmodClient.MOD_ID, TestmodClient::id);
     public static final PostShaderRegistry POST = new PostShaderRegistry(TestmodClient.MOD_ID, TestmodClient::id);
 
-    public static final RenderPipeline GRADIENT_WORLD = CORE.register("gradient_world",
-            RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-            builder -> builder
-                    .withVertexShader(TestmodClient.id("core/gradient_world"))
-                    .withFragmentShader(TestmodClient.id("core/gradient_world"))
-                    .withBlend(BlendFunction.TRANSLUCENT)
-                    .withCull(false)
-                    .withDepthWrite(false)
-                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS),
-            "BLOCK_TRANSLUCENT"
-    );
-
     public static final RenderPipeline GRADIENT_GUI = CORE.register("gradient_gui",
             RenderPipelines.MATRICES_PROJECTION_SNIPPET,
             builder -> builder

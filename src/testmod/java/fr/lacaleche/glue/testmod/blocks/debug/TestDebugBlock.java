@@ -2,17 +2,19 @@ package fr.lacaleche.glue.testmod.blocks.debug;
 
 import com.mojang.serialization.MapCodec;
 import fr.lacaleche.glue.block.GlueBlock;
-import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
 import fr.lacaleche.glue.shaper.GlueVoxelShape;
 import fr.lacaleche.glue.testmod.TestmodClient;
-import fr.lacaleche.glue.testmod.registries.TestOutlineRenderers;
+import fr.lacaleche.glue.testmod.registries.TestBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -21,18 +23,19 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 public class TestDebugBlock extends BaseEntityBlock implements GlueBlock {
-    public static final MapCodec<TestDebugBlock> CODEC = simpleCodec(TestDebugBlock::new);
 
-    @Override
-    public MapCodec<? extends TestDebugBlock> codec() {
-        return CODEC;
-    }
+    public static final MapCodec<TestDebugBlock> CODEC = simpleCodec(TestDebugBlock::new);
 
     protected static final VoxelShape SHAPE = Shapes.block();
     protected static final VoxelShape OUTLINE_SHAPE = new GlueVoxelShape(Block.box(3, 0, 3, 13, 16, 13), 45);
 
     public TestDebugBlock(BlockBehaviour.Properties settings) {
         super(settings);
+    }
+
+    @Override
+    public MapCodec<? extends TestDebugBlock> codec() {
+        return CODEC;
     }
 
     @Override
@@ -53,6 +56,14 @@ public class TestDebugBlock extends BaseEntityBlock implements GlueBlock {
     @Override
     public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new TestDebugBlockEntity(pos, state);
+    }
+
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (level.isClientSide()) {
+            return createTickerHelper(type, TestBlockEntities.DEBUG_BLOCK_ENTITY, TestDebugBlockEntity::tick);
+        }
+        return null;
     }
 
     @Override

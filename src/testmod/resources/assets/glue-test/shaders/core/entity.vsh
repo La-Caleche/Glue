@@ -1,8 +1,5 @@
 #version 150
 
-// Hologram vertex shader — replicates vanilla entity.vsh behavior.
-// Shader developers should copy this as a baseline and modify as needed.
-
 #moj_import <minecraft:light.glsl>
 #moj_import <minecraft:fog.glsl>
 #moj_import <minecraft:dynamictransforms.glsl>

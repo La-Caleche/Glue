@@ -3,10 +3,14 @@ package fr.lacaleche.glue.testmod.blocks.demo;
 import com.mojang.serialization.MapCodec;
 import fr.lacaleche.glue.block.GlueBlock;
 import fr.lacaleche.glue.block.IHaveBigOutline;
+import fr.lacaleche.glue.testmod.registries.TestBlockEntities;
+import fr.lacaleche.glue.testmod.render.TestShaderPipelines;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
@@ -14,9 +18,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
-import fr.lacaleche.glue.testmod.registries.TestBlockEntities;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -25,10 +27,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.stream.Stream;
 
-/**
- * A test block that demonstrates custom shader rendering capabilities.
- * Right-click to cycle through shader effects (hologram, enchanted_glow, frozen, xray, inferno).
- */
 public class TestShaderBlock extends BaseEntityBlock implements GlueBlock, IHaveBigOutline {
 
     public static final MapCodec<TestShaderBlock> CODEC = simpleCodec(TestShaderBlock::new);
@@ -36,10 +34,6 @@ public class TestShaderBlock extends BaseEntityBlock implements GlueBlock, IHave
     protected static final VoxelShape SHAPE = Stream.of(
             Block.box(0, 4, 0, 16, 22, 16), Block.box(-3, 0, -3, 19, 4, 19)
     ).reduce((v1, v2) -> Shapes.join(v1, v2, BooleanOp.OR)).get();
-
-    private static final String[] SHADER_NAMES = {
-            "Hologram", "Enchanted Glow", "Frozen", "X-Ray", "Inferno"
-    };
 
     public TestShaderBlock(Properties properties) {
         super(properties);
@@ -61,18 +55,17 @@ public class TestShaderBlock extends BaseEntityBlock implements GlueBlock, IHave
     }
 
     @Override
-    protected VoxelShape getCollisionShape(BlockState blockState, BlockGetter blockGetter, BlockPos blockPos, CollisionContext collisionContext) {
+    protected VoxelShape getCollisionShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
     @Override
-    protected VoxelShape getShape(BlockState blockState, BlockGetter blockGetter, BlockPos blockPos, CollisionContext collisionContext) {
+    protected VoxelShape getShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
-                                                                   BlockEntityType<T> type) {
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         if (level.isClientSide()) {
             return createTickerHelper(type, TestBlockEntities.SHADER_BLOCK_ENTITY, TestShaderBlockEntity::tick);
         }
@@ -85,14 +78,12 @@ public class TestShaderBlock extends BaseEntityBlock implements GlueBlock, IHave
         if (level.getBlockEntity(pos) instanceof TestShaderBlockEntity entity) {
             entity.cycleShader();
             if (!level.isClientSide()) {
-                String name = SHADER_NAMES[entity.getShaderIndex() % SHADER_NAMES.length];
+                String name = TestShaderPipelines.nameOf(entity.getShaderIndex());
                 player.displayClientMessage(
-                        net.minecraft.network.chat.Component.literal("§b[Glue] §fShader: §e" + name),
-                        true);
+                        Component.literal("§b[Glue] §fShader: §e" + name), true);
             }
             return InteractionResult.SUCCESS;
         }
         return InteractionResult.PASS;
     }
-
 }

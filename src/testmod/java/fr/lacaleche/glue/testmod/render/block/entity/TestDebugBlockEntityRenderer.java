@@ -26,19 +26,18 @@ public class TestDebugBlockEntityRenderer implements BlockEntityRenderer<TestDeb
     @Override
     public void render(TestDebugBlockEntity entity, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay, Vec3 cameraPos) {
-        entity.tick();
-
         float delta = (float) entity.getTicks() / 5;
         float rotation = delta + tickDelta / 20.0F;
         float yTranslation = (float) Math.sin(delta / 10) / 10;
 
-        GlueTransformStack.of(matrices).pushPose()
+        GlueTransformStack stack = GlueTransformStack.of(matrices);
+        stack.pushPose()
                 .rotateCentered((float) Math.toRadians(-rotation), Direction.UP)
                 .translate(.5, 0.3 + yTranslation, .5);
 
-        this.itemRenderer.renderStatic(DISPLAY_ITEM, ItemDisplayContext.GROUND, light, overlay,
+        itemRenderer.renderStatic(DISPLAY_ITEM, ItemDisplayContext.GROUND, light, overlay,
                 matrices, vertexConsumers, entity.getLevel(), (int) entity.getBlockPos().asLong());
 
-        GlueTransformStack.of(matrices).popPose();
+        stack.popPose();
     }
 }

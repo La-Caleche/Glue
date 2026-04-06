@@ -3,7 +3,6 @@ package fr.lacaleche.glue.testmod;
 import fr.lacaleche.glue.client.debug.DebugManager;
 import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
 import fr.lacaleche.glue.testmod.registries.*;
-import fr.lacaleche.glue.testmod.render.TestGuiOverlayRenderer;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.resources.ResourceLocation;
@@ -18,16 +17,14 @@ public class TestmodClient implements ClientModInitializer {
 
     private RaycastDebugRenderer raycastDebugRenderer;
 
-    {
-        instance = this;
-    }
-
     public static TestmodClient getInstance() {
         return instance;
     }
 
     @Override
     public void onInitializeClient() {
+        instance = this;
+
         this.raycastDebugRenderer = new RaycastDebugRenderer();
         DebugManager.getInstance().register(this.raycastDebugRenderer);
 
@@ -44,10 +41,8 @@ public class TestmodClient implements ClientModInitializer {
 
         TestOutlineRenderers.registerOutlineRenderer();
 
-        // Shader system
         TestShaders.registerShaders();
         TestPostShaderHandler.register();
-        TestGuiOverlayRenderer.register();
     }
 
     public static ResourceLocation id(String path) {

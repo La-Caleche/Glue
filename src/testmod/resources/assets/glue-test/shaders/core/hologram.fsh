@@ -1,9 +1,5 @@
 #version 150
 
-// Hologram fragment shader — applies a sci-fi hologram effect on top of
-// vanilla entity rendering. Demonstrates how to iterate on the vanilla
-// baseline to create custom visual effects.
-
 #moj_import <minecraft:fog.glsl>
 #moj_import <minecraft:dynamictransforms.glsl>
 
@@ -27,19 +23,14 @@ void main() {
     color.rgb = mix(overlayColor.rgb, color.rgb, overlayColor.a);
     color *= lightMapColor;
 
-    // ── Hologram effect ──────────────────────────────────────
-    // Tint to cyan
     vec3 holoTint = vec3(0.3, 0.9, 1.0);
     color.rgb = mix(color.rgb, color.rgb * holoTint, 0.6);
 
-    // Scanlines based on world Y position
     float scanline = sin(worldPos.y * 40.0) * 0.5 + 0.5;
     scanline = smoothstep(0.3, 0.7, scanline);
     color.rgb *= 0.7 + 0.3 * scanline;
 
-    // Slight transparency for hologram feel
     color.a *= 0.8;
 
-    // Apply fog (vanilla)
     fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
 }
