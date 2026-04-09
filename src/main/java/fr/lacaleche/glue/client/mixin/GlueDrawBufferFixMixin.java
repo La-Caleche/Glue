@@ -3,6 +3,7 @@ package fr.lacaleche.glue.client.mixin;
 import com.mojang.blaze3d.opengl.GlCommandEncoder;
 import com.mojang.blaze3d.opengl.GlRenderPass;
 import fr.lacaleche.glue.client.shader.ShadedBufferSource;
+import fr.lacaleche.glue.compat.RenderCompat;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
@@ -15,7 +16,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.lang.reflect.Field;
 import java.util.Collection;
 
 @Mixin(GlCommandEncoder.class)
@@ -25,36 +25,13 @@ public class GlueDrawBufferFixMixin {
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-mixin");
 
     @Unique
-    private static final Field BYPASS_FIELD;
-
-    @Unique
     private static boolean logged = false;
-
-    static {
-        Field f = null;
-        try {
-            Class<?> cls = Class.forName("net.irisshaders.iris.vertices.ImmediateState");
-            f = cls.getField("bypass");
-        } catch (ClassNotFoundException | NoSuchFieldException e) {
-            // Iris not present
-        }
-        BYPASS_FIELD = f;
-    }
 
     @Inject(method = "trySetup", at = @At("RETURN"))
     private void glue$redirectToCaptureFbo(GlRenderPass glRenderPass,
                                             Collection<String> collection,
                                             CallbackInfoReturnable<Boolean> cir) {
-        if (BYPASS_FIELD == null) return;
-
-        boolean bypass;
-        try {
-            bypass = (boolean) BYPASS_FIELD.get(null);
-        } catch (IllegalAccessException e) {
-            return;
-        }
-
-        if (!bypass || !ShadedBufferSource.isCapturing()) return;
+        if (!RenderCompat.isIrisBypassing() || !ShadedBufferSource.isCapturing()) return;
 
         int captureFboId = ShadedBufferSource.getCaptureFboId();
         if (captureFboId <= 0) return;

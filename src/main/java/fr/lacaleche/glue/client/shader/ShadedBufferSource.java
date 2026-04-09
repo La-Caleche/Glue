@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 @Environment(EnvType.CLIENT)
-public class ShadedBufferSource implements MultiBufferSource {
+public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-capture");
 
@@ -31,13 +31,14 @@ public class ShadedBufferSource implements MultiBufferSource {
     private static boolean frameCleared = false;
     private static boolean depthCopied = false;
     private static int sceneDepthTextureId = -1;
+    private static final Set<String> warnedNoopTypes = new HashSet<>();
 
     private final GluePipeline pipeline;
     private final SequencedMap<RenderType, ByteBufferBuilder> fixedBuffers = new LinkedHashMap<>();
     private final ByteBufferBuilder sharedBuffer = new ByteBufferBuilder(1536);
     private final MultiBufferSource.BufferSource ownSource;
 
-    public ShadedBufferSource(MultiBufferSource fallbackDelegate, GluePipeline pipeline) {
+    public ShadedBufferSource(GluePipeline pipeline) {
         this.pipeline = pipeline;
         this.ownSource = MultiBufferSource.immediateWithBuffers(fixedBuffers, sharedBuffer);
     }
@@ -52,6 +53,10 @@ public class ShadedBufferSource implements MultiBufferSource {
             return ownSource.getBuffer(shadedType);
         }
 
+        String typeName = renderType.getClass().getSimpleName();
+        if (warnedNoopTypes.add(typeName)) {
+            LOGGER.debug("[Glue] ShadedBufferSource: dropping draw for unsupported RenderType '{}' ({})", renderType, typeName);
+        }
         return NoopVertexConsumer.INSTANCE;
     }
 
@@ -138,7 +143,17 @@ public class ShadedBufferSource implements MultiBufferSource {
             Optional<ResourceLocation> texture = ((TextureStateShardAccessor) textureShard).glue$getCutoutTexture();
             return texture.orElse(null);
         } catch (Exception e) {
+            LOGGER.debug("[Glue] Failed to extract texture from RenderType {}: {}", renderType.getClass().getSimpleName(), e.getMessage());
             return null;
         }
+    }
+
+    @Override
+    public void close() {
+        sharedBuffer.close();
+        for (ByteBufferBuilder buffer : fixedBuffers.values()) {
+            buffer.close();
+        }
+        fixedBuffers.clear();
     }
 }

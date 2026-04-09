@@ -27,6 +27,10 @@ public class RenderCompat {
         return HAS_IRIS && IrisProxy.isRenderingShadowPass();
     }
 
+    public static boolean isIrisBypassing() {
+        return HAS_IRIS && IrisProxy.isBypassing();
+    }
+
     public static void withIrisBypass(Runnable action) {
         if (!HAS_IRIS) {
             action.run();

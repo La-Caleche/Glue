@@ -143,7 +143,7 @@ public class GluePipeline {
         });
     }
 
-    public ShadedBufferSource wrap(MultiBufferSource bufferSource) {
-        return new ShadedBufferSource(bufferSource, this);
+    public ShadedBufferSource wrap() {
+        return new ShadedBufferSource(this);
     }
 }

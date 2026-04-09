@@ -52,7 +52,7 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
         long seed = entity.getBlockPos().asLong();
         GlueTransformStack stack = GlueTransformStack.of(matrices);
 
-        ShadedBufferSource shadedSource = activePipeline.wrap(vertexConsumers);
+        ShadedBufferSource shadedSource = activePipeline.wrap();
 
         stack.pushPose()
                 .translate(0.5, STAR_HEIGHT + globalBob, 0.5)

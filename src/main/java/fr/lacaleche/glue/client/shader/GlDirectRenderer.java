@@ -27,6 +27,20 @@ class GlDirectRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-blit");
     private static final Map<String, Integer> programCache = new HashMap<>();
     private static boolean blitLogged = false;
+    private static boolean projectionWarned = false;
+
+    private static int colorQuadVao = 0;
+    private static int colorQuadPosVbo = 0;
+    private static int colorQuadColorVbo = 0;
+
+    private static int texQuadVao = 0;
+    private static int texQuadPosVbo = 0;
+    private static int texQuadUvVbo = 0;
+    private static int texQuadColorVbo = 0;
+
+    private static int blitVao = 0;
+    private static int blitPosVbo = 0;
+    private static int blitUvVbo = 0;
 
     private static final String VERT_POSITION_COLOR = """
             #version 150
@@ -106,19 +120,19 @@ class GlDirectRenderer {
         GL20.glUseProgram(program);
         uploadMvpUniform(program, mvpMatrix);
 
-        int vao = GL30.glGenVertexArrays();
-        GL30.glBindVertexArray(vao);
+        if (colorQuadVao == 0) {
+            colorQuadVao = GL30.glGenVertexArrays();
+            colorQuadPosVbo = GL15.glGenBuffers();
+            colorQuadColorVbo = GL15.glGenBuffers();
+        }
+        GL30.glBindVertexArray(colorQuadVao);
 
-        int posVbo = uploadAttrib(program, "Position", vertices, 3);
-        int colorVbo = uploadAttrib(program, "Color", colors, 4);
+        updateAttrib(program, "Position", colorQuadPosVbo, vertices, 3);
+        updateAttrib(program, "Color", colorQuadColorVbo, colors, 4);
 
         setupBlendAndDepth(useDepthTest);
         GL11.glDrawArrays(GL11.GL_TRIANGLE_FAN, 0, vertexCount);
 
-        GL30.glBindVertexArray(state.vao);
-        GL15.glDeleteBuffers(posVbo);
-        GL15.glDeleteBuffers(colorVbo);
-        GL30.glDeleteVertexArrays(vao);
         state.restore();
     }
 
@@ -135,21 +149,21 @@ class GlDirectRenderer {
         int samplerLoc = GL20.glGetUniformLocation(program, "Sampler");
         if (samplerLoc >= 0) GL20.glUniform1i(samplerLoc, 0);
 
-        int vao = GL30.glGenVertexArrays();
-        GL30.glBindVertexArray(vao);
+        if (texQuadVao == 0) {
+            texQuadVao = GL30.glGenVertexArrays();
+            texQuadPosVbo = GL15.glGenBuffers();
+            texQuadUvVbo = GL15.glGenBuffers();
+            texQuadColorVbo = GL15.glGenBuffers();
+        }
+        GL30.glBindVertexArray(texQuadVao);
 
-        int posVbo = uploadAttrib(program, "Position", vertices, 3);
-        int uvVbo = uploadAttrib(program, "UV", uvs, 2);
-        int colorVbo = uploadAttrib(program, "Color", colors, 4);
+        updateAttrib(program, "Position", texQuadPosVbo, vertices, 3);
+        updateAttrib(program, "UV", texQuadUvVbo, uvs, 2);
+        updateAttrib(program, "Color", texQuadColorVbo, colors, 4);
 
         setupBlendAndDepth(useDepthTest);
         GL11.glDrawArrays(GL11.GL_TRIANGLE_FAN, 0, vertexCount);
 
-        GL30.glBindVertexArray(state.vao);
-        GL15.glDeleteBuffers(posVbo);
-        GL15.glDeleteBuffers(uvVbo);
-        GL15.glDeleteBuffers(colorVbo);
-        GL30.glDeleteVertexArrays(vao);
         state.restore();
     }
 
@@ -235,10 +249,14 @@ class GlDirectRenderer {
         float[] verts = { -1f,-1f,0f,  1f,-1f,0f,  1f,1f,0f,  -1f,1f,0f };
         float[] uvs   = {  0f,0f,       1f,0f,      1f,1f,      0f,1f    };
 
-        int vao = GL30.glGenVertexArrays();
-        GL30.glBindVertexArray(vao);
-        int posVbo = uploadAttrib(program, "Position", verts, 3);
-        int uvVbo  = uploadAttrib(program, "UV", uvs, 2);
+        if (blitVao == 0) {
+            blitVao = GL30.glGenVertexArrays();
+            blitPosVbo = GL15.glGenBuffers();
+            blitUvVbo = GL15.glGenBuffers();
+        }
+        GL30.glBindVertexArray(blitVao);
+        updateAttrib(program, "Position", blitPosVbo, verts, 3);
+        updateAttrib(program, "UV", blitUvVbo, uvs, 2);
 
         GL11.glEnable(GL11.GL_BLEND);
         GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -250,10 +268,6 @@ class GlDirectRenderer {
 
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
 
-        GL30.glBindVertexArray(state.vao);
-        GL15.glDeleteBuffers(posVbo);
-        GL15.glDeleteBuffers(uvVbo);
-        GL30.glDeleteVertexArrays(vao);
         state.restore();
     }
 
@@ -263,7 +277,12 @@ class GlDirectRenderer {
         try {
             fov = mc.gameRenderer.getFov(mc.gameRenderer.getMainCamera(),
                     mc.getDeltaTracker().getGameTimeDeltaPartialTick(true), true);
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            if (!projectionWarned) {
+                projectionWarned = true;
+                LOGGER.warn("[Glue] Failed to compute camera FOV, falling back to options value", e);
+            }
+        }
         return mc.gameRenderer.getProjectionMatrix(fov);
     }
 
@@ -278,8 +297,11 @@ class GlDirectRenderer {
         }
     }
 
-    private static int uploadAttrib(int program, String name, float[] data, int components) {
-        int vbo = GL15.glGenBuffers();
+    /**
+     * Updates an existing VBO with new data and sets up the vertex attribute.
+     * Uses buffer orphaning (glBufferData with same usage hint) for efficient streaming.
+     */
+    private static void updateAttrib(int program, String name, int vbo, float[] data, int components) {
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vbo);
         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, data, GL15.GL_STREAM_DRAW);
 
@@ -288,7 +310,6 @@ class GlDirectRenderer {
             GL20.glEnableVertexAttribArray(attrib);
             GL20.glVertexAttribPointer(attrib, components, GL11.GL_FLOAT, false, 0, 0);
         }
-        return vbo;
     }
 
     private static void setupBlendAndDepth(boolean useDepthTest) {
@@ -349,15 +370,39 @@ class GlDirectRenderer {
             GL20.glDeleteProgram(program);
         }
         programCache.clear();
+
+        if (colorQuadVao != 0) {
+            GL30.glDeleteVertexArrays(colorQuadVao);
+            GL15.glDeleteBuffers(colorQuadPosVbo);
+            GL15.glDeleteBuffers(colorQuadColorVbo);
+            colorQuadVao = colorQuadPosVbo = colorQuadColorVbo = 0;
+        }
+        if (texQuadVao != 0) {
+            GL30.glDeleteVertexArrays(texQuadVao);
+            GL15.glDeleteBuffers(texQuadPosVbo);
+            GL15.glDeleteBuffers(texQuadUvVbo);
+            GL15.glDeleteBuffers(texQuadColorVbo);
+            texQuadVao = texQuadPosVbo = texQuadUvVbo = texQuadColorVbo = 0;
+        }
+        if (blitVao != 0) {
+            GL30.glDeleteVertexArrays(blitVao);
+            GL15.glDeleteBuffers(blitPosVbo);
+            GL15.glDeleteBuffers(blitUvVbo);
+            blitVao = blitPosVbo = blitUvVbo = 0;
+        }
     }
 
     private record SavedGlState(
             int program, int fbo, int vao,
-            boolean blend, int blendSrc, int blendDst,
+            boolean blend, int blendSrcRgb, int blendDstRgb, int blendSrcAlpha, int blendDstAlpha,
             boolean depth, boolean depthWrite, int depthFunc,
-            boolean cull
+            boolean cull,
+            int activeTexture,
+            int[] viewport
     ) {
         static SavedGlState save() {
+            int[] vp = new int[4];
+            GL11.glGetIntegerv(GL11.GL_VIEWPORT, vp);
             return new SavedGlState(
                     GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM),
                     GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING),
@@ -365,26 +410,33 @@ class GlDirectRenderer {
                     GL11.glIsEnabled(GL11.GL_BLEND),
                     GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB),
                     GL11.glGetInteger(GL14.GL_BLEND_DST_RGB),
+                    GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA),
+                    GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA),
                     GL11.glIsEnabled(GL11.GL_DEPTH_TEST),
                     GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK),
                     GL11.glGetInteger(GL11.GL_DEPTH_FUNC),
-                    GL11.glIsEnabled(GL11.GL_CULL_FACE)
+                    GL11.glIsEnabled(GL11.GL_CULL_FACE),
+                    GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE),
+                    vp
             );
         }
 
         void restore() {
             GL20.glUseProgram(program);
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
+            GL30.glBindVertexArray(vao);
             if (depth) GL11.glEnable(GL11.GL_DEPTH_TEST); else GL11.glDisable(GL11.GL_DEPTH_TEST);
             GL11.glDepthFunc(depthFunc);
             GL11.glDepthMask(depthWrite);
             if (blend) {
                 GL11.glEnable(GL11.GL_BLEND);
-                GL11.glBlendFunc(blendSrc, blendDst);
+                GL14.glBlendFuncSeparate(blendSrcRgb, blendDstRgb, blendSrcAlpha, blendDstAlpha);
             } else {
                 GL11.glDisable(GL11.GL_BLEND);
             }
-            if (cull) GL11.glEnable(GL11.GL_CULL_FACE);
+            if (cull) GL11.glEnable(GL11.GL_CULL_FACE); else GL11.glDisable(GL11.GL_CULL_FACE);
+            GL13.glActiveTexture(activeTexture);
+            GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
         }
     }
 }

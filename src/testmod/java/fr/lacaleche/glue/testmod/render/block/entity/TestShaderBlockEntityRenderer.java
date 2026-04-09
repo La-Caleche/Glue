@@ -46,7 +46,7 @@ public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestSh
         poseStack.mulPose(Axis.YP.rotationDegrees(time * 45f));
         poseStack.mulPose(Axis.XP.rotationDegrees(15f));
 
-        ShadedBufferSource shadedSource = activePipeline.wrap(bufferSource);
+        ShadedBufferSource shadedSource = activePipeline.wrap();
 
         itemRenderer.renderStatic(
                 DISPLAY_ITEM,

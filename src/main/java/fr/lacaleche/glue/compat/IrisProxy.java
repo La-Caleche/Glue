@@ -28,6 +28,10 @@ class IrisProxy {
         IrisApi.getInstance().assignPipeline(pipeline, IrisProgram.valueOf(programName));
     }
 
+    static boolean isBypassing() {
+        return ImmediateState.bypass;
+    }
+
     static void withBypass(Runnable action) {
         boolean wasBypassed = ImmediateState.bypass;
         ImmediateState.bypass = true;
