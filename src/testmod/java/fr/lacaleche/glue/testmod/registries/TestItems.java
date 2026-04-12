@@ -15,6 +15,8 @@ public class TestItems {
             new Item.Properties());
     public static final Item TEST_SHADER_BLOCK = REGISTRY.register(TestBlocks.TEST_SHADER_BLOCK,
             new Item.Properties());
+    public static final Item TEST_ADDITIVE_SPRITE_BLOCK = REGISTRY.register(TestBlocks.TEST_ADDITIVE_SPRITE_BLOCK,
+            new Item.Properties());
 
     public static final Item TEST_COMPONENT_ITEM = REGISTRY.register("test_component",
             TestComponentItem::new, new Item.Properties());

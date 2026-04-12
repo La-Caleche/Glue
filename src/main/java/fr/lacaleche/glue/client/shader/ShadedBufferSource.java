@@ -33,13 +33,25 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
     private static int sceneDepthTextureId = -1;
     private static final Set<String> warnedNoopTypes = new HashSet<>();
 
+    // Isolated capture: always renders to a private FBO (even in vanilla)
+    // so that post-effects can be applied before compositing.
+    private static volatile boolean isolatedCapture = false;
+    private static RenderTarget isolatedFbo;
+
     private final GluePipeline pipeline;
     private final SequencedMap<RenderType, ByteBufferBuilder> fixedBuffers = new LinkedHashMap<>();
     private final ByteBufferBuilder sharedBuffer = new ByteBufferBuilder(1536);
     private final MultiBufferSource.BufferSource ownSource;
 
+    private final boolean useIsolatedCapture;
+
     public ShadedBufferSource(GluePipeline pipeline) {
+        this(pipeline, false);
+    }
+
+    public ShadedBufferSource(GluePipeline pipeline, boolean isolatedCapture) {
         this.pipeline = pipeline;
+        this.useIsolatedCapture = isolatedCapture;
         this.ownSource = MultiBufferSource.immediateWithBuffers(fixedBuffers, sharedBuffer);
     }
 
@@ -61,32 +73,62 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
     }
 
     public void endBatch() {
-        if (RenderCompat.isIrisShaderEnabled()) {
-            Minecraft mc = Minecraft.getInstance();
-            int w = mc.getWindow().getWidth();
-            int h = mc.getWindow().getHeight();
-
-            captureFbo = FramebufferHelper.resizeOrCreate(captureFbo, w, h);
-
-            if (!frameCleared) {
-                FramebufferHelper.clear(captureFbo, 0f, 0f, 0f, 0f);
-                frameCleared = true;
-            }
-
-            capturing = true;
-            try {
-                RenderCompat.withIrisBypass(ownSource::endBatch);
-            } finally {
-                capturing = false;
-            }
-
-            if (!blitPathLogged) {
-                blitPathLogged = true;
-                LOGGER.info("[Glue-Path] blit from PostCompositeMixin");
-            }
-
+        if (useIsolatedCapture) {
+            endBatchIsolated();
+        } else if (RenderCompat.isIrisShaderEnabled()) {
+            endBatchIris();
         } else {
             ownSource.endBatch();
+        }
+    }
+
+    private void endBatchIris() {
+        Minecraft mc = Minecraft.getInstance();
+        int w = mc.getWindow().getWidth();
+        int h = mc.getWindow().getHeight();
+
+        captureFbo = FramebufferHelper.resizeOrCreate(captureFbo, w, h);
+
+        if (!frameCleared) {
+            FramebufferHelper.clear(captureFbo, 0f, 0f, 0f, 0f);
+            frameCleared = true;
+        }
+
+        capturing = true;
+        try {
+            RenderCompat.withIrisBypass(ownSource::endBatch);
+        } finally {
+            capturing = false;
+        }
+
+        if (!blitPathLogged) {
+            blitPathLogged = true;
+            LOGGER.info("[Glue-Path] blit from PostCompositeMixin");
+        }
+    }
+
+    /**
+     * Isolated capture: renders to a private FBO regardless of Iris state.
+     * The mixin redirects via isIsolatedCapturing(). The captured result
+     * is in isolatedFbo, accessible via getIsolatedTarget().
+     */
+    private void endBatchIsolated() {
+        Minecraft mc = Minecraft.getInstance();
+        int w = mc.getWindow().getWidth();
+        int h = mc.getWindow().getHeight();
+
+        isolatedFbo = FramebufferHelper.resizeOrCreate(isolatedFbo, w, h);
+        FramebufferHelper.clear(isolatedFbo, 0f, 0f, 0f, 0f);
+
+        isolatedCapture = true;
+        try {
+            if (RenderCompat.isIrisShaderEnabled()) {
+                RenderCompat.withIrisBypass(ownSource::endBatch);
+            } else {
+                ownSource.endBatch();
+            }
+        } finally {
+            isolatedCapture = false;
         }
     }
 
@@ -94,9 +136,25 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         return capturing;
     }
 
+    public static boolean isIsolatedCapturing() {
+        return isolatedCapture;
+    }
+
     public static int getCaptureFboId() {
         if (captureFbo == null) return 0;
         return FramebufferHelper.getFramebufferId(captureFbo);
+    }
+
+    public static int getIsolatedFboId() {
+        if (isolatedFbo == null) return 0;
+        return FramebufferHelper.getFramebufferId(isolatedFbo);
+    }
+
+    /**
+     * Returns the isolated capture RenderTarget for post-processing.
+     */
+    public static RenderTarget getIsolatedTarget() {
+        return isolatedFbo;
     }
 
     public static void setSceneDepthTextureId(int id) {

@@ -19,6 +19,7 @@ public class TestItemGroups {
                         entries.accept(TestItems.TEST_COMPONENT_ITEM);
                         entries.accept(TestItems.TEST_SPINNING_BLOCK);
                         entries.accept(TestItems.TEST_SHADER_BLOCK);
+                        entries.accept(TestItems.TEST_ADDITIVE_SPRITE_BLOCK);
                     })
     );
 

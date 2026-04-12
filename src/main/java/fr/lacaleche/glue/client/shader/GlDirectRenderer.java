@@ -22,7 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Environment(EnvType.CLIENT)
-class GlDirectRenderer {
+public class GlDirectRenderer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-blit");
     private static final Map<String, Integer> programCache = new HashMap<>();
@@ -206,7 +206,7 @@ class GlDirectRenderer {
             }
             """;
 
-    static void blitCapture(int captureColorId, int captureDepthId, int sceneDepthId) {
+    public static void blitCapture(int captureColorId, int captureDepthId, int sceneDepthId) {
         int program = getOrCreateProgram("glue_depth_blit", VERT_BLIT, FRAG_DEPTH_BLIT);
         SavedGlState state = SavedGlState.save();
 

@@ -11,6 +11,7 @@ import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.blocks.debug.TestDebugBlock;
 import fr.lacaleche.glue.testmod.blocks.demo.TestSpinningBlock;
 import fr.lacaleche.glue.testmod.blocks.demo.TestShaderBlock;
+import fr.lacaleche.glue.testmod.blocks.demo.TestAdditiveSpriteBlock;
 
 public class TestBlocks {
 
@@ -25,6 +26,9 @@ public class TestBlocks {
 
     public static final Block TEST_SHADER_BLOCK = REGISTRY.register("test_shader", TestShaderBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK).noOcclusion().isViewBlocking(Blocks::never));
+
+    public static final Block TEST_ADDITIVE_SPRITE_BLOCK = REGISTRY.register("test_additive_sprite", TestAdditiveSpriteBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.GLASS).noOcclusion().isViewBlocking(Blocks::never));
 
     public static void registerBlocks() {
         TestmodClient.LOGGER.info("Registering blocks");

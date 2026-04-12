@@ -3,6 +3,7 @@ package fr.lacaleche.glue.testmod;
 import fr.lacaleche.glue.client.debug.DebugManager;
 import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
 import fr.lacaleche.glue.testmod.registries.*;
+import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.resources.ResourceLocation;
@@ -43,6 +44,8 @@ public class TestmodClient implements ClientModInitializer {
 
         TestShaders.registerShaders();
         TestPostShaderHandler.register();
+
+        AdditiveSpriteRenderer.init();
     }
 
     public static ResourceLocation id(String path) {

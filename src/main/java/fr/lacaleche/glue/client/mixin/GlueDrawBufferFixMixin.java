@@ -31,43 +31,59 @@ public class GlueDrawBufferFixMixin {
     private void glue$redirectToCaptureFbo(GlRenderPass glRenderPass,
                                             Collection<String> collection,
                                             CallbackInfoReturnable<Boolean> cir) {
-        if (!RenderCompat.isIrisBypassing() || !ShadedBufferSource.isCapturing()) return;
+        // Check Iris capture (requires bypass active)
+        if (RenderCompat.isIrisBypassing() && ShadedBufferSource.isCapturing()) {
+            int captureFboId = ShadedBufferSource.getCaptureFboId();
+            if (captureFboId > 0) {
+                redirectToFbo(captureFboId, true);
+            }
+            return;
+        }
 
-        int captureFboId = ShadedBufferSource.getCaptureFboId();
-        if (captureFboId <= 0) return;
+        // Check isolated capture (works in vanilla too, no bypass needed)
+        if (ShadedBufferSource.isIsolatedCapturing()) {
+            int isolatedFboId = ShadedBufferSource.getIsolatedFboId();
+            if (isolatedFboId > 0) {
+                redirectToFbo(isolatedFboId, false);
+            }
+        }
+    }
 
+    @Unique
+    private void redirectToFbo(int targetFboId, boolean copyDepth) {
         Minecraft mc = Minecraft.getInstance();
         int w = mc.getWindow().getWidth();
         int h = mc.getWindow().getHeight();
 
         int originalFbo = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
 
-        int origDepthType = GL30.glGetFramebufferAttachmentParameteri(
-                GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
-                GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
-        int origDepthName = GL30.glGetFramebufferAttachmentParameteri(
-                GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
-                GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME);
+        if (copyDepth) {
+            int origDepthType = GL30.glGetFramebufferAttachmentParameteri(
+                    GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
+                    GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
+            int origDepthName = GL30.glGetFramebufferAttachmentParameteri(
+                    GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
+                    GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME);
 
-        if (origDepthType == GL11.GL_TEXTURE && origDepthName > 0) {
-            ShadedBufferSource.setSceneDepthTextureId(origDepthName);
+            if (origDepthType == GL11.GL_TEXTURE && origDepthName > 0) {
+                ShadedBufferSource.setSceneDepthTextureId(origDepthName);
+            }
+
+            if (!ShadedBufferSource.isDepthCopied()) {
+                GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, originalFbo);
+                GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, targetFboId);
+                GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
+                ShadedBufferSource.setDepthCopied(true);
+            }
         }
 
-        if (!ShadedBufferSource.isDepthCopied()) {
-            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, originalFbo);
-            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, captureFboId);
-            GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
-            ShadedBufferSource.setDepthCopied(true);
-        }
-
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, captureFboId);
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, targetFboId);
         GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0});
         GL11.glViewport(0, 0, w, h);
 
         if (!logged) {
             logged = true;
-            LOGGER.info("[Glue-Mixin] Redirected draw to capture FBO {}, origFBO={}, sceneDepthTex={}",
-                    captureFboId, originalFbo, origDepthName);
+            LOGGER.info("[Glue-Mixin] Redirected draw to FBO {}, origFBO={}", targetFboId, originalFbo);
         }
     }
 }

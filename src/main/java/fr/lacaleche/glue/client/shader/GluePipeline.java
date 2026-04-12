@@ -146,4 +146,13 @@ public class GluePipeline {
     public ShadedBufferSource wrap() {
         return new ShadedBufferSource(this);
     }
+
+    /**
+     * Creates a ShadedBufferSource that captures to an isolated FBO.
+     * Use this when post-effects need to be applied to the captured
+     * result before compositing to the main target.
+     */
+    public ShadedBufferSource wrapIsolated() {
+        return new ShadedBufferSource(this, true);
+    }
 }
