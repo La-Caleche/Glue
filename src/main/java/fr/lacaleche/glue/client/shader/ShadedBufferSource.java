@@ -25,20 +25,31 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-capture");
 
-    private static RenderTarget captureFbo;
+    // ── Alpha capture FBO (standard entity shaders) ──
+    private static RenderTarget captureFboAlpha;
+    private static boolean frameClearedAlpha = false;
+    private static boolean depthCopiedAlpha = false;
+
+    // ── Additive capture FBO (additive VFX) ──
+    private static RenderTarget captureFboAdditive;
+    private static boolean frameClearedAdditive = false;
+    private static boolean depthCopiedAdditive = false;
+
+    // ── Active capture state (read by mixin) ──
     private static volatile boolean capturing = false;
+    private static int activeCaptureTargetFboId = 0;
+    private static boolean activeCaptureCopyDepth = true;
+
     private static boolean blitPathLogged = false;
-    private static boolean frameCleared = false;
-    private static boolean depthCopied = false;
     private static int sceneDepthTextureId = -1;
     private static final Set<String> warnedNoopTypes = new HashSet<>();
 
-    // Isolated capture: always renders to a private FBO (even in vanilla)
-    // so that post-effects can be applied before compositing.
+    // ── Isolated capture (post-effects) ──
     private static volatile boolean isolatedCapture = false;
     private static RenderTarget isolatedFbo;
 
     private final GluePipeline pipeline;
+    private final boolean additive;
     private final SequencedMap<RenderType, ByteBufferBuilder> fixedBuffers = new LinkedHashMap<>();
     private final ByteBufferBuilder sharedBuffer = new ByteBufferBuilder(1536);
     private final MultiBufferSource.BufferSource ownSource;
@@ -51,6 +62,7 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
 
     public ShadedBufferSource(GluePipeline pipeline, boolean isolatedCapture) {
         this.pipeline = pipeline;
+        this.additive = pipeline.isAdditive();
         this.useIsolatedCapture = isolatedCapture;
         this.ownSource = MultiBufferSource.immediateWithBuffers(fixedBuffers, sharedBuffer);
     }
@@ -87,23 +99,44 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         int w = mc.getWindow().getWidth();
         int h = mc.getWindow().getHeight();
 
-        captureFbo = FramebufferHelper.resizeOrCreate(captureFbo, w, h);
-
-        if (!frameCleared) {
-            FramebufferHelper.clear(captureFbo, 0f, 0f, 0f, 0f);
-            frameCleared = true;
+        // Select the correct capture FBO based on blend mode
+        RenderTarget targetFbo;
+        if (additive) {
+            captureFboAdditive = FramebufferHelper.resizeOrCreate(captureFboAdditive, w, h);
+            if (!frameClearedAdditive) {
+                FramebufferHelper.clear(captureFboAdditive, 0f, 0f, 0f, 0f);
+                frameClearedAdditive = true;
+            }
+            targetFbo = captureFboAdditive;
+            activeCaptureCopyDepth = !depthCopiedAdditive;
+        } else {
+            captureFboAlpha = FramebufferHelper.resizeOrCreate(captureFboAlpha, w, h);
+            if (!frameClearedAlpha) {
+                FramebufferHelper.clear(captureFboAlpha, 0f, 0f, 0f, 0f);
+                frameClearedAlpha = true;
+            }
+            targetFbo = captureFboAlpha;
+            activeCaptureCopyDepth = !depthCopiedAlpha;
         }
 
+        // Set the active capture target for the mixin to read
+        activeCaptureTargetFboId = FramebufferHelper.getFramebufferId(targetFbo);
         capturing = true;
         try {
             RenderCompat.withIrisBypass(ownSource::endBatch);
         } finally {
             capturing = false;
+            activeCaptureTargetFboId = 0;
+            if (additive) {
+                depthCopiedAdditive = true;
+            } else {
+                depthCopiedAlpha = true;
+            }
         }
 
         if (!blitPathLogged) {
             blitPathLogged = true;
-            LOGGER.info("[Glue-Path] blit from PostCompositeMixin");
+            LOGGER.info("[Glue-Path] blend-aware blit from PostCompositeMixin (additive={})", additive);
         }
     }
 
@@ -140,9 +173,19 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         return isolatedCapture;
     }
 
+    /**
+     * Returns the currently active capture FBO ID.
+     * Called by {@code GlueDrawBufferFixMixin} during draw redirect.
+     */
     public static int getCaptureFboId() {
-        if (captureFbo == null) return 0;
-        return FramebufferHelper.getFramebufferId(captureFbo);
+        return activeCaptureTargetFboId;
+    }
+
+    /**
+     * Whether the mixin should copy scene depth to the active capture FBO.
+     */
+    public static boolean shouldCopyDepth() {
+        return activeCaptureCopyDepth;
     }
 
     public static int getIsolatedFboId() {
@@ -166,28 +209,45 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
     }
 
     public static boolean isDepthCopied() {
-        return depthCopied;
+        // Used by mixin — check the active capture's depth state
+        return !activeCaptureCopyDepth;
     }
 
     public static void setDepthCopied(boolean value) {
-        depthCopied = value;
+        // After mixin copies depth, mark it done
+        activeCaptureCopyDepth = !value;
     }
 
-    private static void blitCaptureToScreen() {
-        if (captureFbo == null) return;
+    // ── Blit: composites both capture FBOs onto the main framebuffer ──
 
-        int captureColorId = FramebufferHelper.getColorTextureId(captureFbo);
-        int captureDepthId = FramebufferHelper.getDepthTextureId(captureFbo);
+    /**
+     * Called by {@code GluePostCompositeMixin} after Iris compositing.
+     * Blits both FBOs with their correct blend modes.
+     */
+    public static void postCompositeBlit() {
+        // Alpha content first (drawn behind)
+        if (frameClearedAlpha) {
+            blitCaptureToScreen(captureFboAlpha, false);
+            frameClearedAlpha = false;
+            depthCopiedAlpha = false;
+        }
+
+        // Additive content on top
+        if (frameClearedAdditive) {
+            blitCaptureToScreen(captureFboAdditive, true);
+            frameClearedAdditive = false;
+            depthCopiedAdditive = false;
+        }
+    }
+
+    private static void blitCaptureToScreen(RenderTarget fbo, boolean additive) {
+        if (fbo == null) return;
+
+        int captureColorId = FramebufferHelper.getColorTextureId(fbo);
+        int captureDepthId = FramebufferHelper.getDepthTextureId(fbo);
         if (captureColorId <= 0 || captureDepthId <= 0) return;
 
-        GlDirectRenderer.blitCapture(captureColorId, captureDepthId, sceneDepthTextureId);
-    }
-
-    public static void postCompositeBlit() {
-        if (!frameCleared) return;
-        blitCaptureToScreen();
-        frameCleared = false;
-        depthCopied = false;
+        GlDirectRenderer.blitCapture(captureColorId, captureDepthId, sceneDepthTextureId, additive);
     }
 
     private static ResourceLocation extractTexture(RenderType renderType) {

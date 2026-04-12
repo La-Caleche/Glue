@@ -206,7 +206,7 @@ public class GlDirectRenderer {
             }
             """;
 
-    public static void blitCapture(int captureColorId, int captureDepthId, int sceneDepthId) {
+    public static void blitCapture(int captureColorId, int captureDepthId, int sceneDepthId, boolean additive) {
         int program = getOrCreateProgram("glue_depth_blit", VERT_BLIT, FRAG_DEPTH_BLIT);
         SavedGlState state = SavedGlState.save();
 
@@ -242,8 +242,8 @@ public class GlDirectRenderer {
 
         if (!blitLogged) {
             blitLogged = true;
-            LOGGER.info("[Glue-Blit] captureColor={}, captureDepth={}, irisDepth={}, mainFBO={}",
-                    captureColorId, captureDepthId, irisDepthId, mainFboId);
+            LOGGER.info("[Glue-Blit] captureColor={}, captureDepth={}, irisDepth={}, mainFBO={}, additive={}",
+                    captureColorId, captureDepthId, irisDepthId, mainFboId, additive);
         }
 
         float[] verts = { -1f,-1f,0f,  1f,-1f,0f,  1f,1f,0f,  -1f,1f,0f };
@@ -259,7 +259,14 @@ public class GlDirectRenderer {
         updateAttrib(program, "UV", blitUvVbo, uvs, 2);
 
         GL11.glEnable(GL11.GL_BLEND);
-        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        if (additive) {
+            // Additive blit: result = src + dst (pure additive)
+            // Black pixels add nothing, bright pixels glow.
+            GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE);
+        } else {
+            // Alpha blit: result = src.a * src + (1 - src.a) * dst
+            GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        }
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDepthMask(false);
         GL11.glDisable(GL11.GL_CULL_FACE);

@@ -2,6 +2,8 @@ package fr.lacaleche.glue.testmod.render.block.entity;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import fr.lacaleche.glue.client.shader.GluePipeline;
+import fr.lacaleche.glue.client.shader.ShadedBufferSource;
 import fr.lacaleche.glue.compat.RenderCompat;
 import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.blocks.demo.TestAdditiveSpriteBlockEntity;
@@ -20,9 +22,9 @@ import org.joml.Matrix4f;
  * Renderer for the additive sprite block entity.
  *
  * <p>
- * Renders the {@code particle01.png} texture as a camera-facing (billboard)
- * quad using additive blending. The pipeline is not registered with Iris,
- * so our custom shader runs directly under both vanilla and Iris.
+ * Uses Strategy B (capture/blit) via {@link ShadedBufferSource}.
+ * Our custom shader runs under both vanilla and Iris (bypass flag).
+ * The blit uses additive GL blending ({@code GL_ONE, GL_ONE}).
  * </p>
  */
 public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRenderer<TestAdditiveSpriteBlockEntity> {
@@ -48,10 +50,14 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
 
         float time = (entity.getTicks() + partialTick) / 20f;
 
-        // Render directly to the buffer source with our custom pipeline.
-        // No Iris program is assigned, so our shader compiles and runs as-is.
-        RenderType renderType = AdditiveSpriteRenderer.getRenderType(SPRITE_TEXTURE);
-        VertexConsumer consumer = bufferSource.getBuffer(renderType);
+        GluePipeline pipeline = AdditiveSpriteRenderer.getPipeline();
+
+        // Strategy B: ShadedBufferSource renders with our custom shader
+        // (bypass enabled under Iris), captures to the additive FBO.
+        ShadedBufferSource shadedSource = pipeline.wrap();
+
+        RenderType renderType = pipeline.entityType(SPRITE_TEXTURE);
+        VertexConsumer consumer = shadedSource.getBuffer(renderType);
 
         // Pulse scale: gently breathes between 0.85x and 1.15x
         float pulse = 1.0f + 0.15f * (float) Math.sin(time * 2.5);
@@ -81,6 +87,9 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
         vertex(consumer, pose, -halfW,  halfH, 0, 0f, 0f, r, g, b, a, FULL_BRIGHT);
 
         poseStack.popPose();
+
+        // Flush — renders to the additive capture FBO (our shader runs via bypass)
+        shadedSource.endBatch();
     }
 
     private static void vertex(VertexConsumer consumer, Matrix4f pose,

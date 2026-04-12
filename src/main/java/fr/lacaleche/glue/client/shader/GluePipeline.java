@@ -21,11 +21,13 @@ public class GluePipeline {
 
     private final String name;
     private final RenderPipeline pipeline;
+    private final boolean additive;
     private final Map<ResourceLocation, RenderType> renderTypeCache = new HashMap<>();
 
-    private GluePipeline(String name, RenderPipeline pipeline) {
+    private GluePipeline(String name, RenderPipeline pipeline, boolean additive) {
         this.name = name;
         this.pipeline = pipeline;
+        this.additive = additive;
     }
 
     public RenderPipeline getPipeline() {
@@ -34,6 +36,14 @@ public class GluePipeline {
 
     public String getName() {
         return name;
+    }
+
+    /**
+     * Whether this pipeline uses additive blending (LIGHTNING or ADDITIVE).
+     * Used by {@link ShadedBufferSource} to select the correct blit blend mode.
+     */
+    public boolean isAdditive() {
+        return additive;
     }
 
     public static GluePipeline entity(ResourceLocation location,
@@ -73,7 +83,10 @@ public class GluePipeline {
 
         RenderPipeline pipeline = RenderPipelines.register(builder.build());
         RenderCompat.assignIrisProgram(pipeline, irisProgram);
-        return new GluePipeline(location.getPath(), pipeline);
+
+        boolean isAdditive = blendFunction == BlendFunction.LIGHTNING
+                || blendFunction == BlendFunction.ADDITIVE;
+        return new GluePipeline(location.getPath(), pipeline, isAdditive);
     }
 
     public static GluePipeline block(ResourceLocation location,
@@ -91,7 +104,7 @@ public class GluePipeline {
                         .build()
         );
         RenderCompat.assignIrisProgram(pipeline, "TERRAIN");
-        return new GluePipeline(location.getPath(), pipeline);
+        return new GluePipeline(location.getPath(), pipeline, false);
     }
 
     public static GluePipeline particle(ResourceLocation location,
@@ -109,7 +122,7 @@ public class GluePipeline {
                         .build()
         );
         RenderCompat.assignIrisProgram(pipeline, "PARTICLES");
-        return new GluePipeline(location.getPath(), pipeline);
+        return new GluePipeline(location.getPath(), pipeline, false);
     }
 
     public RenderType entityType(ResourceLocation texture) {
