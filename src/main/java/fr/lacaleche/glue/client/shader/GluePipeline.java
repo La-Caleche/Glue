@@ -81,11 +81,12 @@ public class GluePipeline {
             builder.withoutBlend();
         }
 
+        boolean isAdditive = blendFunction == BlendFunction.LIGHTNING
+                || blendFunction == BlendFunction.ADDITIVE;
+
         RenderPipeline pipeline = RenderPipelines.register(builder.build());
         RenderCompat.assignIrisProgram(pipeline, irisProgram);
 
-        boolean isAdditive = blendFunction == BlendFunction.LIGHTNING
-                || blendFunction == BlendFunction.ADDITIVE;
         return new GluePipeline(location.getPath(), pipeline, isAdditive);
     }
 

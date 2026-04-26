@@ -90,13 +90,14 @@ class IrisProxy {
             if (rts == null) return -1;
 
             Class<?> rtsClass = Class.forName("net.irisshaders.iris.targets.RenderTargets");
-            for (String fieldName : new String[]{"noHand", "noTranslucents"}) {
-                try {
-                    Field f = rtsClass.getDeclaredField(fieldName);
-                    f.setAccessible(true);
-                    Object depthTex = f.get(rts);
-                    if (depthTex instanceof Integer id && id > 0) return id;
-                } catch (NoSuchFieldException ignored) {}
+            // Use getDepthTextureNoHand() — returns the depth buffer before hand rendering
+            // (depthtex2), which is what VFX mods need for occlusion.
+            Object depthTex = rtsClass.getMethod("getDepthTextureNoHand").invoke(rts);
+            if (depthTex == null) return -1;
+
+            Class<?> glTexClass = Class.forName("com.mojang.blaze3d.opengl.GlTexture");
+            if (glTexClass.isInstance(depthTex)) {
+                return (int) glTexClass.getMethod("glId").invoke(depthTex);
             }
         } catch (Exception ignored) {}
         return -1;

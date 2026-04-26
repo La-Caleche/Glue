@@ -108,7 +108,9 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
                 frameClearedAdditive = true;
             }
             targetFbo = captureFboAdditive;
-            activeCaptureCopyDepth = !depthCopiedAdditive;
+            // Additive: NEVER copy scene depth — it contains entities that
+            // would block the sprite during capture. Start clean (depth=1.0).
+            activeCaptureCopyDepth = false;
         } else {
             captureFboAlpha = FramebufferHelper.resizeOrCreate(captureFboAlpha, w, h);
             if (!frameClearedAlpha) {

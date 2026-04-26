@@ -52,24 +52,19 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
 
         GluePipeline pipeline = AdditiveSpriteRenderer.getPipeline();
 
-        // Strategy B: ShadedBufferSource renders with our custom shader
-        // (bypass enabled under Iris), captures to the additive FBO.
         ShadedBufferSource shadedSource = pipeline.wrap();
 
         RenderType renderType = pipeline.entityType(SPRITE_TEXTURE);
         VertexConsumer consumer = shadedSource.getBuffer(renderType);
 
-        // Pulse scale: gently breathes between 0.85x and 1.15x
         float pulse = 1.0f + 0.15f * (float) Math.sin(time * 2.5);
         float size = 0.75f * pulse;
 
-        // Floating bob
         float bob = (float) Math.sin(time * 1.5) * 0.1f;
 
         poseStack.pushPose();
         poseStack.translate(0.5, 1.8 + bob, 0.5);
 
-        // Billboard: camera rotation quaternion
         poseStack.mulPose(Minecraft.getInstance().gameRenderer.getMainCamera().rotation());
 
         poseStack.scale(size, size, size);
@@ -88,7 +83,6 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
 
         poseStack.popPose();
 
-        // Flush — renders to the additive capture FBO (our shader runs via bypass)
         shadedSource.endBatch();
     }
 
