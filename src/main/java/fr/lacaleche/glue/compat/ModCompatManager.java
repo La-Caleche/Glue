@@ -85,10 +85,37 @@ public class ModCompatManager {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T> T invokeRuntime(Object inst, String methodName, boolean isPrivateMethod, Class<?>[] paramTypes, Object[] args, Class<T> returnType, T fallback) {
+        if (inst == null) return fallback;
+        Method m = InstanceMethodCache.resolve(inst.getClass().getName(), methodName, isPrivateMethod, paramTypes);
+        if (m == null) return fallback;
+        try {
+            Object r = m.invoke(inst, args);
+            return returnType.isInstance(r) ? (T) r : fallback;
+        } catch (Throwable ignored) {
+            return fallback;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T getFieldValue(Object inst, String className, String fieldName, boolean isPrivateField, Class<T> fieldType, T fallback) {
+        if (inst == null) return fallback;
+        java.lang.reflect.Field f = FieldCache.resolve(className, fieldName, isPrivateField);
+        if (f == null) return fallback;
+        try {
+            Object r = f.get(inst);
+            return fieldType.isInstance(r) ? (T) r : fallback;
+        } catch (Throwable ignored) {
+            return fallback;
+        }
+    }
+
     public static void clearCache() {
         MethodCache.clear();
         SingletonCache.clear();
         InstanceMethodCache.clear();
+        FieldCache.clear();
     }
 
     private static final class MethodCache {
@@ -193,6 +220,42 @@ public class ModCompatManager {
 
         static void clear() {
             METHOD_CACHE.clear();
+        }
+    }
+
+    private static final class FieldCache {
+        private static final ConcurrentMap<String, java.lang.reflect.Field> FIELD_CACHE = new ConcurrentHashMap<>();
+
+        static java.lang.reflect.Field resolve(String className, String fieldName, boolean isPrivate) {
+            String key = className + "#" + fieldName;
+            java.lang.reflect.Field cached = FIELD_CACHE.get(key);
+            if (cached != null) return cached;
+
+            Class<?> clazz = MethodCache.loadClassSafely(className);
+            if (clazz == null) return null;
+
+            java.lang.reflect.Field found = lookupField(clazz, fieldName, isPrivate);
+            if (found == null) return null;
+
+            FIELD_CACHE.putIfAbsent(key, found);
+            return FIELD_CACHE.get(key);
+        }
+
+        static java.lang.reflect.Field lookupField(Class<?> clazz, String fieldName, boolean isPrivate) {
+            try {
+                java.lang.reflect.Field f = isPrivate ? clazz.getDeclaredField(fieldName) : clazz.getField(fieldName);
+                if (isPrivate) {
+                    try { f.setAccessible(true); }
+                    catch (Throwable ignored) { return null; }
+                }
+                return f;
+            } catch (Throwable ignored) {
+                return null;
+            }
+        }
+
+        static void clear() {
+            FIELD_CACHE.clear();
         }
     }
 }

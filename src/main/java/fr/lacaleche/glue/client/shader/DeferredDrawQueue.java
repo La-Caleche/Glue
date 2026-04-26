@@ -12,8 +12,11 @@ import java.util.List;
 @Environment(EnvType.CLIENT)
 public class DeferredDrawQueue {
 
-    private static final List<DrawCommand> pendingDraws = new ArrayList<>();
     private static boolean initialized = false;
+
+    // Object pool to eliminate GC overhead
+    private static final List<PooledCommand> commandPool = new ArrayList<>(256);
+    private static int activeCommandCount = 0;
 
     public static void init() {
         if (initialized) return;
@@ -21,11 +24,24 @@ public class DeferredDrawQueue {
         WorldRenderEvents.LAST.register(context -> flush());
     }
 
+    private static PooledCommand obtainCommand() {
+        if (activeCommandCount >= commandPool.size()) {
+            commandPool.add(new PooledCommand());
+        }
+        return commandPool.get(activeCommandCount++);
+    }
+
     static void enqueue(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
         if (RenderCompat.isIrisShaderEnabled()) {
-            pendingDraws.add(new QuadCommand(new Matrix4f(mvp), vertices.clone(), colors.clone(), vertexCount));
+            PooledCommand cmd = obtainCommand();
+            cmd.type = 0;
+            cmd.mvp.set(mvp);
+            cmd.vertexCount = vertexCount;
+            ensureCapacity(cmd, vertices.length, 0, colors.length);
+            System.arraycopy(vertices, 0, cmd.vertices, 0, vertices.length);
+            System.arraycopy(colors, 0, cmd.colors, 0, colors.length);
         } else {
             GlDirectRenderer.drawQuad(mvp, vertices, colors, vertexCount, true);
         }
@@ -36,8 +52,15 @@ public class DeferredDrawQueue {
         if (RenderCompat.isRenderingShadowPass()) return;
 
         if (RenderCompat.isIrisShaderEnabled()) {
-            pendingDraws.add(new TexturedQuadCommand(
-                    new Matrix4f(mvp), vertices.clone(), uvs.clone(), colors.clone(), textureId, vertexCount));
+            PooledCommand cmd = obtainCommand();
+            cmd.type = 1;
+            cmd.mvp.set(mvp);
+            cmd.textureId = textureId;
+            cmd.vertexCount = vertexCount;
+            ensureCapacity(cmd, vertices.length, uvs.length, colors.length);
+            System.arraycopy(vertices, 0, cmd.vertices, 0, vertices.length);
+            System.arraycopy(uvs, 0, cmd.uvs, 0, uvs.length);
+            System.arraycopy(colors, 0, cmd.colors, 0, colors.length);
         } else {
             GlDirectRenderer.drawTexturedQuad(mvp, vertices, uvs, colors, textureId, vertexCount, true);
         }
@@ -47,30 +70,46 @@ public class DeferredDrawQueue {
         if (RenderCompat.isRenderingShadowPass()) return;
 
         if (RenderCompat.isIrisShaderEnabled()) {
-            pendingDraws.add(new RunnableCommand(action));
+            PooledCommand cmd = obtainCommand();
+            cmd.type = 2;
+            cmd.action = action;
         } else {
             action.run();
         }
     }
 
-    private static void flush() {
-        if (pendingDraws.isEmpty()) return;
-
-        for (DrawCommand cmd : pendingDraws) {
-            switch (cmd) {
-                case QuadCommand q ->
-                        GlDirectRenderer.drawQuad(q.mvp, q.vertices, q.colors, q.vertexCount, true);
-                case TexturedQuadCommand t ->
-                        GlDirectRenderer.drawTexturedQuad(t.mvp, t.vertices, t.uvs, t.colors, t.textureId, t.vertexCount, true);
-                case RunnableCommand r ->
-                        r.action.run();
-            }
-        }
-        pendingDraws.clear();
+    private static void ensureCapacity(PooledCommand cmd, int vLen, int uvLen, int cLen) {
+        if (cmd.vertices.length < vLen) cmd.vertices = new float[vLen];
+        if (cmd.uvs.length < uvLen) cmd.uvs = new float[uvLen];
+        if (cmd.colors.length < cLen) cmd.colors = new float[cLen];
     }
 
-    private sealed interface DrawCommand permits QuadCommand, TexturedQuadCommand, RunnableCommand {}
-    private record QuadCommand(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) implements DrawCommand {}
-    private record TexturedQuadCommand(Matrix4f mvp, float[] vertices, float[] uvs, float[] colors, int textureId, int vertexCount) implements DrawCommand {}
-    private record RunnableCommand(Runnable action) implements DrawCommand {}
+    private static void flush() {
+        if (activeCommandCount == 0) return;
+
+        for (int i = 0; i < activeCommandCount; i++) {
+            PooledCommand cmd = commandPool.get(i);
+            if (cmd.type == 0) {
+                GlDirectRenderer.drawQuad(cmd.mvp, cmd.vertices, cmd.colors, cmd.vertexCount, true);
+            } else if (cmd.type == 1) {
+                GlDirectRenderer.drawTexturedQuad(cmd.mvp, cmd.vertices, cmd.uvs, cmd.colors, cmd.textureId, cmd.vertexCount, true);
+            } else if (cmd.type == 2 && cmd.action != null) {
+                cmd.action.run();
+                cmd.action = null; // Clear reference to avoid memory leaks
+            }
+        }
+
+        activeCommandCount = 0;
+    }
+
+    private static class PooledCommand {
+        int type; // 0=Quad, 1=Textured, 2=Runnable
+        final Matrix4f mvp = new Matrix4f();
+        float[] vertices = new float[12]; // default quad 3 * 4
+        float[] colors = new float[16];   // default quad 4 * 4
+        float[] uvs = new float[8];       // default quad 2 * 4
+        int textureId;
+        int vertexCount;
+        Runnable action;
+    }
 }

@@ -227,6 +227,15 @@ public class GlDirectRenderer {
         int program = getOrCreateProgram("glue_depth_blit", VERT_BLIT, FRAG_DEPTH_BLIT);
         SavedGlState state = SavedGlState.save();
 
+        setupBlitState(program, additive);
+        bindUniforms(program, captureColorId, captureDepthId, additive);
+        drawFullscreenQuad(program);
+
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        state.restore();
+    }
+
+    private static void setupBlitState(int program, boolean additive) {
         RenderTarget mainTarget = Minecraft.getInstance().getMainRenderTarget();
         int mainFboId = FramebufferHelper.getFramebufferId(mainTarget);
 
@@ -236,6 +245,18 @@ public class GlDirectRenderer {
 
         GL20.glUseProgram(program);
 
+        GL11.glEnable(GL11.GL_BLEND);
+        if (additive) {
+            GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE);
+        } else {
+            GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        }
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glDepthMask(false);
+        GL11.glDisable(GL11.GL_CULL_FACE);
+    }
+
+    private static void bindUniforms(int program, int captureColorId, int captureDepthId, boolean additive) {
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, captureColorId);
         int loc0 = GL20.glGetUniformLocation(program, "CaptureColor");
@@ -262,40 +283,42 @@ public class GlDirectRenderer {
 
         if (!blitLogged) {
             blitLogged = true;
-            LOGGER.info("[Glue-Blit] captureColor={}, captureDepth={}, irisDepth={}, mainFBO={}, additive={}",
-                    captureColorId, captureDepthId, irisDepthId, mainFboId, additive);
+            LOGGER.info("[Glue-Blit] captureColor={}, captureDepth={}, irisDepth={}, additive={}",
+                    captureColorId, captureDepthId, irisDepthId, additive);
         }
+    }
 
-        float[] verts = { -1f,-1f,0f,  1f,-1f,0f,  1f,1f,0f,  -1f,1f,0f };
-        float[] uvs   = {  0f,0f,       1f,0f,      1f,1f,      0f,1f    };
-
+    private static void drawFullscreenQuad(int program) {
         if (blitVao == 0) {
             blitVao = GL30.glGenVertexArrays();
             blitPosVbo = GL15.glGenBuffers();
             blitUvVbo = GL15.glGenBuffers();
-        }
-        GL30.glBindVertexArray(blitVao);
-        updateAttrib(program, "Position", blitPosVbo, verts, 3);
-        updateAttrib(program, "UV", blitUvVbo, uvs, 2);
 
-        GL11.glEnable(GL11.GL_BLEND);
-        if (additive) {
-            // Additive blit: result = src + dst (pure additive)
-            // Black pixels add nothing, bright pixels glow.
-            GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE);
+            float[] verts = { -1f,-1f,0f,  1f,-1f,0f,  1f,1f,0f,  -1f,1f,0f };
+            float[] uvs   = {  0f,0f,       1f,0f,      1f,1f,      0f,1f    };
+
+            GL30.glBindVertexArray(blitVao);
+
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, blitPosVbo);
+            GL15.glBufferData(GL15.GL_ARRAY_BUFFER, verts, GL15.GL_STATIC_DRAW);
+            int posAttrib = GL20.glGetAttribLocation(program, "Position");
+            if (posAttrib >= 0) {
+                GL20.glEnableVertexAttribArray(posAttrib);
+                GL20.glVertexAttribPointer(posAttrib, 3, GL11.GL_FLOAT, false, 0, 0);
+            }
+
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, blitUvVbo);
+            GL15.glBufferData(GL15.GL_ARRAY_BUFFER, uvs, GL15.GL_STATIC_DRAW);
+            int uvAttrib = GL20.glGetAttribLocation(program, "UV");
+            if (uvAttrib >= 0) {
+                GL20.glEnableVertexAttribArray(uvAttrib);
+                GL20.glVertexAttribPointer(uvAttrib, 2, GL11.GL_FLOAT, false, 0, 0);
+            }
         } else {
-            // Alpha blit: result = src.a * src + (1 - src.a) * dst
-            GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GL30.glBindVertexArray(blitVao);
         }
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
-        GL11.glDepthMask(false);
-        GL11.glDisable(GL11.GL_CULL_FACE);
 
         GL11.glDrawArrays(GL11.GL_TRIANGLE_FAN, 0, 4);
-
-        GL13.glActiveTexture(GL13.GL_TEXTURE0);
-
-        state.restore();
     }
 
     static Matrix4f getProjectionMatrix() {

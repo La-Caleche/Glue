@@ -25,15 +25,18 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-capture");
 
-    // ── Alpha capture FBO (standard entity shaders) ──
-    private static RenderTarget captureFboAlpha;
-    private static boolean frameClearedAlpha = false;
-    private static boolean depthCopiedAlpha = false;
+    // ── RenderTarget Pool ──
+    private static final List<RenderTarget> availableFbos = new ArrayList<>();
+    private static final List<QueuedCapture> compositeQueue = new ArrayList<>();
 
-    // ── Additive capture FBO (additive VFX) ──
-    private static RenderTarget captureFboAdditive;
-    private static boolean frameClearedAdditive = false;
-    private static boolean depthCopiedAdditive = false;
+    private static class QueuedCapture {
+        final RenderTarget fbo;
+        final boolean additive;
+        QueuedCapture(RenderTarget fbo, boolean additive) {
+            this.fbo = fbo;
+            this.additive = additive;
+        }
+    }
 
     // ── Active capture state (read by mixin) ──
     private static volatile boolean capturing = false;
@@ -99,27 +102,20 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         int w = mc.getWindow().getWidth();
         int h = mc.getWindow().getHeight();
 
-        // Select the correct capture FBO based on blend mode
         RenderTarget targetFbo;
-        if (additive) {
-            captureFboAdditive = FramebufferHelper.resizeOrCreate(captureFboAdditive, w, h);
-            if (!frameClearedAdditive) {
-                FramebufferHelper.clear(captureFboAdditive, 0f, 0f, 0f, 0f);
-                frameClearedAdditive = true;
-            }
-            targetFbo = captureFboAdditive;
-            // Additive: NEVER copy scene depth — it contains entities that
-            // would block the sprite during capture. Start clean (depth=1.0).
-            activeCaptureCopyDepth = false;
+        if (availableFbos.isEmpty()) {
+            targetFbo = FramebufferHelper.resizeOrCreate(null, w, h);
         } else {
-            captureFboAlpha = FramebufferHelper.resizeOrCreate(captureFboAlpha, w, h);
-            if (!frameClearedAlpha) {
-                FramebufferHelper.clear(captureFboAlpha, 0f, 0f, 0f, 0f);
-                frameClearedAlpha = true;
-            }
-            targetFbo = captureFboAlpha;
-            activeCaptureCopyDepth = !depthCopiedAlpha;
+            targetFbo = availableFbos.remove(availableFbos.size() - 1);
+            targetFbo = FramebufferHelper.resizeOrCreate(targetFbo, w, h);
         }
+
+        FramebufferHelper.clear(targetFbo, 0f, 0f, 0f, 0f);
+        compositeQueue.add(new QueuedCapture(targetFbo, additive));
+
+        // Additive: NEVER copy scene depth — it contains entities that
+        // would block the sprite during capture. Start clean (depth=1.0).
+        activeCaptureCopyDepth = !additive;
 
         // Set the active capture target for the mixin to read
         activeCaptureTargetFboId = FramebufferHelper.getFramebufferId(targetFbo);
@@ -129,16 +125,11 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         } finally {
             capturing = false;
             activeCaptureTargetFboId = 0;
-            if (additive) {
-                depthCopiedAdditive = true;
-            } else {
-                depthCopiedAlpha = true;
-            }
         }
 
         if (!blitPathLogged) {
             blitPathLogged = true;
-            LOGGER.info("[Glue-Path] blend-aware blit from PostCompositeMixin (additive={})", additive);
+            LOGGER.info("[Glue-Path] blend-aware blit from PostCompositeMixin using pooled FBO (additive={})", additive);
         }
     }
 
@@ -227,19 +218,11 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
      * Blits both FBOs with their correct blend modes.
      */
     public static void postCompositeBlit() {
-        // Alpha content first (drawn behind)
-        if (frameClearedAlpha) {
-            blitCaptureToScreen(captureFboAlpha, false);
-            frameClearedAlpha = false;
-            depthCopiedAlpha = false;
+        for (QueuedCapture qc : compositeQueue) {
+            blitCaptureToScreen(qc.fbo, qc.additive);
+            availableFbos.add(qc.fbo);
         }
-
-        // Additive content on top
-        if (frameClearedAdditive) {
-            blitCaptureToScreen(captureFboAdditive, true);
-            frameClearedAdditive = false;
-            depthCopiedAdditive = false;
-        }
+        compositeQueue.clear();
     }
 
     private static void blitCaptureToScreen(RenderTarget fbo, boolean additive) {
