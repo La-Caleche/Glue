@@ -20,6 +20,12 @@ import org.slf4j.LoggerFactory;
 import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 @Environment(EnvType.CLIENT)
 public class GlDirectRenderer {
@@ -42,79 +48,8 @@ public class GlDirectRenderer {
     private static int blitPosVbo = 0;
     private static int blitUvVbo = 0;
 
-    private static final String VERT_POSITION_COLOR = """
-            #version 150
-
-            uniform mat4 MVP;
-
-            in vec3 Position;
-            in vec4 Color;
-
-            out vec4 vertexColor;
-
-            void main() {
-                gl_Position = MVP * vec4(Position, 1.0);
-                vertexColor = Color;
-            }
-            """;
-
-    private static final String FRAG_POSITION_COLOR = """
-            #version 150
-
-            in vec4 vertexColor;
-
-            out vec4 fragColor;
-
-            void main() {
-                vec4 color = vertexColor;
-                if (color.a == 0.0) {
-                    discard;
-                }
-                fragColor = color;
-            }
-            """;
-
-    private static final String VERT_POSITION_TEX_COLOR = """
-            #version 150
-
-            uniform mat4 MVP;
-
-            in vec3 Position;
-            in vec2 UV;
-            in vec4 Color;
-
-            out vec2 texCoord;
-            out vec4 vertexColor;
-
-            void main() {
-                gl_Position = MVP * vec4(Position, 1.0);
-                texCoord = UV;
-                vertexColor = Color;
-            }
-            """;
-
-    private static final String FRAG_POSITION_TEX_COLOR = """
-            #version 150
-
-            uniform sampler2D Sampler;
-
-            in vec2 texCoord;
-            in vec4 vertexColor;
-
-            out vec4 fragColor;
-
-            void main() {
-                vec4 texColor = texture(Sampler, texCoord);
-                vec4 color = texColor * vertexColor;
-                if (color.a == 0.0) {
-                    discard;
-                }
-                fragColor = color;
-            }
-            """;
-
     static void drawQuad(Matrix4f mvpMatrix, float[] vertices, float[] colors, int vertexCount, boolean useDepthTest) {
-        int program = getOrCreateProgram("glue_position_color", VERT_POSITION_COLOR, FRAG_POSITION_COLOR);
+        int program = getOrCreateProgram("glue_position_color", "glue_position_color.vsh", "glue_position_color.fsh");
         SavedGlState state = SavedGlState.save();
 
         GL20.glUseProgram(program);
@@ -138,7 +73,7 @@ public class GlDirectRenderer {
 
     static void drawTexturedQuad(Matrix4f mvpMatrix, float[] vertices, float[] uvs,
                                  float[] colors, int textureId, int vertexCount, boolean useDepthTest) {
-        int program = getOrCreateProgram("glue_position_tex_color", VERT_POSITION_TEX_COLOR, FRAG_POSITION_TEX_COLOR);
+        int program = getOrCreateProgram("glue_position_tex_color", "glue_position_tex_color.vsh", "glue_position_tex_color.fsh");
         SavedGlState state = SavedGlState.save();
 
         GL20.glUseProgram(program);
@@ -167,64 +102,8 @@ public class GlDirectRenderer {
         state.restore();
     }
 
-    private static final String VERT_BLIT = """
-            #version 150
-
-            in vec3 Position;
-            in vec2 UV;
-
-            out vec2 texCoord;
-
-            void main() {
-                gl_Position = vec4(Position, 1.0);
-                texCoord = UV;
-            }
-            """;
-
-    private static final String FRAG_DEPTH_BLIT = """
-            #version 150
-
-            uniform sampler2D CaptureColor;
-            uniform sampler2D CaptureDepth;
-            uniform sampler2D SceneDepth;
-            uniform int HasSceneDepth;
-            uniform int IsAdditive;
-
-            in vec2 texCoord;
-            out vec4 fragColor;
-
-            void main() {
-                vec4 color = texture(CaptureColor, texCoord);
-
-                if (IsAdditive == 1) {
-                    // Additive: discard near-black pixels (they add nothing).
-                    float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-                    if (luminance < 0.004) discard;
-
-                    // Depth test against Iris scene depth for wall occlusion.
-                    if (HasSceneDepth == 1) {
-                        float capturedZ = texture(CaptureDepth, texCoord).r;
-                        float sceneZ = texture(SceneDepth, texCoord).r;
-                        if (capturedZ >= sceneZ) discard;
-                    }
-                } else {
-                    // Alpha: standard alpha discard.
-                    if (color.a < 0.005) discard;
-
-                    // Depth test against Iris scene depth.
-                    if (HasSceneDepth == 1) {
-                        float capturedZ = texture(CaptureDepth, texCoord).r;
-                        float sceneZ = texture(SceneDepth, texCoord).r;
-                        if (capturedZ >= sceneZ) discard;
-                    }
-                }
-
-                fragColor = color;
-            }
-            """;
-
     public static void blitCapture(int captureColorId, int captureDepthId, int sceneDepthId, boolean additive) {
-        int program = getOrCreateProgram("glue_depth_blit", VERT_BLIT, FRAG_DEPTH_BLIT);
+        int program = getOrCreateProgram("glue_depth_blit", "glue_depth_blit.vsh", "glue_depth_blit.fsh");
         SavedGlState state = SavedGlState.save();
 
         setupBlitState(program, additive);
@@ -375,8 +254,34 @@ public class GlDirectRenderer {
         GL11.glDisable(GL11.GL_CULL_FACE);
     }
 
-    private static int getOrCreateProgram(String name, String vertSource, String fragSource) {
-        return programCache.computeIfAbsent(name, k -> compileProgram(vertSource, fragSource));
+    static int getOrCreateProgram(String name, String vertFile, String fragFile) {
+        if (programCache.containsKey(name)) {
+            return programCache.get(name);
+        }
+        String vertSource = loadShaderResource(vertFile);
+        String fragSource = loadShaderResource(fragFile);
+        int program = compileProgram(vertSource, fragSource);
+        programCache.put(name, program);
+        return program;
+    }
+
+    private static String loadShaderResource(String name) {
+        try {
+            ResourceLocation loc = ResourceLocation.fromNamespaceAndPath("glue", "shaders/internal/" + name);
+            ResourceManager rm = Minecraft.getInstance().getResourceManager();
+            Optional<Resource> res = rm.getResource(loc);
+            if (res.isPresent()) {
+                try (InputStream is = res.get().open()) {
+                    return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                }
+            } else {
+                LOGGER.error("[Glue] Missing internal shader resource: {}", loc);
+                return "";
+            }
+        } catch (Exception e) {
+            LOGGER.error("[Glue] Failed to load internal shader resource: {}", name, e);
+            return "";
+        }
     }
 
     private static int compileProgram(String vertSource, String fragSource) {

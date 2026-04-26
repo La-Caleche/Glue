@@ -1,8 +1,6 @@
 package fr.lacaleche.glue.testmod.render;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.platform.DestFactor;
-import com.mojang.blaze3d.platform.SourceFactor;
 import fr.lacaleche.glue.client.shader.GluePipeline;
 import fr.lacaleche.glue.client.shader.ShadedBufferSource;
 import fr.lacaleche.glue.testmod.TestmodClient;
@@ -19,7 +17,8 @@ import fr.lacaleche.glue.testmod.TestmodClient;
  */
 public final class AdditiveSpriteRenderer {
 
-    private AdditiveSpriteRenderer() {}
+    private AdditiveSpriteRenderer() {
+    }
 
     private static GluePipeline pipeline;
 
@@ -34,8 +33,7 @@ public final class AdditiveSpriteRenderer {
                     TestmodClient.id("core/additive_sprite"),
                     TestmodClient.id("core/additive_sprite"),
                     BlendFunction.ADDITIVE,
-                    "EMISSIVE_ENTITIES"
-            );
+                    "EMISSIVE_ENTITIES");
         }
         return pipeline;
     }
@@ -43,9 +41,8 @@ public final class AdditiveSpriteRenderer {
     /**
      * Forces eager initialization of the pipeline.
      */
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     public static void init() {
-        getPipeline().hashCode();
-        TestmodClient.LOGGER.info("Additive sprite pipeline initialized (Strategy B, blend=ADDITIVE)");
+        getPipeline();
+        TestmodClient.LOGGER.info("Additive sprite pipeline initialized");
     }
 }

@@ -19,12 +19,17 @@ public class TestPostShaderHandler {
     private static final List<PostShaderHandle> toggleEffects = new ArrayList<>();
     private static final List<TimedEffect> timedEffects = new ArrayList<>();
 
+    private static final int SHATTERED_DURATION = 59;
+    private static final float SHATTERED_START_FADE = 19f;
+    private static final float SHATTERED_FADE_LENGTH = 40f;
+    private static final float SHATTERED_FLASH_DURATION = 4f;
+
     public static final TimedEffect SHATTERED = TimedEffect.builder(TestShaders.SHATTERED_SCREEN)
             .ubo("ShatteredConfig", 16)
-            .duration(59)
+            .duration(SHATTERED_DURATION)
             .curve(t -> t)
             .uniforms(w -> {
-                float t = w.progress() * 59f;
+                float t = w.progress() * SHATTERED_DURATION;
                 float intensity = computeShatterIntensity(t);
                 float flash = computeFlashIntensity(t);
                 w.putFloat(intensity).putFloat(0.05f).putFloat(0.8f).putFloat(flash);
@@ -61,10 +66,16 @@ public class TestPostShaderHandler {
             .curve(t -> (1.0f - t) * 0.05f)
             .build();
 
+    private static final int IMPACT_DURATION = 10;
+    private static final float IMPACT_INTENSITY = 0.6f;
+    private static final float IMPACT_MAX_OFFSET = 0.05f;
+    private static final float IMPACT_CHROMATIC = 0.0f;
+    private static final float IMPACT_FLASH = 5.0f;
+
     public static final TimedEffect IMPACT = TimedEffect.builder(TestShaders.IMPACT_FRAME)
             .ubo("ImpactConfig", 16)
-            .duration(10)
-            .uniforms(w -> w.putFloat(0.6f).putFloat(0.05f).putFloat(0.0f).putFloat(5.0f))
+            .duration(IMPACT_DURATION)
+            .uniforms(w -> w.putFloat(IMPACT_INTENSITY).putFloat(IMPACT_MAX_OFFSET).putFloat(IMPACT_CHROMATIC).putFloat(IMPACT_FLASH))
             .build();
 
     static {
@@ -138,17 +149,17 @@ public class TestPostShaderHandler {
     }
 
     private static float computeShatterIntensity(float t) {
-        if (t < 19f) {
+        if (t < SHATTERED_START_FADE) {
             return Math.min(t / 2.0f, 1.0f);
         }
-        float fade = (t - 19f) / 40f;
+        float fade = (t - SHATTERED_START_FADE) / SHATTERED_FADE_LENGTH;
         float inv = 1.0f - Math.min(fade, 1.0f);
         return inv * inv;
     }
 
     private static float computeFlashIntensity(float t) {
-        if (t >= 4f) return 0.0f;
-        float inv = 1.0f - (t / 4f);
+        if (t >= SHATTERED_FLASH_DURATION) return 0.0f;
+        float inv = 1.0f - (t / SHATTERED_FLASH_DURATION);
         return inv * inv * inv;
     }
 }

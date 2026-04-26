@@ -7,7 +7,6 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
@@ -47,25 +46,26 @@ public class GluePipeline {
     }
 
     public static GluePipeline entity(ResourceLocation location,
-                                      ResourceLocation vertShader,
-                                      ResourceLocation fragShader) {
+            ResourceLocation vertShader,
+            ResourceLocation fragShader) {
         return entity(location, vertShader, fragShader, BlendFunction.TRANSLUCENT);
     }
 
     public static GluePipeline entity(ResourceLocation location,
-                                      ResourceLocation vertShader,
-                                      ResourceLocation fragShader,
-                                      BlendFunction blendFunction) {
+            ResourceLocation vertShader,
+            ResourceLocation fragShader,
+            BlendFunction blendFunction) {
         return entityCustom(location, vertShader, fragShader, blendFunction, "ENTITIES_TRANSLUCENT");
     }
 
     public static GluePipeline entityCustom(ResourceLocation location,
-                                            ResourceLocation vertShader,
-                                            ResourceLocation fragShader,
-                                            BlendFunction blendFunction,
-                                            String irisProgram) {
+            ResourceLocation vertShader,
+            ResourceLocation fragShader,
+            BlendFunction blendFunction,
+            String irisProgram) {
         RenderPipeline.Builder builder = RenderPipeline.builder(RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET)
-                .withLocation(ResourceLocation.fromNamespaceAndPath(location.getNamespace(), "pipeline/" + location.getPath()))
+                .withLocation(ResourceLocation.fromNamespaceAndPath(location.getNamespace(),
+                        "pipeline/" + location.getPath()))
                 .withVertexShader(vertShader)
                 .withFragmentShader(fragShader)
                 .withSampler("Sampler0")
@@ -91,37 +91,37 @@ public class GluePipeline {
     }
 
     public static GluePipeline block(ResourceLocation location,
-                                     ResourceLocation vertShader,
-                                     ResourceLocation fragShader) {
+            ResourceLocation vertShader,
+            ResourceLocation fragShader) {
         RenderPipeline pipeline = RenderPipelines.register(
                 RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
-                        .withLocation(ResourceLocation.fromNamespaceAndPath(location.getNamespace(), "pipeline/" + location.getPath()))
+                        .withLocation(ResourceLocation.fromNamespaceAndPath(location.getNamespace(),
+                                "pipeline/" + location.getPath()))
                         .withVertexShader(vertShader)
                         .withFragmentShader(fragShader)
                         .withSampler("Sampler0")
                         .withSampler("Sampler2")
                         .withBlend(BlendFunction.TRANSLUCENT)
                         .withVertexFormat(DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS)
-                        .build()
-        );
+                        .build());
         RenderCompat.assignIrisProgram(pipeline, "TERRAIN");
         return new GluePipeline(location.getPath(), pipeline, false);
     }
 
     public static GluePipeline particle(ResourceLocation location,
-                                        ResourceLocation vertShader,
-                                        ResourceLocation fragShader) {
+            ResourceLocation vertShader,
+            ResourceLocation fragShader) {
         RenderPipeline pipeline = RenderPipelines.register(
                 RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
-                        .withLocation(ResourceLocation.fromNamespaceAndPath(location.getNamespace(), "pipeline/" + location.getPath()))
+                        .withLocation(ResourceLocation.fromNamespaceAndPath(location.getNamespace(),
+                                "pipeline/" + location.getPath()))
                         .withVertexShader(vertShader)
                         .withFragmentShader(fragShader)
                         .withSampler("Sampler0")
                         .withSampler("Sampler2")
                         .withBlend(BlendFunction.TRANSLUCENT)
                         .withVertexFormat(DefaultVertexFormat.PARTICLE, VertexFormat.Mode.QUADS)
-                        .build()
-        );
+                        .build());
         RenderCompat.assignIrisProgram(pipeline, "PARTICLES");
         return new GluePipeline(location.getPath(), pipeline, false);
     }

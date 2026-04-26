@@ -1,5 +1,11 @@
 #version 150
 
+// -----------------------------------------------------------------------------
+// Example: Additive Sprite (Vertex Shader)
+// Description: Passes vertex data through and calculates fog distances.
+// Fullbright emissive entity rendering.
+// -----------------------------------------------------------------------------
+
 #moj_import <minecraft:fog.glsl>
 #moj_import <minecraft:dynamictransforms.glsl>
 #moj_import <minecraft:projection.glsl>
