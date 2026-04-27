@@ -20,11 +20,22 @@ public record SavedGlState(
         boolean cull,
         boolean scissor,
         int activeTexture,
-        int[] viewport
+        int[] viewport,
+        int tex0, int tex1, int tex2
 ) {
     public static SavedGlState save() {
         int[] vp = new int[4];
         GL11.glGetIntegerv(GL11.GL_VIEWPORT, vp);
+        
+        int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        int tex0 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL13.glActiveTexture(GL13.GL_TEXTURE1);
+        int tex1 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL13.glActiveTexture(GL13.GL_TEXTURE2);
+        int tex2 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL13.glActiveTexture(activeTexture);
+        
         return new SavedGlState(
                 GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM),
                 GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING),
@@ -39,8 +50,9 @@ public record SavedGlState(
                 GL11.glGetInteger(GL11.GL_DEPTH_FUNC),
                 GL11.glIsEnabled(GL11.GL_CULL_FACE),
                 GL11.glIsEnabled(GL11.GL_SCISSOR_TEST),
-                GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE),
-                vp
+                activeTexture,
+                vp,
+                tex0, tex1, tex2
         );
     }
 
@@ -62,6 +74,14 @@ public record SavedGlState(
         else GL11.glDisable(GL11.GL_CULL_FACE);
         if (scissor) GL11.glEnable(GL11.GL_SCISSOR_TEST);
         else GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex0);
+        GL13.glActiveTexture(GL13.GL_TEXTURE1);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex1);
+        GL13.glActiveTexture(GL13.GL_TEXTURE2);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex2);
+        
         GL13.glActiveTexture(activeTexture);
         GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
     }

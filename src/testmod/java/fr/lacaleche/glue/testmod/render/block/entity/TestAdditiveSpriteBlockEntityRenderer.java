@@ -73,7 +73,7 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
 
         float halfW = 0.5f;
         float halfH = 0.5f;
-        int r = 255, g = 255, b = 255, a = 255;
+        int r = 255, g = 125, b = 185, a = 255;
 
         // Emit the quad
         vertex(consumer, pose, -halfW, -halfH, 0, 0f, 1f, r, g, b, a, FULL_BRIGHT);

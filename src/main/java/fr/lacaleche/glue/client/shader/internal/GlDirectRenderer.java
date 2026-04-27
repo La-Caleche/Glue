@@ -25,14 +25,18 @@ import java.util.Optional;
 /**
  * Low-level OpenGL draw utilities for Glue's shader system.
  *
- * <p>Provides raw GL quad rendering ({@link #drawQuad}, {@link #drawTexturedQuad})
+ * <p>
+ * Provides raw GL quad rendering ({@link #drawQuad}, {@link #drawTexturedQuad})
  * and a depth-aware capture-to-screen blit ({@link #blitCapture}). All methods
- * save and restore GL state via {@link SavedGlState}.</p>
+ * save and restore GL state via {@link SavedGlState}.
+ * </p>
  *
- * <p><strong>Internal:</strong> consumers should use
+ * <p>
+ * <strong>Internal:</strong> consumers should use
  * {@link fr.lacaleche.glue.client.shader.GluePipeline GluePipeline} or
  * {@link fr.lacaleche.glue.client.shader.ShadedBufferSource ShadedBufferSource}
- * instead.</p>
+ * instead.
+ * </p>
  */
 @Environment(EnvType.CLIENT)
 public class GlDirectRenderer {
@@ -55,7 +59,8 @@ public class GlDirectRenderer {
     private static int blitPosVbo = 0;
     private static int blitUvVbo = 0;
 
-    public static void drawQuad(Matrix4f mvpMatrix, float[] vertices, float[] colors, int vertexCount, boolean useDepthTest) {
+    public static void drawQuad(Matrix4f mvpMatrix, float[] vertices, float[] colors, int vertexCount,
+            boolean useDepthTest) {
         int program = getOrCreateProgram("glue_position_color", "glue_position_color.vsh", "glue_position_color.fsh");
         SavedGlState state = SavedGlState.save();
 
@@ -79,8 +84,9 @@ public class GlDirectRenderer {
     }
 
     public static void drawTexturedQuad(Matrix4f mvpMatrix, float[] vertices, float[] uvs,
-                                        float[] colors, int textureId, int vertexCount, boolean useDepthTest) {
-        int program = getOrCreateProgram("glue_position_tex_color", "glue_position_tex_color.vsh", "glue_position_tex_color.fsh");
+            float[] colors, int textureId, int vertexCount, boolean useDepthTest) {
+        int program = getOrCreateProgram("glue_position_tex_color", "glue_position_tex_color.vsh",
+                "glue_position_tex_color.fsh");
         SavedGlState state = SavedGlState.save();
 
         GL20.glUseProgram(program);
@@ -89,7 +95,8 @@ public class GlDirectRenderer {
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
         int samplerLoc = GL20.glGetUniformLocation(program, "Sampler");
-        if (samplerLoc >= 0) GL20.glUniform1i(samplerLoc, 0);
+        if (samplerLoc >= 0)
+            GL20.glUniform1i(samplerLoc, 0);
 
         if (texQuadVao == 0) {
             texQuadVao = GL30.glGenVertexArrays();
@@ -117,7 +124,6 @@ public class GlDirectRenderer {
         bindUniforms(program, captureColorId, captureDepthId, sceneDepthId, additive);
         drawFullscreenQuad(program);
 
-        GL13.glActiveTexture(GL13.GL_TEXTURE0);
         state.restore();
     }
 
@@ -168,7 +174,7 @@ public class GlDirectRenderer {
         int mainFboId = FramebufferHelper.getFramebufferId(mainTarget);
 
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, mainFboId);
-        GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0});
+        GL20.glDrawBuffers(new int[] { GL30.GL_COLOR_ATTACHMENT0 });
         GL11.glViewport(0, 0, mainTarget.width, mainTarget.height);
 
         GL20.glUseProgram(program);
@@ -177,7 +183,8 @@ public class GlDirectRenderer {
         if (additive) {
             GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE);
         } else {
-            GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE,
+                    GL11.GL_ONE_MINUS_SRC_ALPHA);
         }
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDepthMask(false);
@@ -185,19 +192,19 @@ public class GlDirectRenderer {
     }
 
     private static void bindUniforms(int program, int captureColorId, int captureDepthId,
-                                     int sceneDepthId, boolean additive) {
+            int sceneDepthId, boolean additive) {
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, captureColorId);
         int loc0 = GL20.glGetUniformLocation(program, "CaptureColor");
-        if (loc0 >= 0) GL20.glUniform1i(loc0, 0);
+        if (loc0 >= 0)
+            GL20.glUniform1i(loc0, 0);
 
         GL13.glActiveTexture(GL13.GL_TEXTURE1);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, captureDepthId);
         int loc1 = GL20.glGetUniformLocation(program, "CaptureDepth");
-        if (loc1 >= 0) GL20.glUniform1i(loc1, 1);
+        if (loc1 >= 0)
+            GL20.glUniform1i(loc1, 1);
 
-        // Prefer Iris depth buffer; fall back to the Vanilla scene depth
-        // captured during FBO redirect (main framebuffer depth).
         int effectiveSceneDepthId = RenderCompat.getIrisMainDepthGlId();
         if (effectiveSceneDepthId <= 0) {
             effectiveSceneDepthId = sceneDepthId;
@@ -207,13 +214,16 @@ public class GlDirectRenderer {
             GL13.glActiveTexture(GL13.GL_TEXTURE2);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, effectiveSceneDepthId);
             int loc2 = GL20.glGetUniformLocation(program, "SceneDepth");
-            if (loc2 >= 0) GL20.glUniform1i(loc2, 2);
+            if (loc2 >= 0)
+                GL20.glUniform1i(loc2, 2);
         }
         int locHas = GL20.glGetUniformLocation(program, "HasSceneDepth");
-        if (locHas >= 0) GL20.glUniform1i(locHas, hasSceneDepth ? 1 : 0);
+        if (locHas >= 0)
+            GL20.glUniform1i(locHas, hasSceneDepth ? 1 : 0);
 
         int locAdditive = GL20.glGetUniformLocation(program, "IsAdditive");
-        if (locAdditive >= 0) GL20.glUniform1i(locAdditive, additive ? 1 : 0);
+        if (locAdditive >= 0)
+            GL20.glUniform1i(locAdditive, additive ? 1 : 0);
 
         if (!blitLogged) {
             blitLogged = true;
@@ -228,8 +238,8 @@ public class GlDirectRenderer {
             blitPosVbo = GL15.glGenBuffers();
             blitUvVbo = GL15.glGenBuffers();
 
-            float[] verts = {-1f, -1f, 0f, 1f, -1f, 0f, 1f, 1f, 0f, -1f, 1f, 0f};
-            float[] uvs = {0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f};
+            float[] verts = { -1f, -1f, 0f, 1f, -1f, 0f, 1f, 1f, 0f, -1f, 1f, 0f };
+            float[] uvs = { 0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f };
 
             GL30.glBindVertexArray(blitVao);
 
@@ -268,7 +278,8 @@ public class GlDirectRenderer {
 
     /**
      * Updates an existing VBO with new data and sets up the vertex attribute.
-     * Uses buffer orphaning (glBufferData with same usage hint) for efficient streaming.
+     * Uses buffer orphaning (glBufferData with same usage hint) for efficient
+     * streaming.
      */
     private static void updateAttrib(int program, String name, int vbo, float[] data, int components) {
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vbo);

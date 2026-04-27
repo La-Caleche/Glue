@@ -28,7 +28,6 @@ void main() {
         discard;
     }
 
-    // ADDITIVE FOG: multiply by (1 - fogFactor) instead of mixing with FogColor.
     float fogFactor = total_fog_value(
         sphericalVertexDistance, cylindricalVertexDistance,
         FogEnvironmentalStart, FogEnvironmentalEnd,
@@ -36,13 +35,12 @@ void main() {
     );
     color.rgb *= 1.0 - fogFactor;
 
-    // Discard near-black pixels by luminance.
-    // In additive blending, black (0,0,0) adds nothing visually, but it
-    // still writes depth. Discarding ensures no depth write for these pixels.
+    // Boost the color intensity slightly to keep it emissive but reduce the massive bloom
+    color.rgb *= 1.2;
+
     float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
     if (luminance < 0.01) {
         discard;
-//        color = vec4(1.0, 0.0, 0.5, 1.0);
     }
 
     fragColor = color;
