@@ -4,7 +4,6 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.client.shader.ShadedBufferSource;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
-import fr.lacaleche.glue.compat.RenderCompat;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
@@ -28,9 +27,9 @@ public class GluePostCompositeMixin {
             )
     )
     private void glue$afterLevelRenderBeforeDepthClear(DeltaTracker deltaTracker, CallbackInfo ci) {
-        if (RenderCompat.isIrisShaderEnabled()) {
-            ShadedBufferSource.postCompositeBlit();
-        }
+        // Blit any queued captures (Iris or Vanilla additive) to the main
+        // framebuffer.  When the queue is empty this is a no-op.
+        ShadedBufferSource.postCompositeBlit();
 
         RenderTarget mainTarget = Minecraft.getInstance().getMainRenderTarget();
         int mainFbo = FramebufferHelper.getFramebufferId(mainTarget);

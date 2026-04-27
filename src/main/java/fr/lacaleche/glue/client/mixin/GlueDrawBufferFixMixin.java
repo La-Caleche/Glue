@@ -3,7 +3,6 @@ package fr.lacaleche.glue.client.mixin;
 import com.mojang.blaze3d.opengl.GlCommandEncoder;
 import com.mojang.blaze3d.opengl.GlRenderPass;
 import fr.lacaleche.glue.client.shader.ShadedBufferSource;
-import fr.lacaleche.glue.compat.RenderCompat;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
@@ -31,11 +30,11 @@ public class GlueDrawBufferFixMixin {
     private void glue$redirectToCaptureFbo(GlRenderPass glRenderPass,
                                            Collection<String> collection,
                                            CallbackInfoReturnable<Boolean> cir) {
-        // Check Iris capture (requires bypass active)
-        if (RenderCompat.isIrisBypassing() && ShadedBufferSource.isCapturing()) {
+        // Redirect draw to capture FBO (works for both Iris and Vanilla paths)
+        if (ShadedBufferSource.isCapturing()) {
             int captureFboId = ShadedBufferSource.getCaptureFboId();
             if (captureFboId > 0) {
-                redirectToFbo(captureFboId, true);
+                redirectToFbo(captureFboId, ShadedBufferSource.shouldCopyDepth());
             }
             return;
         }

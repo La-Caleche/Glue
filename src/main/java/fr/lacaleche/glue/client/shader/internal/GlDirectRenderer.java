@@ -114,7 +114,7 @@ public class GlDirectRenderer {
         SavedGlState state = SavedGlState.save();
 
         setupBlitState(program, additive);
-        bindUniforms(program, captureColorId, captureDepthId, additive);
+        bindUniforms(program, captureColorId, captureDepthId, sceneDepthId, additive);
         drawFullscreenQuad(program);
 
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
@@ -184,7 +184,8 @@ public class GlDirectRenderer {
         GL11.glDisable(GL11.GL_CULL_FACE);
     }
 
-    private static void bindUniforms(int program, int captureColorId, int captureDepthId, boolean additive) {
+    private static void bindUniforms(int program, int captureColorId, int captureDepthId,
+                                     int sceneDepthId, boolean additive) {
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, captureColorId);
         int loc0 = GL20.glGetUniformLocation(program, "CaptureColor");
@@ -195,11 +196,16 @@ public class GlDirectRenderer {
         int loc1 = GL20.glGetUniformLocation(program, "CaptureDepth");
         if (loc1 >= 0) GL20.glUniform1i(loc1, 1);
 
-        int irisDepthId = RenderCompat.getIrisMainDepthGlId();
-        boolean hasSceneDepth = irisDepthId > 0;
+        // Prefer Iris depth buffer; fall back to the Vanilla scene depth
+        // captured during FBO redirect (main framebuffer depth).
+        int effectiveSceneDepthId = RenderCompat.getIrisMainDepthGlId();
+        if (effectiveSceneDepthId <= 0) {
+            effectiveSceneDepthId = sceneDepthId;
+        }
+        boolean hasSceneDepth = effectiveSceneDepthId > 0;
         if (hasSceneDepth) {
             GL13.glActiveTexture(GL13.GL_TEXTURE2);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, irisDepthId);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, effectiveSceneDepthId);
             int loc2 = GL20.glGetUniformLocation(program, "SceneDepth");
             if (loc2 >= 0) GL20.glUniform1i(loc2, 2);
         }
@@ -211,8 +217,8 @@ public class GlDirectRenderer {
 
         if (!blitLogged) {
             blitLogged = true;
-            LOGGER.info("[Glue-Blit] captureColor={}, captureDepth={}, irisDepth={}, additive={}",
-                    captureColorId, captureDepthId, irisDepthId, additive);
+            LOGGER.info("[Glue-Blit] captureColor={}, captureDepth={}, sceneDepth={}, additive={}",
+                    captureColorId, captureDepthId, effectiveSceneDepthId, additive);
         }
     }
 

@@ -177,6 +177,8 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
             endBatchIsolated();
         } else if (RenderCompat.isIrisShaderEnabled()) {
             endBatchIris();
+        } else if (additive) {
+            endBatchVanillaAdditive();
         } else {
             ownSource.endBatch();
         }
@@ -216,6 +218,49 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         if (!blitPathLogged) {
             blitPathLogged = true;
             LOGGER.info("[Glue-Path] blend-aware blit from PostCompositeMixin using pooled FBO (additive={})", additive);
+        }
+    }
+
+    /**
+     * Vanilla additive capture: renders into a private FBO, then queues the
+     * result for deferred compositing via {@link #postCompositeBlit()}.
+     *
+     * <p>Unlike the Iris path, we DO copy the main-framebuffer depth so the
+     * sprite is properly occluded by terrain during capture. The blit later
+     * discards near-black pixels and composites with additive blending,
+     * after entities and clouds have already rendered.</p>
+     */
+    private void endBatchVanillaAdditive() {
+        Minecraft mc = Minecraft.getInstance();
+        int w = mc.getWindow().getWidth();
+        int h = mc.getWindow().getHeight();
+
+        RenderTarget targetFbo;
+        if (availableFbos.isEmpty()) {
+            targetFbo = FramebufferHelper.resizeOrCreate(null, w, h);
+        } else {
+            targetFbo = availableFbos.remove(availableFbos.size() - 1);
+            targetFbo = FramebufferHelper.resizeOrCreate(targetFbo, w, h);
+        }
+
+        FramebufferHelper.clear(targetFbo, 0f, 0f, 0f, 0f);
+        compositeQueue.add(new QueuedCapture(targetFbo, additive));
+
+        shouldCopyDepth = true;
+        depthAlreadyCopied = false;
+
+        activeCaptureTargetFboId = FramebufferHelper.getFramebufferId(targetFbo);
+        capturing = true;
+        try {
+            ownSource.endBatch();
+        } finally {
+            capturing = false;
+            activeCaptureTargetFboId = 0;
+        }
+
+        if (!blitPathLogged) {
+            blitPathLogged = true;
+            LOGGER.info("[Glue-Path] Vanilla additive capture using pooled FBO");
         }
     }
 

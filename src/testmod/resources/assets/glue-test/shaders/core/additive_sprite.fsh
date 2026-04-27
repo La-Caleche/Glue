@@ -42,6 +42,7 @@ void main() {
     float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
     if (luminance < 0.01) {
         discard;
+//        color = vec4(1.0, 0.0, 0.5, 1.0);
     }
 
     fragColor = color;
