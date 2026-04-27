@@ -4,7 +4,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import org.jetbrains.annotations.ApiStatus;
 import org.joml.Matrix3fc;
 import org.joml.Matrix4fc;
-import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 
 public final class PoseStackTransform implements GlueTransformStack {
@@ -18,7 +17,7 @@ public final class PoseStackTransform implements GlueTransformStack {
 
     @Override
     public GlueTransformStack rotate(Quaternionfc quaternion) {
-        stack.mulPose((Quaternionf) quaternion);
+        stack.mulPose(quaternion);
         return this;
     }
 

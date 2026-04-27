@@ -54,7 +54,7 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
 
         ShadedBufferSource shadedSource = pipeline.wrap();
 
-        RenderType renderType = pipeline.entityType(SPRITE_TEXTURE);
+        RenderType renderType = pipeline.renderType(SPRITE_TEXTURE);
         VertexConsumer consumer = shadedSource.getBuffer(renderType);
 
         float pulse = 1.0f + 0.15f * (float) Math.sin(time * 2.5);

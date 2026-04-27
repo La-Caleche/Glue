@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.registries;
 
-import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
 import fr.lacaleche.glue.client.registries.GlueClientRegistries;
+import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 

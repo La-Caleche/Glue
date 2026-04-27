@@ -60,7 +60,8 @@ public class ModCompatManager {
 
         try {
             m.invoke(inst, args);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -152,8 +153,11 @@ public class ModCompatManager {
                         : clazz.getMethod(methodName, paramTypes);
 
                 if (isPrivate && !m.canAccess(null)) {
-                    try { m.setAccessible(true); }
-                    catch (Throwable ignored) { return null; }
+                    try {
+                        m.setAccessible(true);
+                    } catch (Throwable ignored) {
+                        return null;
+                    }
                 }
                 return m;
             } catch (Throwable ignored) {
@@ -191,7 +195,8 @@ public class ModCompatManager {
                     SINGLETONS.putIfAbsent(key, obj);
                     return SINGLETONS.get(key);
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+            }
             return null;
         }
 
@@ -245,8 +250,11 @@ public class ModCompatManager {
             try {
                 java.lang.reflect.Field f = isPrivate ? clazz.getDeclaredField(fieldName) : clazz.getField(fieldName);
                 if (isPrivate) {
-                    try { f.setAccessible(true); }
-                    catch (Throwable ignored) { return null; }
+                    try {
+                        f.setAccessible(true);
+                    } catch (Throwable ignored) {
+                        return null;
+                    }
                 }
                 return f;
             } catch (Throwable ignored) {

@@ -29,8 +29,8 @@ public class GlueDrawBufferFixMixin {
 
     @Inject(method = "trySetup", at = @At("RETURN"))
     private void glue$redirectToCaptureFbo(GlRenderPass glRenderPass,
-                                            Collection<String> collection,
-                                            CallbackInfoReturnable<Boolean> cir) {
+                                           Collection<String> collection,
+                                           CallbackInfoReturnable<Boolean> cir) {
         // Check Iris capture (requires bypass active)
         if (RenderCompat.isIrisBypassing() && ShadedBufferSource.isCapturing()) {
             int captureFboId = ShadedBufferSource.getCaptureFboId();
@@ -69,11 +69,11 @@ public class GlueDrawBufferFixMixin {
                 ShadedBufferSource.setSceneDepthTextureId(origDepthName);
             }
 
-            if (!ShadedBufferSource.isDepthCopied()) {
+            if (!ShadedBufferSource.hasDepthBeenCopied()) {
                 GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, originalFbo);
                 GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, targetFboId);
                 GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
-                ShadedBufferSource.setDepthCopied(true);
+                ShadedBufferSource.markDepthCopied();
             }
         }
 

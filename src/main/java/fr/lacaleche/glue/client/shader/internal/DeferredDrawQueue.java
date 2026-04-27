@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.client.shader;
+package fr.lacaleche.glue.client.shader.internal;
 
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
@@ -9,13 +9,25 @@ import org.joml.Matrix4f;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Batches raw GL draw commands and deferred actions for replay after
+ * Iris world compositing.
+ *
+ * <p>When Iris is active, all draw calls are pooled and flushed during
+ * {@link net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents#LAST LAST}.
+ * When vanilla is active, draws execute immediately.</p>
+ *
+ * <p><strong>Internal:</strong> consumers should use
+ * {@link fr.lacaleche.glue.client.shader.GluePipeline GluePipeline} or
+ * {@link fr.lacaleche.glue.client.shader.ShadedBufferSource ShadedBufferSource}
+ * instead.</p>
+ */
 @Environment(EnvType.CLIENT)
 public class DeferredDrawQueue {
 
-    private static boolean initialized = false;
-
-    // Object pool to eliminate GC overhead
     private static final List<PooledCommand> commandPool = new ArrayList<>(256);
+
+    private static boolean initialized = false;
     private static int activeCommandCount = 0;
 
     public static void init() {
@@ -24,19 +36,12 @@ public class DeferredDrawQueue {
         WorldRenderEvents.LAST.register(context -> flush());
     }
 
-    private static PooledCommand obtainCommand() {
-        if (activeCommandCount >= commandPool.size()) {
-            commandPool.add(new PooledCommand());
-        }
-        return commandPool.get(activeCommandCount++);
-    }
-
-    static void enqueue(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) {
+    public static void enqueue(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
         if (RenderCompat.isIrisShaderEnabled()) {
             PooledCommand cmd = obtainCommand();
-            cmd.type = 0;
+            cmd.type = CommandType.QUAD;
             cmd.mvp.set(mvp);
             cmd.vertexCount = vertexCount;
             ensureCapacity(cmd, vertices.length, 0, colors.length);
@@ -47,13 +52,13 @@ public class DeferredDrawQueue {
         }
     }
 
-    static void enqueueTextured(Matrix4f mvp, float[] vertices, float[] uvs,
-                                float[] colors, int textureId, int vertexCount) {
+    public static void enqueueTextured(Matrix4f mvp, float[] vertices, float[] uvs,
+                                       float[] colors, int textureId, int vertexCount) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
         if (RenderCompat.isIrisShaderEnabled()) {
             PooledCommand cmd = obtainCommand();
-            cmd.type = 1;
+            cmd.type = CommandType.TEXTURED;
             cmd.mvp.set(mvp);
             cmd.textureId = textureId;
             cmd.vertexCount = vertexCount;
@@ -71,11 +76,18 @@ public class DeferredDrawQueue {
 
         if (RenderCompat.isIrisShaderEnabled()) {
             PooledCommand cmd = obtainCommand();
-            cmd.type = 2;
+            cmd.type = CommandType.RUNNABLE;
             cmd.action = action;
         } else {
             action.run();
         }
+    }
+
+    private static PooledCommand obtainCommand() {
+        if (activeCommandCount >= commandPool.size()) {
+            commandPool.add(new PooledCommand());
+        }
+        return commandPool.get(activeCommandCount++);
     }
 
     private static void ensureCapacity(PooledCommand cmd, int vLen, int uvLen, int cLen) {
@@ -89,11 +101,11 @@ public class DeferredDrawQueue {
 
         for (int i = 0; i < activeCommandCount; i++) {
             PooledCommand cmd = commandPool.get(i);
-            if (cmd.type == 0) {
+            if (cmd.type == CommandType.QUAD) {
                 GlDirectRenderer.drawQuad(cmd.mvp, cmd.vertices, cmd.colors, cmd.vertexCount, true);
-            } else if (cmd.type == 1) {
+            } else if (cmd.type == CommandType.TEXTURED) {
                 GlDirectRenderer.drawTexturedQuad(cmd.mvp, cmd.vertices, cmd.uvs, cmd.colors, cmd.textureId, cmd.vertexCount, true);
-            } else if (cmd.type == 2 && cmd.action != null) {
+            } else if (cmd.type == CommandType.RUNNABLE && cmd.action != null) {
                 cmd.action.run();
                 cmd.action = null; // Clear reference to avoid memory leaks
             }
@@ -102,9 +114,11 @@ public class DeferredDrawQueue {
         activeCommandCount = 0;
     }
 
+    private enum CommandType {QUAD, TEXTURED, RUNNABLE}
+
     private static class PooledCommand {
-        int type; // 0=Quad, 1=Textured, 2=Runnable
         final Matrix4f mvp = new Matrix4f();
+        CommandType type;
         float[] vertices = new float[12]; // default quad 3 * 4
         float[] colors = new float[16];   // default quad 4 * 4
         float[] uvs = new float[8];       // default quad 2 * 4

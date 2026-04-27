@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.client.shader;
+package fr.lacaleche.glue.client.shader.internal;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
@@ -6,27 +6,34 @@ import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 import org.joml.Matrix4f;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL13;
-import org.lwjgl.opengl.GL14;
-import org.lwjgl.opengl.GL15;
-import org.lwjgl.opengl.GL20;
-import org.lwjgl.opengl.GL30;
+import org.lwjgl.opengl.*;
 import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.InputStream;
 import java.nio.FloatBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceManager;
 
+/**
+ * Low-level OpenGL draw utilities for Glue's shader system.
+ *
+ * <p>Provides raw GL quad rendering ({@link #drawQuad}, {@link #drawTexturedQuad})
+ * and a depth-aware capture-to-screen blit ({@link #blitCapture}). All methods
+ * save and restore GL state via {@link SavedGlState}.</p>
+ *
+ * <p><strong>Internal:</strong> consumers should use
+ * {@link fr.lacaleche.glue.client.shader.GluePipeline GluePipeline} or
+ * {@link fr.lacaleche.glue.client.shader.ShadedBufferSource ShadedBufferSource}
+ * instead.</p>
+ */
 @Environment(EnvType.CLIENT)
 public class GlDirectRenderer {
 
@@ -48,7 +55,7 @@ public class GlDirectRenderer {
     private static int blitPosVbo = 0;
     private static int blitUvVbo = 0;
 
-    static void drawQuad(Matrix4f mvpMatrix, float[] vertices, float[] colors, int vertexCount, boolean useDepthTest) {
+    public static void drawQuad(Matrix4f mvpMatrix, float[] vertices, float[] colors, int vertexCount, boolean useDepthTest) {
         int program = getOrCreateProgram("glue_position_color", "glue_position_color.vsh", "glue_position_color.fsh");
         SavedGlState state = SavedGlState.save();
 
@@ -71,8 +78,8 @@ public class GlDirectRenderer {
         state.restore();
     }
 
-    static void drawTexturedQuad(Matrix4f mvpMatrix, float[] vertices, float[] uvs,
-                                 float[] colors, int textureId, int vertexCount, boolean useDepthTest) {
+    public static void drawTexturedQuad(Matrix4f mvpMatrix, float[] vertices, float[] uvs,
+                                        float[] colors, int textureId, int vertexCount, boolean useDepthTest) {
         int program = getOrCreateProgram("glue_position_tex_color", "glue_position_tex_color.vsh", "glue_position_tex_color.fsh");
         SavedGlState state = SavedGlState.save();
 
@@ -112,6 +119,48 @@ public class GlDirectRenderer {
 
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         state.restore();
+    }
+
+    public static Matrix4f getProjectionMatrix() {
+        Minecraft mc = Minecraft.getInstance();
+        float fov = mc.options.fov().get().floatValue();
+        try {
+            fov = mc.gameRenderer.getFov(mc.gameRenderer.getMainCamera(),
+                    mc.getDeltaTracker().getGameTimeDeltaPartialTick(true), true);
+        } catch (Exception e) {
+            if (!projectionWarned) {
+                projectionWarned = true;
+                LOGGER.warn("[Glue] Failed to compute camera FOV, falling back to options value", e);
+            }
+        }
+        return mc.gameRenderer.getProjectionMatrix(fov);
+    }
+
+    public static void cleanup() {
+        for (int program : programCache.values()) {
+            GL20.glDeleteProgram(program);
+        }
+        programCache.clear();
+
+        if (colorQuadVao != 0) {
+            GL30.glDeleteVertexArrays(colorQuadVao);
+            GL15.glDeleteBuffers(colorQuadPosVbo);
+            GL15.glDeleteBuffers(colorQuadColorVbo);
+            colorQuadVao = colorQuadPosVbo = colorQuadColorVbo = 0;
+        }
+        if (texQuadVao != 0) {
+            GL30.glDeleteVertexArrays(texQuadVao);
+            GL15.glDeleteBuffers(texQuadPosVbo);
+            GL15.glDeleteBuffers(texQuadUvVbo);
+            GL15.glDeleteBuffers(texQuadColorVbo);
+            texQuadVao = texQuadPosVbo = texQuadUvVbo = texQuadColorVbo = 0;
+        }
+        if (blitVao != 0) {
+            GL30.glDeleteVertexArrays(blitVao);
+            GL15.glDeleteBuffers(blitPosVbo);
+            GL15.glDeleteBuffers(blitUvVbo);
+            blitVao = blitPosVbo = blitUvVbo = 0;
+        }
     }
 
     private static void setupBlitState(int program, boolean additive) {
@@ -173,8 +222,8 @@ public class GlDirectRenderer {
             blitPosVbo = GL15.glGenBuffers();
             blitUvVbo = GL15.glGenBuffers();
 
-            float[] verts = { -1f,-1f,0f,  1f,-1f,0f,  1f,1f,0f,  -1f,1f,0f };
-            float[] uvs   = {  0f,0f,       1f,0f,      1f,1f,      0f,1f    };
+            float[] verts = {-1f, -1f, 0f, 1f, -1f, 0f, 1f, 1f, 0f, -1f, 1f, 0f};
+            float[] uvs = {0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f};
 
             GL30.glBindVertexArray(blitVao);
 
@@ -198,21 +247,6 @@ public class GlDirectRenderer {
         }
 
         GL11.glDrawArrays(GL11.GL_TRIANGLE_FAN, 0, 4);
-    }
-
-    static Matrix4f getProjectionMatrix() {
-        Minecraft mc = Minecraft.getInstance();
-        float fov = mc.options.fov().get().floatValue();
-        try {
-            fov = mc.gameRenderer.getFov(mc.gameRenderer.getMainCamera(),
-                    mc.getDeltaTracker().getGameTimeDeltaPartialTick(true), true);
-        } catch (Exception e) {
-            if (!projectionWarned) {
-                projectionWarned = true;
-                LOGGER.warn("[Glue] Failed to compute camera FOV, falling back to options value", e);
-            }
-        }
-        return mc.gameRenderer.getProjectionMatrix(fov);
     }
 
     private static void uploadMvpUniform(int program, Matrix4f mvp) {
@@ -254,7 +288,7 @@ public class GlDirectRenderer {
         GL11.glDisable(GL11.GL_CULL_FACE);
     }
 
-    static int getOrCreateProgram(String name, String vertFile, String fragFile) {
+    private static int getOrCreateProgram(String name, String vertFile, String fragFile) {
         if (programCache.containsKey(name)) {
             return programCache.get(name);
         }
@@ -318,80 +352,5 @@ public class GlDirectRenderer {
         }
 
         return shader;
-    }
-
-    static void cleanup() {
-        for (int program : programCache.values()) {
-            GL20.glDeleteProgram(program);
-        }
-        programCache.clear();
-
-        if (colorQuadVao != 0) {
-            GL30.glDeleteVertexArrays(colorQuadVao);
-            GL15.glDeleteBuffers(colorQuadPosVbo);
-            GL15.glDeleteBuffers(colorQuadColorVbo);
-            colorQuadVao = colorQuadPosVbo = colorQuadColorVbo = 0;
-        }
-        if (texQuadVao != 0) {
-            GL30.glDeleteVertexArrays(texQuadVao);
-            GL15.glDeleteBuffers(texQuadPosVbo);
-            GL15.glDeleteBuffers(texQuadUvVbo);
-            GL15.glDeleteBuffers(texQuadColorVbo);
-            texQuadVao = texQuadPosVbo = texQuadUvVbo = texQuadColorVbo = 0;
-        }
-        if (blitVao != 0) {
-            GL30.glDeleteVertexArrays(blitVao);
-            GL15.glDeleteBuffers(blitPosVbo);
-            GL15.glDeleteBuffers(blitUvVbo);
-            blitVao = blitPosVbo = blitUvVbo = 0;
-        }
-    }
-
-    private record SavedGlState(
-            int program, int fbo, int vao,
-            boolean blend, int blendSrcRgb, int blendDstRgb, int blendSrcAlpha, int blendDstAlpha,
-            boolean depth, boolean depthWrite, int depthFunc,
-            boolean cull,
-            int activeTexture,
-            int[] viewport
-    ) {
-        static SavedGlState save() {
-            int[] vp = new int[4];
-            GL11.glGetIntegerv(GL11.GL_VIEWPORT, vp);
-            return new SavedGlState(
-                    GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM),
-                    GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING),
-                    GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING),
-                    GL11.glIsEnabled(GL11.GL_BLEND),
-                    GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB),
-                    GL11.glGetInteger(GL14.GL_BLEND_DST_RGB),
-                    GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA),
-                    GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA),
-                    GL11.glIsEnabled(GL11.GL_DEPTH_TEST),
-                    GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK),
-                    GL11.glGetInteger(GL11.GL_DEPTH_FUNC),
-                    GL11.glIsEnabled(GL11.GL_CULL_FACE),
-                    GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE),
-                    vp
-            );
-        }
-
-        void restore() {
-            GL20.glUseProgram(program);
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
-            GL30.glBindVertexArray(vao);
-            if (depth) GL11.glEnable(GL11.GL_DEPTH_TEST); else GL11.glDisable(GL11.GL_DEPTH_TEST);
-            GL11.glDepthFunc(depthFunc);
-            GL11.glDepthMask(depthWrite);
-            if (blend) {
-                GL11.glEnable(GL11.GL_BLEND);
-                GL14.glBlendFuncSeparate(blendSrcRgb, blendDstRgb, blendSrcAlpha, blendDstAlpha);
-            } else {
-                GL11.glDisable(GL11.GL_BLEND);
-            }
-            if (cull) GL11.glEnable(GL11.GL_CULL_FACE); else GL11.glDisable(GL11.GL_CULL_FACE);
-            GL13.glActiveTexture(activeTexture);
-            GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-        }
     }
 }

@@ -1,10 +1,13 @@
 package fr.lacaleche.glue.client.shader;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import fr.lacaleche.glue.client.mixin.CompositeRenderTypeAccessor;
 import fr.lacaleche.glue.client.mixin.CompositeStateAccessor;
 import fr.lacaleche.glue.client.mixin.TextureStateShardAccessor;
+import fr.lacaleche.glue.client.shader.internal.GlDirectRenderer;
+import fr.lacaleche.glue.client.shader.internal.NoopVertexConsumer;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
@@ -14,7 +17,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
-import com.mojang.blaze3d.pipeline.RenderTarget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,39 +26,25 @@ import java.util.*;
 public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-capture");
+    private static final int DEFAULT_BUFFER_SIZE = 1536;
 
-    // ── RenderTarget Pool ──
     private static final List<RenderTarget> availableFbos = new ArrayList<>();
     private static final List<QueuedCapture> compositeQueue = new ArrayList<>();
-
-    private static class QueuedCapture {
-        final RenderTarget fbo;
-        final boolean additive;
-        QueuedCapture(RenderTarget fbo, boolean additive) {
-            this.fbo = fbo;
-            this.additive = additive;
-        }
-    }
-
-    // ── Active capture state (read by mixin) ──
+    private static final Set<String> warnedNoopTypes = new HashSet<>();
     private static volatile boolean capturing = false;
     private static int activeCaptureTargetFboId = 0;
-    private static boolean activeCaptureCopyDepth = true;
+    private static boolean shouldCopyDepth = true;
+    private static boolean depthAlreadyCopied = false;
 
     private static boolean blitPathLogged = false;
     private static int sceneDepthTextureId = -1;
-    private static final Set<String> warnedNoopTypes = new HashSet<>();
-
-    // ── Isolated capture (post-effects) ──
     private static volatile boolean isolatedCapture = false;
     private static RenderTarget isolatedFbo;
-
     private final GluePipeline pipeline;
     private final boolean additive;
     private final SequencedMap<RenderType, ByteBufferBuilder> fixedBuffers = new LinkedHashMap<>();
-    private final ByteBufferBuilder sharedBuffer = new ByteBufferBuilder(1536);
+    private final ByteBufferBuilder sharedBuffer = new ByteBufferBuilder(DEFAULT_BUFFER_SIZE);
     private final MultiBufferSource.BufferSource ownSource;
-
     private final boolean useIsolatedCapture;
 
     public ShadedBufferSource(GluePipeline pipeline) {
@@ -70,13 +58,110 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         this.ownSource = MultiBufferSource.immediateWithBuffers(fixedBuffers, sharedBuffer);
     }
 
+    public static boolean isCapturing() {
+        return capturing;
+    }
+
+    public static boolean isIsolatedCapturing() {
+        return isolatedCapture;
+    }
+
+    /**
+     * Returns the currently active capture FBO ID.
+     * Called by {@code GlueDrawBufferFixMixin} during draw redirect.
+     */
+    public static int getCaptureFboId() {
+        return activeCaptureTargetFboId;
+    }
+
+    /**
+     * Whether the mixin should copy scene depth to the active capture FBO.
+     */
+    public static boolean shouldCopyDepth() {
+        return shouldCopyDepth;
+    }
+
+    public static int getIsolatedFboId() {
+        if (isolatedFbo == null) return 0;
+        return FramebufferHelper.getFramebufferId(isolatedFbo);
+    }
+
+    /**
+     * Returns the isolated capture RenderTarget for post-processing.
+     */
+    public static RenderTarget getIsolatedTarget() {
+        return isolatedFbo;
+    }
+
+    public static int getSceneDepthTextureId() {
+        return sceneDepthTextureId;
+    }
+
+    public static void setSceneDepthTextureId(int id) {
+        sceneDepthTextureId = id;
+    }
+
+    /**
+     * Whether the depth buffer has already been copied for the current capture.
+     * Used by the mixin to avoid redundant copies.
+     */
+    public static boolean hasDepthBeenCopied() {
+        return depthAlreadyCopied;
+    }
+
+    /**
+     * Marks the depth buffer as copied for the current capture.
+     * Called by {@code GlueDrawBufferFixMixin} after performing the blit.
+     */
+    public static void markDepthCopied() {
+        depthAlreadyCopied = true;
+    }
+
+    /**
+     * Called by {@code GluePostCompositeMixin} after Iris compositing.
+     * Blits both FBOs with their correct blend modes.
+     */
+    public static void postCompositeBlit() {
+        for (QueuedCapture qc : compositeQueue) {
+            blitCaptureToScreen(qc.fbo, qc.additive);
+            availableFbos.add(qc.fbo);
+        }
+        compositeQueue.clear();
+    }
+
+    private static void blitCaptureToScreen(RenderTarget fbo, boolean additive) {
+        if (fbo == null) return;
+
+        int captureColorId = FramebufferHelper.getColorTextureId(fbo);
+        int captureDepthId = FramebufferHelper.getDepthTextureId(fbo);
+        if (captureColorId <= 0 || captureDepthId <= 0) return;
+
+        GlDirectRenderer.blitCapture(captureColorId, captureDepthId, sceneDepthTextureId, additive);
+    }
+
+    private static ResourceLocation extractTexture(RenderType renderType) {
+        if (!(renderType instanceof RenderType.CompositeRenderType compositeType)) {
+            return null;
+        }
+
+        try {
+            RenderType.CompositeState state = ((CompositeRenderTypeAccessor) (Object) compositeType).glue$getState();
+            RenderStateShard.EmptyTextureStateShard textureShard = ((CompositeStateAccessor) (Object) state).glue$getTextureState();
+            Optional<ResourceLocation> texture = ((TextureStateShardAccessor) textureShard).glue$getCutoutTexture();
+            return texture.orElse(null);
+        } catch (Exception e) {
+            LOGGER.debug("[Glue] Failed to extract texture from RenderType {}: {}", renderType.getClass().getSimpleName(), e.getMessage());
+            return null;
+        }
+    }
+
     @Override
     public VertexConsumer getBuffer(RenderType renderType) {
         ResourceLocation texture = extractTexture(renderType);
 
         if (texture != null) {
-            RenderType shadedType = pipeline.entityType(texture);
-            fixedBuffers.computeIfAbsent(shadedType, rt -> new ByteBufferBuilder(1536));
+            RenderType shadedType = pipeline.renderType(texture);
+            fixedBuffers.computeIfAbsent(shadedType, rt -> new ByteBufferBuilder(DEFAULT_BUFFER_SIZE));
             return ownSource.getBuffer(shadedType);
         }
 
@@ -115,7 +200,8 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
 
         // Additive: NEVER copy scene depth — it contains entities that
         // would block the sprite during capture. Start clean (depth=1.0).
-        activeCaptureCopyDepth = !additive;
+        shouldCopyDepth = !additive;
+        depthAlreadyCopied = false;
 
         // Set the active capture target for the mixin to read
         activeCaptureTargetFboId = FramebufferHelper.getFramebufferId(targetFbo);
@@ -158,99 +244,6 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         }
     }
 
-    public static boolean isCapturing() {
-        return capturing;
-    }
-
-    public static boolean isIsolatedCapturing() {
-        return isolatedCapture;
-    }
-
-    /**
-     * Returns the currently active capture FBO ID.
-     * Called by {@code GlueDrawBufferFixMixin} during draw redirect.
-     */
-    public static int getCaptureFboId() {
-        return activeCaptureTargetFboId;
-    }
-
-    /**
-     * Whether the mixin should copy scene depth to the active capture FBO.
-     */
-    public static boolean shouldCopyDepth() {
-        return activeCaptureCopyDepth;
-    }
-
-    public static int getIsolatedFboId() {
-        if (isolatedFbo == null) return 0;
-        return FramebufferHelper.getFramebufferId(isolatedFbo);
-    }
-
-    /**
-     * Returns the isolated capture RenderTarget for post-processing.
-     */
-    public static RenderTarget getIsolatedTarget() {
-        return isolatedFbo;
-    }
-
-    public static void setSceneDepthTextureId(int id) {
-        sceneDepthTextureId = id;
-    }
-
-    public static int getSceneDepthTextureId() {
-        return sceneDepthTextureId;
-    }
-
-    public static boolean isDepthCopied() {
-        // Used by mixin — check the active capture's depth state
-        return !activeCaptureCopyDepth;
-    }
-
-    public static void setDepthCopied(boolean value) {
-        // After mixin copies depth, mark it done
-        activeCaptureCopyDepth = !value;
-    }
-
-    // ── Blit: composites both capture FBOs onto the main framebuffer ──
-
-    /**
-     * Called by {@code GluePostCompositeMixin} after Iris compositing.
-     * Blits both FBOs with their correct blend modes.
-     */
-    public static void postCompositeBlit() {
-        for (QueuedCapture qc : compositeQueue) {
-            blitCaptureToScreen(qc.fbo, qc.additive);
-            availableFbos.add(qc.fbo);
-        }
-        compositeQueue.clear();
-    }
-
-    private static void blitCaptureToScreen(RenderTarget fbo, boolean additive) {
-        if (fbo == null) return;
-
-        int captureColorId = FramebufferHelper.getColorTextureId(fbo);
-        int captureDepthId = FramebufferHelper.getDepthTextureId(fbo);
-        if (captureColorId <= 0 || captureDepthId <= 0) return;
-
-        GlDirectRenderer.blitCapture(captureColorId, captureDepthId, sceneDepthTextureId, additive);
-    }
-
-    private static ResourceLocation extractTexture(RenderType renderType) {
-        if (!(renderType instanceof RenderType.CompositeRenderType compositeType)) {
-            return null;
-        }
-
-        try {
-            RenderType.CompositeState state = ((CompositeRenderTypeAccessor) (Object) compositeType).glue$getState();
-            RenderStateShard.EmptyTextureStateShard textureShard = ((CompositeStateAccessor) (Object) state).glue$getTextureState();
-            Optional<ResourceLocation> texture = ((TextureStateShardAccessor) textureShard).glue$getCutoutTexture();
-            return texture.orElse(null);
-        } catch (Exception e) {
-            LOGGER.debug("[Glue] Failed to extract texture from RenderType {}: {}", renderType.getClass().getSimpleName(), e.getMessage());
-            return null;
-        }
-    }
-
     @Override
     public void close() {
         sharedBuffer.close();
@@ -258,5 +251,8 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
             buffer.close();
         }
         fixedBuffers.clear();
+    }
+
+    private record QueuedCapture(RenderTarget fbo, boolean additive) {
     }
 }

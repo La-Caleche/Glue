@@ -1,7 +1,6 @@
 package fr.lacaleche.glue.internal;
 
 import fr.lacaleche.glue.Glue;
-import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder;
 import net.minecraft.core.DefaultedRegistry;
 import net.minecraft.core.Registry;

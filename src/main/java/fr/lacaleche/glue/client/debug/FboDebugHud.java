@@ -28,35 +28,25 @@ public class FboDebugHud {
     public static final FboDebugHud INSTANCE = new FboDebugHud();
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-debug-hud");
     private static final int THUMB_SIZE = 256;
-
-    private boolean active;
-    private boolean useIris;
     private final List<CapturedTexture> irisCapturedTextures = new ArrayList<>();
     private final DepthLinearizer depthLinearizer = new DepthLinearizer();
-
+    private final Set<String> hiddenBuffers = new LinkedHashSet<>();
+    private final Set<Integer> keysDown = new HashSet<>();
+    private boolean active;
+    private boolean useIris;
     private RenderTarget depthCopyTarget;
-
     private int snapColorId = -1;
     private int snapW = -1, snapH = -1;
-
     private int currentPage;
     private int gridSize = 2;
     private FilterMode filterMode = FilterMode.ALL;
     private boolean hideAlt = true;
-    private final Set<String> hiddenBuffers = new LinkedHashSet<>();
     private int sidebarCursor;
     private int sidebarScroll;
     private List<String> allBufferNames = List.of();
-    private final Set<Integer> keysDown = new HashSet<>();
 
-    private record CapturedTexture(int id, String name, int width, int height, boolean isAlt, boolean isDepth) {}
-
-    enum FilterMode {
-        ALL("All"), COLOR("Color"), DEPTH("Depth");
-        final String label;
-        FilterMode(String l) { this.label = l; }
-        FilterMode next() { FilterMode[] v = values(); return v[(ordinal() + 1) % v.length]; }
-        FilterMode prev() { FilterMode[] v = values(); return v[(ordinal() - 1 + v.length) % v.length]; }
+    private static String truncate(String s, int max) {
+        return s.length() <= max ? s : s.substring(0, max - 1) + "~";
     }
 
     public void toggle() {
@@ -118,17 +108,30 @@ public class FboDebugHud {
         if (!active) return;
         long win = Minecraft.getInstance().getWindow().getWindow();
 
-        if (edge(win, GLFW.GLFW_KEY_LEFT))          currentPage = Math.max(0, currentPage - 1);
-        if (edge(win, GLFW.GLFW_KEY_RIGHT))         currentPage++;
-        if (edge(win, GLFW.GLFW_KEY_UP))            sidebarCursor--;
-        if (edge(win, GLFW.GLFW_KEY_DOWN))          sidebarCursor++;
-        if (edge(win, GLFW.GLFW_KEY_LEFT_BRACKET))  { filterMode = filterMode.prev(); currentPage = 0; }
-        if (edge(win, GLFW.GLFW_KEY_RIGHT_BRACKET)) { filterMode = filterMode.next(); currentPage = 0; }
-        if (edge(win, GLFW.GLFW_KEY_MINUS) || edge(win, GLFW.GLFW_KEY_KP_SUBTRACT))
-            { gridSize = Math.max(1, gridSize - 1); currentPage = 0; }
-        if (edge(win, GLFW.GLFW_KEY_EQUAL) || edge(win, GLFW.GLFW_KEY_KP_ADD))
-            { gridSize = Math.min(4, gridSize + 1); currentPage = 0; }
-        if (edge(win, GLFW.GLFW_KEY_GRAVE_ACCENT))  { hideAlt = !hideAlt; currentPage = 0; }
+        if (edge(win, GLFW.GLFW_KEY_LEFT)) currentPage = Math.max(0, currentPage - 1);
+        if (edge(win, GLFW.GLFW_KEY_RIGHT)) currentPage++;
+        if (edge(win, GLFW.GLFW_KEY_UP)) sidebarCursor--;
+        if (edge(win, GLFW.GLFW_KEY_DOWN)) sidebarCursor++;
+        if (edge(win, GLFW.GLFW_KEY_LEFT_BRACKET)) {
+            filterMode = filterMode.prev();
+            currentPage = 0;
+        }
+        if (edge(win, GLFW.GLFW_KEY_RIGHT_BRACKET)) {
+            filterMode = filterMode.next();
+            currentPage = 0;
+        }
+        if (edge(win, GLFW.GLFW_KEY_MINUS) || edge(win, GLFW.GLFW_KEY_KP_SUBTRACT)) {
+            gridSize = Math.max(1, gridSize - 1);
+            currentPage = 0;
+        }
+        if (edge(win, GLFW.GLFW_KEY_EQUAL) || edge(win, GLFW.GLFW_KEY_KP_ADD)) {
+            gridSize = Math.min(4, gridSize + 1);
+            currentPage = 0;
+        }
+        if (edge(win, GLFW.GLFW_KEY_GRAVE_ACCENT)) {
+            hideAlt = !hideAlt;
+            currentPage = 0;
+        }
 
         if (edge(win, GLFW.GLFW_KEY_ENTER) || edge(win, GLFW.GLFW_KEY_KP_ENTER)) {
             if (sidebarCursor >= 0 && sidebarCursor < allBufferNames.size()) {
@@ -266,10 +269,6 @@ public class FboDebugHud {
         }
     }
 
-    private static String truncate(String s, int max) {
-        return s.length() <= max ? s : s.substring(0, max - 1) + "~";
-    }
-
     private boolean captureIrisTargets() {
         Object[] targets = RenderCompat.getIrisRenderTargetArray();
         if (targets == null) return false;
@@ -318,10 +317,16 @@ public class FboDebugHud {
     }
 
     private void cleanup() {
-        if (snapColorId != -1) { GL11.glDeleteTextures(snapColorId); snapColorId = -1; }
+        if (snapColorId != -1) {
+            GL11.glDeleteTextures(snapColorId);
+            snapColorId = -1;
+        }
         snapW = snapH = -1;
         depthLinearizer.cleanup();
-        if (depthCopyTarget != null) { depthCopyTarget.destroyBuffers(); depthCopyTarget = null; }
+        if (depthCopyTarget != null) {
+            depthCopyTarget.destroyBuffers();
+            depthCopyTarget = null;
+        }
     }
 
     private void ensureDepthCopyTarget(int w, int h) {
@@ -343,9 +348,45 @@ public class FboDebugHud {
         snapH = h;
     }
 
+    enum FilterMode {
+        ALL("All"), COLOR("Color"), DEPTH("Depth");
+        final String label;
+
+        FilterMode(String l) {
+            this.label = l;
+        }
+
+        FilterMode next() {
+            FilterMode[] v = values();
+            return v[(ordinal() + 1) % v.length];
+        }
+
+        FilterMode prev() {
+            FilterMode[] v = values();
+            return v[(ordinal() - 1 + v.length) % v.length];
+        }
+    }
+
+    private record CapturedTexture(int id, String name, int width, int height, boolean isAlt, boolean isDepth) {
+    }
+
     private static class DepthLinearizer {
         private int textureId = -1;
         private boolean captured;
+
+        private static void resetPack() {
+            GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, 0);
+            GL11.glPixelStorei(GL11.GL_PACK_ROW_LENGTH, 0);
+            GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 4);
+        }
+
+        private static void resetUnpack() {
+            GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
+            GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
+            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
+            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 4);
+        }
 
         void capture(int srcDepthGlId, int srcW, int srcH) {
             if (textureId == -1) {
@@ -373,10 +414,16 @@ public class FboDebugHud {
                     for (int x = 0; x < THUMB_SIZE; x++) {
                         float z = raw.get(sy * srcW + x * srcW / THUMB_SIZE);
                         samples[y * THUMB_SIZE + x] = z;
-                        if (z < 1f) { min = Math.min(min, z); max = Math.max(max, z); }
+                        if (z < 1f) {
+                            min = Math.min(min, z);
+                            max = Math.max(max, z);
+                        }
                     }
                 }
-                if (max <= min) { min = 0f; max = 1f; }
+                if (max <= min) {
+                    min = 0f;
+                    max = 1f;
+                }
 
                 ByteBuffer rgba = MemoryUtil.memAlloc(THUMB_SIZE * THUMB_SIZE * 4);
                 try {
@@ -400,31 +447,20 @@ public class FboDebugHud {
             captured = true;
         }
 
-        int getResult() { return captured ? textureId : -1; }
+        int getResult() {
+            return captured ? textureId : -1;
+        }
 
         void cleanup() {
             if (textureId != -1) GL11.glDeleteTextures(textureId);
             textureId = -1;
             captured = false;
         }
-
-        private static void resetPack() {
-            GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, 0);
-            GL11.glPixelStorei(GL11.GL_PACK_ROW_LENGTH, 0);
-            GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 4);
-        }
-
-        private static void resetUnpack() {
-            GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
-            GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
-            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
-            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
-            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 4);
-        }
     }
 
     private static class ExternalTexture extends AbstractTexture {
         final int wrappedId;
+
         ExternalTexture(int id, int width, int height) {
             this.wrappedId = id;
             ExternalGlTexture gl = new ExternalGlTexture(id, width, height);
@@ -437,13 +473,29 @@ public class FboDebugHud {
         ExternalGlTexture(int id, int w, int h) {
             super(GpuTexture.USAGE_TEXTURE_BINDING, "glue debug hud", TextureFormat.RGBA8, w, h, 1, 1, id);
         }
-        @Override public void close() { this.closed = true; }
-        @Override public void removeViews() {}
+
+        @Override
+        public void close() {
+            this.closed = true;
+        }
+
+        @Override
+        public void removeViews() {
+        }
     }
 
     private static class ExternalTextureView extends GlTextureView {
-        ExternalTextureView(GlTexture texture) { super(texture, 0, 1); }
-        @Override public void close() {}
-        @Override public boolean isClosed() { return false; }
+        ExternalTextureView(GlTexture texture) {
+            super(texture, 0, 1);
+        }
+
+        @Override
+        public void close() {
+        }
+
+        @Override
+        public boolean isClosed() {
+            return false;
+        }
     }
 }

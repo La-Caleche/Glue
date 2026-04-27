@@ -1,19 +1,18 @@
 package fr.lacaleche.glue.registries;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
-
-import fr.lacaleche.glue.compat.RenderCompat;
-import org.jetbrains.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
 public class CoreShaderRegistry extends GlueRegistry {
@@ -26,6 +25,11 @@ public class CoreShaderRegistry extends GlueRegistry {
 
     public CoreShaderRegistry(String modId, Function<String, ResourceLocation> idFunction) {
         super(modId, idFunction);
+    }
+
+    public static RenderType.CompositeRenderType createRenderType(String name, RenderPipeline pipeline,
+                                                                  RenderType.CompositeState state) {
+        return RenderType.create(name, 1536, false, true, pipeline, state);
     }
 
     public RenderPipeline register(String name, RenderPipeline.Snippet snippet,
@@ -58,11 +62,6 @@ public class CoreShaderRegistry extends GlueRegistry {
         RenderPipelines.register(pipeline);
         this.pipelines.add(pipeline);
         return pipeline;
-    }
-
-    public static RenderType.CompositeRenderType createRenderType(String name, RenderPipeline pipeline,
-                                                                   RenderType.CompositeState state) {
-        return RenderType.create(name, 1536, false, true, pipeline, state);
     }
 
     public List<RenderPipeline> getPipelines() {

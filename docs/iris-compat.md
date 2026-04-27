@@ -50,7 +50,8 @@ Iris's `redirectIrisProgram` mixin intercepts pipeline compilation. `withIrisByp
 
 ### GL State Preservation
 
-`apply()` saves and restores FBO binding, viewport, depth test, blend, and scissor test states.
+`apply()` uses the shared `SavedGlState` utility to save and restore comprehensive GL state:
+program, FBO, VAO, blend (with per-channel src/dst), depth test/func/mask, cull, scissor, active texture, and viewport.
 
 ## 5. Deferred Draw Queue
 

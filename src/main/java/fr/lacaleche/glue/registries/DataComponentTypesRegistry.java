@@ -1,7 +1,6 @@
 package fr.lacaleche.glue.registries;
 
 import com.mojang.serialization.Codec;
-import fr.lacaleche.glue.Glue;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;

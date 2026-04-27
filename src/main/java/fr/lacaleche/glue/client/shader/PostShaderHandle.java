@@ -8,6 +8,7 @@ import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fr.lacaleche.glue.client.mixin.PostChainAccessor;
 import fr.lacaleche.glue.client.mixin.PostPassAccessor;
+import fr.lacaleche.glue.client.shader.internal.SavedGlState;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
@@ -39,6 +40,13 @@ public class PostShaderHandle {
     public PostShaderHandle(ResourceLocation id, Set<ResourceLocation> externalTargets) {
         this.id = id;
         this.externalTargets = externalTargets;
+    }
+
+    private static void blitFramebuffer(int srcFbo, int dstFbo, int width, int height) {
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, srcFbo);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, dstFbo);
+        GL30.glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
+                GL11.GL_COLOR_BUFFER_BIT, GL11.GL_NEAREST);
     }
 
     public ResourceLocation getId() {
@@ -89,29 +97,24 @@ public class PostShaderHandle {
             return;
         }
 
-        int prevFbo = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
-        int[] prevViewport = new int[4];
-        GL11.glGetIntegerv(GL11.GL_VIEWPORT, prevViewport);
-        boolean prevDepthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
-        boolean prevBlend = GL11.glIsEnabled(GL11.GL_BLEND);
-        boolean prevScissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+        SavedGlState state = SavedGlState.save();
 
         int mainFbo = FramebufferHelper.getFramebufferId(target);
-        boolean needsBlit = RenderCompat.isIrisShaderEnabled() && mainFbo >= 0 && mainFbo != prevFbo;
+        boolean needsBlit = RenderCompat.isIrisShaderEnabled() && mainFbo >= 0 && mainFbo != state.fbo();
         int w = target.width;
         int h = target.height;
 
         if (needsBlit) {
-            blitFramebuffer(prevFbo, mainFbo, w, h);
+            blitFramebuffer(state.fbo(), mainFbo, w, h);
         }
 
         RenderCompat.withIrisBypass(() -> chain.process(target, resourceAllocator));
 
         if (needsBlit) {
-            blitFramebuffer(mainFbo, prevFbo, w, h);
+            blitFramebuffer(mainFbo, state.fbo(), w, h);
         }
 
-        restoreGlState(prevFbo, prevViewport, prevDepthTest, prevBlend, prevScissor);
+        state.restore();
     }
 
     public void addToFrame(FrameGraphBuilder frameGraphBuilder, int width, int height,
@@ -120,26 +123,5 @@ public class PostShaderHandle {
         if (chain != null) {
             chain.addToFrame(frameGraphBuilder, width, height, targetBundle);
         }
-    }
-
-    private static void blitFramebuffer(int srcFbo, int dstFbo, int width, int height) {
-        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, srcFbo);
-        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, dstFbo);
-        GL30.glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
-                GL11.GL_COLOR_BUFFER_BIT, GL11.GL_NEAREST);
-    }
-
-    private static void restoreGlState(int fbo, int[] viewport,
-                                       boolean depthTest, boolean blend, boolean scissor) {
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
-        GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-        setGlToggle(GL11.GL_DEPTH_TEST, depthTest);
-        setGlToggle(GL11.GL_BLEND, blend);
-        setGlToggle(GL11.GL_SCISSOR_TEST, scissor);
-    }
-
-    private static void setGlToggle(int cap, boolean enabled) {
-        if (enabled) GL11.glEnable(cap);
-        else GL11.glDisable(cap);
     }
 }
