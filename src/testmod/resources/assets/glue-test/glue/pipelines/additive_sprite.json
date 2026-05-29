@@ -1,0 +1,9 @@
+{
+    "vertex_shader": "glue-test:core/additive_sprite",
+    "fragment_shader": "glue-test:core/additive_sprite",
+    "blend": "additive",
+    "alpha_cutout": 0.1,
+    "cull": false,
+    "iris_program": "EMISSIVE_ENTITIES",
+    "category": "entity"
+}

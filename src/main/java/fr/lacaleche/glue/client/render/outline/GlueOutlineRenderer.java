@@ -1,14 +1,13 @@
 package fr.lacaleche.glue.client.render.outline;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import fr.lacaleche.glue.math.Color;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
-
-import java.awt.*;
 
 public interface GlueOutlineRenderer {
 

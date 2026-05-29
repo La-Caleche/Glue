@@ -3,46 +3,55 @@ package fr.lacaleche.glue.testmod.render;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import fr.lacaleche.glue.client.shader.GluePipeline;
 import fr.lacaleche.glue.client.shader.ShadedBufferSource;
+import fr.lacaleche.glue.client.shader.pipeline.PipelineDefinitionLoader;
 import fr.lacaleche.glue.testmod.TestmodClient;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
 
 /**
- * Custom additive sprite rendering pipeline using Strategy B (capture/blit).
+ * Custom additive sprite rendering pipeline.
  *
- * <p>
- * Uses {@link GluePipeline} with {@link BlendFunction#ADDITIVE} (ONE, ONE).
- * Under Iris, {@link ShadedBufferSource} captures to a private additive FBO
- * with bypass enabled (our custom shader runs), then blits with additive
- * GL blending ({@code GL_ONE, GL_ONE}) — the black box bug is eliminated.
- * </p>
+ * <p>The pipeline is now data-driven ({@code glue/pipelines/additive_sprite.json})
+ * and resolved from the {@link PipelineDefinitionLoader} at render time.
+ * A Java-built fallback is created eagerly in case the loader hasn't fired.</p>
  */
+@Environment(EnvType.CLIENT)
 public final class AdditiveSpriteRenderer {
+
+    private static final ResourceLocation PIPELINE_ID = TestmodClient.id("additive_sprite");
+
+    /** Java fallback — built eagerly during mod init. */
+    private static GluePipeline fallbackPipeline;
 
     private AdditiveSpriteRenderer() {
     }
 
-    private static GluePipeline pipeline;
-
     /**
-     * The additive sprite pipeline. Uses {@code EMISSIVE_ENTITIES} as the
-     * Iris program and {@code BlendFunction.ADDITIVE} for pure additive blend.
+     * Returns the additive sprite pipeline, preferring the data-driven version.
      */
     public static GluePipeline getPipeline() {
-        if (pipeline == null) {
-            pipeline = GluePipeline.entityCustom(
-                    TestmodClient.id("additive_sprite"),
-                    TestmodClient.id("core/additive_sprite"),
-                    TestmodClient.id("core/additive_sprite"),
-                    BlendFunction.ADDITIVE,
-                    "EMISSIVE_ENTITIES");
+        PipelineDefinitionLoader loader = PipelineDefinitionLoader.getInstance();
+        if (loader != null) {
+            GluePipeline dataDriven = loader.get(PIPELINE_ID);
+            if (dataDriven != null) {
+                return dataDriven;
+            }
         }
-        return pipeline;
+        return fallbackPipeline;
     }
 
     /**
-     * Forces eager initialization of the pipeline.
+     * Forces eager initialization of the fallback pipeline.
      */
     public static void init() {
-        getPipeline();
-        TestmodClient.LOGGER.info("Additive sprite pipeline initialized");
+        fallbackPipeline = GluePipeline.builder(
+                        PIPELINE_ID,
+                        TestmodClient.id("core/additive_sprite"),
+                        TestmodClient.id("core/additive_sprite"))
+                .blend(BlendFunction.ADDITIVE)
+                .irisProgram("EMISSIVE_ENTITIES")
+                .build();
+        TestmodClient.LOGGER.info("Additive sprite pipeline initialized (fallback ready)");
     }
 }

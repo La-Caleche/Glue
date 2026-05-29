@@ -38,14 +38,18 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
         this.itemRenderer = context.getItemRenderer();
     }
 
+    private static float pseudoRandom(long seed, int index) {
+        long h = seed * 6364136223846793005L + index * 1442695040888963407L;
+        h = (h ^ (h >>> 33)) * 0xff51afd7ed558ccdL;
+        return (float) ((h >>> 40) & 0xFFFFF) / (float) 0xFFFFF;
+    }
+
     @Override
     public void render(TestSpinningBlockEntity entity, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay, Vec3 cameraPos) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
-        int shaderIndex = 2;
-        GluePipeline[] pipelines = TestShaderPipelines.get();
-        GluePipeline activePipeline = pipelines[shaderIndex % pipelines.length];
+        GluePipeline activePipeline = TestShaderPipelines.get(2);
 
         float time = (entity.getTicks() + tickDelta) / 20f;
         float globalBob = (float) Math.sin(time * BOB_SPEED) * BOB_AMP;
@@ -90,11 +94,5 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
 
         shadedSource.endBatch();
         stack.popPose();
-    }
-
-    private static float pseudoRandom(long seed, int index) {
-        long h = seed * 6364136223846793005L + index * 1442695040888963407L;
-        h = (h ^ (h >>> 33)) * 0xff51afd7ed558ccdL;
-        return (float) ((h >>> 40) & 0xFFFFF) / (float) 0xFFFFF;
     }
 }

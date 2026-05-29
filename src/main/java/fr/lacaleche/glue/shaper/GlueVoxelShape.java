@@ -8,11 +8,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class GlueVoxelShape extends VoxelShape {
 
-    private final int rotation;
-
-    public GlueVoxelShape(VoxelShape baseShape, int rotation) {
+    public GlueVoxelShape(VoxelShape baseShape) {
         super(((VoxelSetExtension) baseShape).glue$getShape());
-        this.rotation = rotation;
     }
 
     @Override

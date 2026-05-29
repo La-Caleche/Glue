@@ -2,6 +2,7 @@ package fr.lacaleche.glue.client.render.outline;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import fr.lacaleche.glue.math.Color;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -11,9 +12,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import java.awt.*;
-
 public class SimpleBlockOutlineRenderer implements GlueOutlineRenderer {
+
+    private static final float OUTLINE_ALPHA = 0.4f;
 
     @Override
     public void render(Minecraft client, Level world, VoxelShape voxelShape, PoseStack matrices, MultiBufferSource consumers, BlockPos blockPos, Vec3 cameraPos) {
@@ -41,20 +42,21 @@ public class SimpleBlockOutlineRenderer implements GlueOutlineRenderer {
             float yDiff = (float) (y2 - y1);
             float zDiff = (float) (z2 - z1);
             float length = Mth.sqrt(xDiff * xDiff + yDiff * yDiff + zDiff * zDiff);
+            if (length < 1e-6f) return;
 
             xDiff /= length;
             yDiff /= length;
             zDiff /= length;
 
-            int r = color.getRed() / 255;
-            int g = color.getGreen() / 255;
-            int b = color.getBlue() / 255;
+            float r = color.getRed() / 255.0f;
+            float g = color.getGreen() / 255.0f;
+            float b = color.getBlue() / 255.0f;
 
             consumer.addVertex(transform.pose(), (float) x1, (float) y1, (float) z1)
-                    .setColor(r, g, b, .4f)
+                    .setColor(r, g, b, OUTLINE_ALPHA)
                     .setNormal(transform, xDiff, yDiff, zDiff);
             consumer.addVertex(transform.pose(), (float) x2, (float) y2, (float) z2)
-                    .setColor(r, g, b, .4f)
+                    .setColor(r, g, b, OUTLINE_ALPHA)
                     .setNormal(transform, xDiff, yDiff, zDiff);
         });
     }

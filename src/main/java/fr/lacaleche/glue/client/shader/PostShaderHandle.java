@@ -24,22 +24,29 @@ import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
 @Environment(EnvType.CLIENT)
-public class PostShaderHandle {
+public record PostShaderHandle(ResourceLocation id, Set<ResourceLocation> externalTargets) {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("PostShaderHandle");
+    private static final Logger LOGGER = LoggerFactory.getLogger("glue/shader");
+    /**
+     * Per-ID set of handles that have already logged a missing-chain warning this session.
+     */
+    private static final Set<ResourceLocation> WARNED_IDS = ConcurrentHashMap.newKeySet();
 
-    private final ResourceLocation id;
-    private final Set<ResourceLocation> externalTargets;
-    private boolean warnedOnce = false;
+    public PostShaderHandle {
+        externalTargets = Set.copyOf(externalTargets);
+    }
 
-    public PostShaderHandle(ResourceLocation id, Set<ResourceLocation> externalTargets) {
-        this.id = id;
-        this.externalTargets = externalTargets;
+    /**
+     * Clears the warning history so each handle will warn again after a resource reload.
+     */
+    public static void clearWarnings() {
+        WARNED_IDS.clear();
     }
 
     private static void blitFramebuffer(int srcFbo, int dstFbo, int width, int height) {
@@ -47,14 +54,6 @@ public class PostShaderHandle {
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, dstFbo);
         GL30.glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
                 GL11.GL_COLOR_BUFFER_BIT, GL11.GL_NEAREST);
-    }
-
-    public ResourceLocation getId() {
-        return this.id;
-    }
-
-    public Set<ResourceLocation> getExternalTargets() {
-        return this.externalTargets;
     }
 
     @Nullable
@@ -82,17 +81,16 @@ public class PostShaderHandle {
                 );
             }
 
-            existing.close();
             uniforms.put(blockName, newBuffer);
+            existing.close();
         }
     }
 
     public void apply(RenderTarget target, GraphicsResourceAllocator resourceAllocator) {
         PostChain chain = this.get();
         if (chain == null) {
-            if (!warnedOnce) {
+            if (WARNED_IDS.add(this.id)) {
                 LOGGER.warn("[Glue] Post chain '{}' not available", this.id);
-                warnedOnce = true;
             }
             return;
         }

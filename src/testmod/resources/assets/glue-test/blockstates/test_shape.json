@@ -1,0 +1,23 @@
+{
+    "variants": {
+        "facing=north,mode=0": { "model": "glue-test:block/test_shape_horizontal" },
+        "facing=south,mode=0": { "model": "glue-test:block/test_shape_horizontal", "y": 180 },
+        "facing=west,mode=0":  { "model": "glue-test:block/test_shape_horizontal", "y": 270 },
+        "facing=east,mode=0":  { "model": "glue-test:block/test_shape_horizontal", "y": 90 },
+
+        "facing=north,mode=1": { "model": "glue-test:block/test_shape_directional" },
+        "facing=south,mode=1": { "model": "glue-test:block/test_shape_directional", "y": 180 },
+        "facing=west,mode=1":  { "model": "glue-test:block/test_shape_directional", "y": 270 },
+        "facing=east,mode=1":  { "model": "glue-test:block/test_shape_directional", "y": 90 },
+
+        "facing=north,mode=2": { "model": "glue-test:block/test_shape_axis_h" },
+        "facing=south,mode=2": { "model": "glue-test:block/test_shape_axis_h", "y": 180 },
+        "facing=west,mode=2":  { "model": "glue-test:block/test_shape_axis_h", "y": 270 },
+        "facing=east,mode=2":  { "model": "glue-test:block/test_shape_axis_h", "y": 90 },
+
+        "facing=north,mode=3": { "model": "glue-test:block/test_shape_axis_full" },
+        "facing=south,mode=3": { "model": "glue-test:block/test_shape_axis_full", "y": 180 },
+        "facing=west,mode=3":  { "model": "glue-test:block/test_shape_axis_full", "y": 270 },
+        "facing=east,mode=3":  { "model": "glue-test:block/test_shape_axis_full", "y": 90 }
+    }
+}

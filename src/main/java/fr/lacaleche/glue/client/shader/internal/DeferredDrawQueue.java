@@ -1,5 +1,6 @@
 package fr.lacaleche.glue.client.shader.internal;
 
+import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -25,18 +26,29 @@ import java.util.List;
 @Environment(EnvType.CLIENT)
 public class DeferredDrawQueue {
 
-    private static final List<PooledCommand> commandPool = new ArrayList<>(256);
+    public static final DeferredDrawQueue INSTANCE = new DeferredDrawQueue();
 
-    private static boolean initialized = false;
-    private static int activeCommandCount = 0;
+    private final List<PooledCommand> commandPool = new ArrayList<>(256);
+    private int activeCommandCount = 0;
 
-    public static void init() {
-        if (initialized) return;
-        initialized = true;
+    private DeferredDrawQueue() {
+    }
+
+    private static void ensureCapacity(PooledCommand cmd, int vLen, int uvLen, int cLen) {
+        if (cmd.vertices.length < vLen) cmd.vertices = new float[vLen];
+        if (cmd.uvs.length < uvLen) cmd.uvs = new float[uvLen];
+        if (cmd.colors.length < cLen) cmd.colors = new float[cLen];
+    }
+
+    /**
+     * Registers the flush callback with {@link WorldRenderEvents#LAST}.
+     * Called once from {@code GlueClient.onInitializeClient()}.
+     */
+    public void register() {
         WorldRenderEvents.LAST.register(context -> flush());
     }
 
-    public static void enqueue(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) {
+    public void enqueue(Matrix4f mvp, float[] vertices, float[] colors, int vertexCount) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
         if (RenderCompat.isIrisShaderEnabled()) {
@@ -48,12 +60,12 @@ public class DeferredDrawQueue {
             System.arraycopy(vertices, 0, cmd.vertices, 0, vertices.length);
             System.arraycopy(colors, 0, cmd.colors, 0, colors.length);
         } else {
-            GlDirectRenderer.drawQuad(mvp, vertices, colors, vertexCount, true);
+            ShaderContext.get().getRenderer().drawQuad(mvp, vertices, colors, vertexCount, true);
         }
     }
 
-    public static void enqueueTextured(Matrix4f mvp, float[] vertices, float[] uvs,
-                                       float[] colors, int textureId, int vertexCount) {
+    public void enqueueTextured(Matrix4f mvp, float[] vertices, float[] uvs,
+                                float[] colors, int textureId, int vertexCount) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
         if (RenderCompat.isIrisShaderEnabled()) {
@@ -67,11 +79,11 @@ public class DeferredDrawQueue {
             System.arraycopy(uvs, 0, cmd.uvs, 0, uvs.length);
             System.arraycopy(colors, 0, cmd.colors, 0, colors.length);
         } else {
-            GlDirectRenderer.drawTexturedQuad(mvp, vertices, uvs, colors, textureId, vertexCount, true);
+            ShaderContext.get().getRenderer().drawTexturedQuad(mvp, vertices, uvs, colors, textureId, vertexCount, true);
         }
     }
 
-    public static void defer(Runnable action) {
+    public void defer(Runnable action) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
         if (RenderCompat.isIrisShaderEnabled()) {
@@ -83,35 +95,36 @@ public class DeferredDrawQueue {
         }
     }
 
-    private static PooledCommand obtainCommand() {
+    private PooledCommand obtainCommand() {
         if (activeCommandCount >= commandPool.size()) {
             commandPool.add(new PooledCommand());
         }
         return commandPool.get(activeCommandCount++);
     }
 
-    private static void ensureCapacity(PooledCommand cmd, int vLen, int uvLen, int cLen) {
-        if (cmd.vertices.length < vLen) cmd.vertices = new float[vLen];
-        if (cmd.uvs.length < uvLen) cmd.uvs = new float[uvLen];
-        if (cmd.colors.length < cLen) cmd.colors = new float[cLen];
-    }
-
-    private static void flush() {
+    private void flush() {
         if (activeCommandCount == 0) return;
 
-        for (int i = 0; i < activeCommandCount; i++) {
-            PooledCommand cmd = commandPool.get(i);
-            if (cmd.type == CommandType.QUAD) {
-                GlDirectRenderer.drawQuad(cmd.mvp, cmd.vertices, cmd.colors, cmd.vertexCount, true);
-            } else if (cmd.type == CommandType.TEXTURED) {
-                GlDirectRenderer.drawTexturedQuad(cmd.mvp, cmd.vertices, cmd.uvs, cmd.colors, cmd.textureId, cmd.vertexCount, true);
-            } else if (cmd.type == CommandType.RUNNABLE && cmd.action != null) {
-                cmd.action.run();
-                cmd.action = null; // Clear reference to avoid memory leaks
+        int count = activeCommandCount;
+        try {
+            for (int i = 0; i < count; i++) {
+                PooledCommand cmd = commandPool.get(i);
+                switch (cmd.type) {
+                    case QUAD -> ShaderContext.get().getRenderer()
+                            .drawQuad(cmd.mvp, cmd.vertices, cmd.colors, cmd.vertexCount, true);
+                    case TEXTURED -> ShaderContext.get().getRenderer()
+                            .drawTexturedQuad(cmd.mvp, cmd.vertices, cmd.uvs, cmd.colors, cmd.textureId, cmd.vertexCount, true);
+                    case RUNNABLE -> {
+                        if (cmd.action != null) {
+                            cmd.action.run();
+                            cmd.action = null;
+                        }
+                    }
+                }
             }
+        } finally {
+            activeCommandCount = 0;
         }
-
-        activeCommandCount = 0;
     }
 
     private enum CommandType {QUAD, TEXTURED, RUNNABLE}
@@ -119,9 +132,9 @@ public class DeferredDrawQueue {
     private static class PooledCommand {
         final Matrix4f mvp = new Matrix4f();
         CommandType type;
-        float[] vertices = new float[12]; // default quad 3 * 4
-        float[] colors = new float[16];   // default quad 4 * 4
-        float[] uvs = new float[8];       // default quad 2 * 4
+        float[] vertices = new float[12];
+        float[] colors = new float[16];
+        float[] uvs = new float[8];
         int textureId;
         int vertexCount;
         Runnable action;

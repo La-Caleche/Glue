@@ -32,10 +32,25 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
     private static final ResourceLocation SPRITE_TEXTURE =
             TestmodClient.id("textures/imported/particle01.png");
 
-    /** Full-bright packed light value (sky=15, block=15). */
+    /**
+     * Full-bright packed light value (sky=15, block=15).
+     */
     private static final int FULL_BRIGHT = 15728880;
 
     public TestAdditiveSpriteBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
+    }
+
+    private static void vertex(VertexConsumer consumer, Matrix4f pose,
+                               float x, float y, float z,
+                               float u, float v,
+                               int r, int g, int b, int a,
+                               int packedLight) {
+        consumer.addVertex(pose, x, y, z)
+                .setColor(r, g, b, a)
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(packedLight)
+                .setNormal(0f, 1f, 0f);
     }
 
     @Override
@@ -75,27 +90,13 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
         float halfH = 0.5f;
         int r = 255, g = 125, b = 185, a = 255;
 
-        // Emit the quad
         vertex(consumer, pose, -halfW, -halfH, 0, 0f, 1f, r, g, b, a, FULL_BRIGHT);
-        vertex(consumer, pose,  halfW, -halfH, 0, 1f, 1f, r, g, b, a, FULL_BRIGHT);
-        vertex(consumer, pose,  halfW,  halfH, 0, 1f, 0f, r, g, b, a, FULL_BRIGHT);
-        vertex(consumer, pose, -halfW,  halfH, 0, 0f, 0f, r, g, b, a, FULL_BRIGHT);
+        vertex(consumer, pose, halfW, -halfH, 0, 1f, 1f, r, g, b, a, FULL_BRIGHT);
+        vertex(consumer, pose, halfW, halfH, 0, 1f, 0f, r, g, b, a, FULL_BRIGHT);
+        vertex(consumer, pose, -halfW, halfH, 0, 0f, 0f, r, g, b, a, FULL_BRIGHT);
 
         poseStack.popPose();
 
         shadedSource.endBatch();
-    }
-
-    private static void vertex(VertexConsumer consumer, Matrix4f pose,
-                               float x, float y, float z,
-                               float u, float v,
-                               int r, int g, int b, int a,
-                               int packedLight) {
-        consumer.addVertex(pose, x, y, z)
-                .setColor(r, g, b, a)
-                .setUv(u, v)
-                .setOverlay(OverlayTexture.NO_OVERLAY)
-                .setLight(packedLight)
-                .setNormal(0f, 1f, 0f);
     }
 }

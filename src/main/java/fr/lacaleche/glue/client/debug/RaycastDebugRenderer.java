@@ -14,6 +14,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
@@ -47,7 +48,8 @@ public class RaycastDebugRenderer extends GlueDebugRenderer {
         final Vec3 rotation = entity.getViewVector(0.0f);
         final Vec3 target = origin.add(rotation.x * maxDistance, rotation.y * maxDistance, rotation.z * maxDistance);
 
-        final BlockHitResult result = (BlockHitResult) entity.pick(maxDistance, 0.0F, false);
+        final HitResult pick = entity.pick(maxDistance, 0.0F, false);
+        final BlockHitResult result = pick instanceof BlockHitResult br ? br : null;
         final List<Tuple<BlockPos, VoxelShape>> bigOutlineShapes = ImmutableList
                 .copyOf(world.glue$getBlockCollisions(entity, entity.getBoundingBox().inflate(6.0))).stream()
                 .filter(pair -> pair.getA() != null).toList();
@@ -65,11 +67,10 @@ public class RaycastDebugRenderer extends GlueDebugRenderer {
                     builder -> builder.type(MARKER).color(70, 130, 240).message("Hit " + hitCount.incrementAndGet()));
         });
 
-        if (result.getType() != BlockHitResult.Type.MISS)
+        if (result != null && result.getType() != BlockHitResult.Type.MISS)
             this.addDebugElement(result.getBlockPos(),
                     builder -> builder.type(MARKER).color(255, 100, 100).message("Hit result").duration(25));
 
-        // Delegate to super class to actually draw everything
         super.renderElements(matrices, vertexConsumers, cameraX, cameraY, cameraZ);
     }
 
@@ -87,7 +88,9 @@ public class RaycastDebugRenderer extends GlueDebugRenderer {
         final double maxDistance = 20.0;
         final BlockHitResult vanillaResult = entityRaycast.glue$vanillaRaycast(maxDistance, 0.0F, false);
         final BlockHitResult bigOutlineResult = entityRaycast.glue$bigOutlineRaycast(maxDistance, 0.0F, false);
-        final BlockHitResult result = (BlockHitResult) entity.pick(maxDistance, 0.0F, false);
+        // pick() can return EntityHitResult — skip block-result UI when looking at an entity.
+        final HitResult pick = entity.pick(maxDistance, 0.0F, false);
+        final BlockHitResult result = pick instanceof BlockHitResult br ? br : null;
 
         final Vec3 origin = entity.getEyePosition(0.0f);
         final Vec3 rotation = entity.getViewVector(0.0f);
@@ -126,7 +129,6 @@ public class RaycastDebugRenderer extends GlueDebugRenderer {
             return;
         }
 
-        // Check if block pos and sides are equal instead of direct object reference
         boolean isEq = false;
         if (vanillaResult != null && result.getType() != BlockHitResult.Type.MISS && vanillaResult.getType() != BlockHitResult.Type.MISS) {
             isEq = result.getBlockPos().equals(vanillaResult.getBlockPos()) && result.getDirection().equals(vanillaResult.getDirection());

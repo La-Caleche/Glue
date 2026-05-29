@@ -3,6 +3,10 @@
 #moj_import <minecraft:fog.glsl>
 #moj_import <minecraft:dynamictransforms.glsl>
 
+#ifndef ALPHA_CUTOUT
+#define ALPHA_CUTOUT 0.1
+#endif
+
 uniform sampler2D Sampler0;
 
 in float sphericalVertexDistance;

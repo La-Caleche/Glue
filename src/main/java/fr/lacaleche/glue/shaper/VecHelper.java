@@ -110,13 +110,29 @@ public class VecHelper {
                 vec.z + (r.nextFloat() - .5f) * 2 * radius);
     }
 
+    /**
+     * @deprecated Use {@link #axisAlignedPlaneOf(Vec3)}
+     */
+    @Deprecated
     public static Vec3 axisAlingedPlaneOf(Vec3 vec) {
+        return axisAlignedPlaneOf(vec);
+    }
+
+    public static Vec3 axisAlignedPlaneOf(Vec3 vec) {
         vec = vec.normalize();
         return new Vec3(1, 1, 1).subtract(Math.abs(vec.x), Math.abs(vec.y), Math.abs(vec.z));
     }
 
+    /**
+     * @deprecated Use {@link #axisAlignedPlaneOf(Direction)}
+     */
+    @Deprecated
     public static Vec3 axisAlingedPlaneOf(Direction face) {
-        return axisAlingedPlaneOf(Vec3.atLowerCornerOf(face.getUnitVec3i()));
+        return axisAlignedPlaneOf(face);
+    }
+
+    public static Vec3 axisAlignedPlaneOf(Direction face) {
+        return axisAlignedPlaneOf(Vec3.atLowerCornerOf(face.getUnitVec3i()));
     }
 
     public static ListTag writeNBT(Vec3 vec) {
@@ -185,10 +201,20 @@ public class VecHelper {
                 .scale(p));
     }
 
+    /**
+     * Spherical linear interpolation between two direction vectors. Both inputs
+     * are normalised internally, and the dot product is clamped to [-1, 1] to
+     * avoid {@code NaN} from accumulated floating-point error on near-parallel
+     * vectors.
+     */
     public static Vec3 slerp(float p, Vec3 from, Vec3 to) {
-        double theta = Math.acos(from.dot(to));
-        return from.scale(Mth.sin(1 - p) * theta)
-                .add(to.scale(Mth.sin((float) (theta * p))))
+        Vec3 fromN = from.lengthSqr() == 1 ? from : from.normalize();
+        Vec3 toN = to.lengthSqr() == 1 ? to : to.normalize();
+        double dot = Mth.clamp(fromN.dot(toN), -1.0, 1.0);
+        double theta = Math.acos(dot);
+        if (Math.abs(theta) < 1e-6) return lerp(p, fromN, toN);
+        return fromN.scale(Mth.sin((float) ((1 - p) * theta)))
+                .add(toN.scale(Mth.sin((float) (theta * p))))
                 .scale(1 / Mth.sin((float) theta));
     }
 
@@ -211,6 +237,12 @@ public class VecHelper {
         return ontoVec.scale(vec.dot(ontoVec) / ontoVec.lengthSqr());
     }
 
+    /**
+     * Returns the nearest forward intersection of a ray with a sphere, or
+     * {@code null} if the ray misses or only intersects behind the origin.
+     * If the origin is inside the sphere, returns the (single) forward exit
+     * point.
+     */
     @Nullable
     public static Vec3 intersectSphere(Vec3 origin, Vec3 lineDirection, Vec3 sphereCenter, double radius) {
         if (lineDirection.equals(Vec3.ZERO))
@@ -223,7 +255,12 @@ public class VecHelper {
         double delta = lineDotDiff * lineDotDiff - (diff.lengthSqr() - radius * radius);
         if (delta < 0)
             return null;
-        double t = -lineDotDiff + Math.sqrt(delta);
+        double sqrtDelta = Math.sqrt(delta);
+        double tNear = -lineDotDiff - sqrtDelta;
+        double tFar = -lineDotDiff + sqrtDelta;
+        double t = tNear >= 0 ? tNear : tFar;
+        if (t < 0)
+            return null;
         return origin.add(lineDirection.scale(t));
     }
 
@@ -233,8 +270,7 @@ public class VecHelper {
         Vec3 v3 = lerp(t, q2, p2);
         Vec3 inner1 = lerp(t, v1, v2);
         Vec3 inner2 = lerp(t, v2, v3);
-        Vec3 result = lerp(t, inner1, inner2);
-        return result;
+        return lerp(t, inner1, inner2);
     }
 
     public static Vec3 bezierDerivative(Vec3 p1, Vec3 p2, Vec3 q1, Vec3 q2, float t) {

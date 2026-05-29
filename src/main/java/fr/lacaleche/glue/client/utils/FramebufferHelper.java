@@ -42,10 +42,9 @@ public class FramebufferHelper {
     }
 
     public static int getFramebufferId(RenderTarget target) {
-        if (target.getColorTexture() instanceof GlTexture glTexture) {
-            GlDevice device = (GlDevice) RenderSystem.getDevice();
-            return glTexture.getFbo(device.directStateAccess(), target.getDepthTexture());
-        }
-        return -1;
+        if (target == null) return -1;
+        if (!(target.getColorTexture() instanceof GlTexture glTexture)) return -1;
+        if (!(RenderSystem.getDevice() instanceof GlDevice device)) return -1;
+        return glTexture.getFbo(device.directStateAccess(), target.getDepthTexture());
     }
 }

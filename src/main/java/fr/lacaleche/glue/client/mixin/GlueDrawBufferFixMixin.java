@@ -2,7 +2,7 @@ package fr.lacaleche.glue.client.mixin;
 
 import com.mojang.blaze3d.opengl.GlCommandEncoder;
 import com.mojang.blaze3d.opengl.GlRenderPass;
-import fr.lacaleche.glue.client.shader.ShadedBufferSource;
+import fr.lacaleche.glue.client.shader.ShaderContext;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
@@ -21,7 +21,7 @@ import java.util.Collection;
 public class GlueDrawBufferFixMixin {
 
     @Unique
-    private static final Logger LOGGER = LoggerFactory.getLogger("glue-mixin");
+    private static final Logger LOGGER = LoggerFactory.getLogger("glue/mixin");
 
     @Unique
     private static boolean logged = false;
@@ -30,18 +30,17 @@ public class GlueDrawBufferFixMixin {
     private void glue$redirectToCaptureFbo(GlRenderPass glRenderPass,
                                            Collection<String> collection,
                                            CallbackInfoReturnable<Boolean> cir) {
-        // Redirect draw to capture FBO (works for both Iris and Vanilla paths)
-        if (ShadedBufferSource.isCapturing()) {
-            int captureFboId = ShadedBufferSource.getCaptureFboId();
+        ShaderContext ctx = ShaderContext.get();
+        if (ctx.isCapturing()) {
+            int captureFboId = ctx.getCaptureFboId();
             if (captureFboId > 0) {
-                redirectToFbo(captureFboId, ShadedBufferSource.shouldCopyDepth());
+                redirectToFbo(captureFboId, ctx.shouldCopyDepth());
             }
             return;
         }
 
-        // Check isolated capture (works in vanilla too, no bypass needed)
-        if (ShadedBufferSource.isIsolatedCapturing()) {
-            int isolatedFboId = ShadedBufferSource.getIsolatedFboId();
+        if (ctx.isIsolatedCapturing()) {
+            int isolatedFboId = ctx.getIsolatedFboId();
             if (isolatedFboId > 0) {
                 redirectToFbo(isolatedFboId, false);
             }
@@ -65,14 +64,14 @@ public class GlueDrawBufferFixMixin {
                     GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME);
 
             if (origDepthType == GL11.GL_TEXTURE && origDepthName > 0) {
-                ShadedBufferSource.setSceneDepthTextureId(origDepthName);
+                ShaderContext.get().setSceneDepthTextureId(origDepthName);
             }
 
-            if (!ShadedBufferSource.hasDepthBeenCopied()) {
+            if (!ShaderContext.get().hasDepthBeenCopied()) {
                 GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, originalFbo);
                 GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, targetFboId);
                 GL30.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
-                ShadedBufferSource.markDepthCopied();
+                ShaderContext.get().markDepthCopied();
             }
         }
 

@@ -90,8 +90,8 @@ public abstract class GlueDebugRenderer implements DebugRenderer.SimpleDebugRend
 
     protected void renderMarker(PoseStack matrices, MultiBufferSource vertexConsumers, BlockPos pos,
                                 Drawable drawable) {
-        DebugRenderer.renderFilledBox(matrices, vertexConsumers, pos, 0, drawable.getRed(), drawable.getBlue(),
-                drawable.getGreen(), drawable.getAlpha() * 0.75F);
+        DebugRenderer.renderFilledBox(matrices, vertexConsumers, pos, 0, drawable.getRed(), drawable.getGreen(),
+                drawable.getBlue(), drawable.getAlpha() * 0.75F);
         this.renderDrawableText(matrices, vertexConsumers, pos, drawable);
     }
 
@@ -103,7 +103,7 @@ public abstract class GlueDebugRenderer implements DebugRenderer.SimpleDebugRend
                 .move(pos.getX(), pos.getY(), pos.getZ()).move(-cameraX, -cameraY, -cameraZ);
         ShapeRenderer.renderLineBox(matrices, vertexConsumer, box.minX, box.minY, box.minZ, box.maxX, box.maxY,
                 box.maxZ,
-                drawable.getRed(), drawable.getBlue(), drawable.getGreen(), drawable.getAlpha());
+                drawable.getRed(), drawable.getGreen(), drawable.getBlue(), drawable.getAlpha());
 
         this.renderDrawableText(matrices, vertexConsumers, pos, drawable);
     }
@@ -179,11 +179,11 @@ public abstract class GlueDebugRenderer implements DebugRenderer.SimpleDebugRend
             return (float) (this.color >> 16 & 255) / 255.0F;
         }
 
-        public float getBlue() {
+        public float getGreen() {
             return (float) (this.color >> 8 & 255) / 255.0F;
         }
 
-        public float getGreen() {
+        public float getBlue() {
             return (float) (this.color & 255) / 255.0F;
         }
 

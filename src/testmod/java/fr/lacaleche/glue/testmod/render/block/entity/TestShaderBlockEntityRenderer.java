@@ -38,8 +38,7 @@ public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestSh
 
         float time = (entity.getTicks() + partialTick) / 20f;
         int shaderIndex = entity.getShaderIndex();
-        GluePipeline[] pipelines = TestShaderPipelines.get();
-        GluePipeline activePipeline = pipelines[shaderIndex % pipelines.length];
+        GluePipeline activePipeline = TestShaderPipelines.get(shaderIndex);
 
         poseStack.pushPose();
         poseStack.translate(0.5, 2.1 + Math.sin(time * 2) * 0.15, 0.5);

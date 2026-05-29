@@ -4,13 +4,16 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.function.Function;
 
-public abstract class GlueRegistry {
+public class GlueRegistry {
 
     private final String modId;
     private final Function<String, ResourceLocation> idFunction;
 
     public GlueRegistry(String modId) {
-        this(modId, path -> ResourceLocation.tryBuild(modId, path));
+        // Use fromNamespaceAndPath (throws on invalid path) rather than tryBuild
+        // (silently returns null) so that registration errors fail fast with
+        // a useful message at the call site, not deep inside the registry code.
+        this(modId, path -> ResourceLocation.fromNamespaceAndPath(modId, path));
     }
 
     public GlueRegistry(String modId, Function<String, ResourceLocation> idFunction) {

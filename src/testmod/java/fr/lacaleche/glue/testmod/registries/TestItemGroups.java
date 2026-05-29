@@ -14,12 +14,13 @@ public class TestItemGroups {
     public static final CreativeModeTab TEST_GROUP = REGISTRY.register(
             "test_group",
             FabricItemGroup.builder().title(Component.translatable("itemGroup.glue-test.test-group"))
-                    .icon(() -> new ItemStack(TestItems.TEST_DEBUG)).displayItems((displayContext, entries) -> {
-                        entries.accept(TestItems.TEST_DEBUG);
+                    .icon(() -> new ItemStack(TestItems.TEST_OUTLINE_BLOCK)).displayItems((displayContext, entries) -> {
+                        entries.accept(TestItems.TEST_OUTLINE_BLOCK);
                         entries.accept(TestItems.TEST_COMPONENT_ITEM);
                         entries.accept(TestItems.TEST_SPINNING_BLOCK);
                         entries.accept(TestItems.TEST_SHADER_BLOCK);
                         entries.accept(TestItems.TEST_ADDITIVE_SPRITE_BLOCK);
+                        entries.accept(TestItems.TEST_SHAPE_BLOCK);
                     })
     );
 

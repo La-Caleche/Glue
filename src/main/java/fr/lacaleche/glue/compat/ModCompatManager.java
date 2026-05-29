@@ -1,7 +1,10 @@
 package fr.lacaleche.glue.compat;
 
 import net.fabricmc.loader.api.FabricLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Objects;
@@ -9,6 +12,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class ModCompatManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("glue/compat");
 
     public static boolean probeBoolean(String modId, String className, String methodName, boolean isPrivate) {
         if (!FabricLoader.getInstance().isModLoaded(modId)) return false;
@@ -19,7 +24,11 @@ public class ModCompatManager {
         try {
             Object result = method.invoke(null);
             return result instanceof Boolean && (Boolean) result;
-        } catch (Throwable ignored) {
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Error err) throw err;
+            return false;
+        } catch (Exception e) {
             return false;
         }
     }
@@ -42,7 +51,11 @@ public class ModCompatManager {
         try {
             Object r = m.invoke(inst);
             return r instanceof Boolean && (Boolean) r;
-        } catch (Throwable ignored) {
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Error err) throw err;
+            return false;
+        } catch (Exception e) {
             return false;
         }
     }
@@ -60,7 +73,10 @@ public class ModCompatManager {
 
         try {
             m.invoke(inst, args);
-        } catch (Throwable ignored) {
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Error err) throw err;
+        } catch (Exception ignored) {
         }
     }
 
@@ -81,7 +97,11 @@ public class ModCompatManager {
         try {
             Object r = m.invoke(inst, args);
             return returnType.isInstance(r) ? (T) r : fallback;
-        } catch (Throwable ignored) {
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Error err) throw err;
+            return fallback;
+        } catch (Exception e) {
             return fallback;
         }
     }
@@ -94,7 +114,11 @@ public class ModCompatManager {
         try {
             Object r = m.invoke(inst, args);
             return returnType.isInstance(r) ? (T) r : fallback;
-        } catch (Throwable ignored) {
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Error err) throw err;
+            return fallback;
+        } catch (Exception e) {
             return fallback;
         }
     }
@@ -107,7 +131,7 @@ public class ModCompatManager {
         try {
             Object r = f.get(inst);
             return fieldType.isInstance(r) ? (T) r : fallback;
-        } catch (Throwable ignored) {
+        } catch (Exception e) {
             return fallback;
         }
     }
@@ -121,21 +145,37 @@ public class ModCompatManager {
 
     private static final class MethodCache {
         private static final ConcurrentMap<String, Class<?>> CLASS_CACHE = new ConcurrentHashMap<>();
-        private static final ConcurrentMap<String, Method> METHOD_CACHE = new ConcurrentHashMap<>();
+        /**
+         * {@code Optional.empty()} records a confirmed-missing lookup so we
+         * don't redo {@code Class.forName} on every call.
+         */
+        private static final ConcurrentMap<String, java.util.Optional<Method>> METHOD_CACHE = new ConcurrentHashMap<>();
 
         static Method resolve(String className, String methodName, boolean isPrivate) {
             String methodKey = key(className, methodName, new Class<?>[0]);
-            Method cached = METHOD_CACHE.get(methodKey);
-            if (cached != null) return cached;
+            java.util.Optional<Method> cached = METHOD_CACHE.get(methodKey);
+            if (cached != null) return cached.orElse(null);
 
             Class<?> clazz = CLASS_CACHE.computeIfAbsent(className, MethodCache::loadClassSafely);
-            if (clazz == null) return null;
+            if (clazz == null) {
+                METHOD_CACHE.putIfAbsent(methodKey, java.util.Optional.empty());
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Glue] compat lookup miss: class {} not loadable (for method {})", className, methodName);
+                }
+                return null;
+            }
 
             Method method = lookupMethod(clazz, methodName, isPrivate, new Class<?>[0]);
-            if (method == null) return null;
+            if (method == null) {
+                METHOD_CACHE.putIfAbsent(methodKey, java.util.Optional.empty());
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Glue] compat lookup miss: method {}#{} not found", className, methodName);
+                }
+                return null;
+            }
 
-            METHOD_CACHE.putIfAbsent(methodKey, method);
-            return METHOD_CACHE.get(methodKey);
+            METHOD_CACHE.putIfAbsent(methodKey, java.util.Optional.of(method));
+            return method;
         }
 
         static Class<?> loadClassSafely(String className) {
@@ -176,12 +216,17 @@ public class ModCompatManager {
     }
 
     private static final class SingletonCache {
+        /**
+         * Distinguishes "getter returned null" from "not yet resolved".
+         */
+        private static final Object NULL_SENTINEL = new Object();
         private static final ConcurrentMap<String, Object> SINGLETONS = new ConcurrentHashMap<>();
 
         static Object resolve(String className, String getterName, boolean isPrivateGetter) {
             String key = className + "#" + getterName;
-            Object inst = SINGLETONS.get(key);
-            if (inst != null) return inst;
+            Object cached = SINGLETONS.get(key);
+            if (cached == NULL_SENTINEL) return null;
+            if (cached != null) return cached;
 
             Class<?> clazz = MethodCache.loadClassSafely(className);
             if (clazz == null) return null;
@@ -191,13 +236,12 @@ public class ModCompatManager {
 
             try {
                 Object obj = getter.invoke(null);
-                if (obj != null) {
-                    SINGLETONS.putIfAbsent(key, obj);
-                    return SINGLETONS.get(key);
-                }
+                SINGLETONS.putIfAbsent(key, obj != null ? obj : NULL_SENTINEL);
+                Object stored = SINGLETONS.get(key);
+                return stored == NULL_SENTINEL ? null : stored;
             } catch (Throwable ignored) {
+                return null;
             }
-            return null;
         }
 
         static void clear() {
@@ -206,21 +250,30 @@ public class ModCompatManager {
     }
 
     private static final class InstanceMethodCache {
-        private static final ConcurrentMap<String, Method> METHOD_CACHE = new ConcurrentHashMap<>();
+        private static final ConcurrentMap<String, java.util.Optional<Method>> METHOD_CACHE = new ConcurrentHashMap<>();
 
         static Method resolve(String className, String methodName, boolean isPrivate, Class<?>... params) {
             String key = className + "#" + methodName + Arrays.toString(params);
-            Method cached = METHOD_CACHE.get(key);
-            if (cached != null) return cached;
+            java.util.Optional<Method> cached = METHOD_CACHE.get(key);
+            if (cached != null) return cached.orElse(null);
 
             Class<?> clazz = MethodCache.loadClassSafely(className);
-            if (clazz == null) return null;
+            if (clazz == null) {
+                METHOD_CACHE.putIfAbsent(key, java.util.Optional.empty());
+                return null;
+            }
 
             Method found = MethodCache.lookupMethod(clazz, methodName, isPrivate, params);
-            if (found == null) return null;
+            if (found == null) {
+                METHOD_CACHE.putIfAbsent(key, java.util.Optional.empty());
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Glue] compat lookup miss: instance method {}#{} not found", className, methodName);
+                }
+                return null;
+            }
 
-            METHOD_CACHE.putIfAbsent(key, found);
-            return METHOD_CACHE.get(key);
+            METHOD_CACHE.putIfAbsent(key, java.util.Optional.of(found));
+            return found;
         }
 
         static void clear() {
@@ -229,21 +282,30 @@ public class ModCompatManager {
     }
 
     private static final class FieldCache {
-        private static final ConcurrentMap<String, java.lang.reflect.Field> FIELD_CACHE = new ConcurrentHashMap<>();
+        private static final ConcurrentMap<String, java.util.Optional<java.lang.reflect.Field>> FIELD_CACHE = new ConcurrentHashMap<>();
 
         static java.lang.reflect.Field resolve(String className, String fieldName, boolean isPrivate) {
             String key = className + "#" + fieldName;
-            java.lang.reflect.Field cached = FIELD_CACHE.get(key);
-            if (cached != null) return cached;
+            java.util.Optional<java.lang.reflect.Field> cached = FIELD_CACHE.get(key);
+            if (cached != null) return cached.orElse(null);
 
             Class<?> clazz = MethodCache.loadClassSafely(className);
-            if (clazz == null) return null;
+            if (clazz == null) {
+                FIELD_CACHE.putIfAbsent(key, java.util.Optional.empty());
+                return null;
+            }
 
             java.lang.reflect.Field found = lookupField(clazz, fieldName, isPrivate);
-            if (found == null) return null;
+            if (found == null) {
+                FIELD_CACHE.putIfAbsent(key, java.util.Optional.empty());
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Glue] compat lookup miss: field {}#{} not found", className, fieldName);
+                }
+                return null;
+            }
 
-            FIELD_CACHE.putIfAbsent(key, found);
-            return FIELD_CACHE.get(key);
+            FIELD_CACHE.putIfAbsent(key, java.util.Optional.of(found));
+            return found;
         }
 
         static java.lang.reflect.Field lookupField(Class<?> clazz, String fieldName, boolean isPrivate) {
