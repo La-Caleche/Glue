@@ -20,7 +20,7 @@ public class KeybindingsRegistry extends GlueRegistry {
     private final Map<KeyMapping, Consumer<Minecraft>> keyBindings = new HashMap<>();
 
     public KeybindingsRegistry(String modId) {
-        this(modId, path -> ResourceLocation.tryBuild(modId, path));
+        this(modId, path -> ResourceLocation.fromNamespaceAndPath(modId, path));
     }
 
     public KeybindingsRegistry(String modId, Function<String, ResourceLocation> idFunction) {

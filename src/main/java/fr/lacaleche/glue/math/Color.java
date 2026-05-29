@@ -1,6 +1,11 @@
 package fr.lacaleche.glue.math;
 
 public final class Color {
+
+    public static final Color BLACK = ofRGBA(0, 0, 0, 255);
+    public static final Color WHITE = ofRGBA(255, 255, 255, 255);
+    public static final Color RED = ofRGBA(255, 0, 0, 255);
+
     private final int color;
 
     private Color(int color) {
@@ -42,20 +47,20 @@ public final class Color {
     }
 
     public static Color ofHSB(float hue, float saturation, float brightness) {
-        return ofOpaque(HSBtoRGB(hue, saturation, brightness));
+        return ofOpaque(hsbToRgb(hue, saturation, brightness));
     }
 
-    public static int HSBtoRGB(float hue, float saturation, float brightness) {
+    public static int hsbToRgb(float hue, float saturation, float brightness) {
         int r = 0, g = 0, b = 0;
         if (saturation == 0) {
             r = g = b = (int) (brightness * 255.0f + 0.5f);
         } else {
-            float h = (hue - (float) Math.floor(hue)) * 6.0f;
-            float f = h - (float) Math.floor(h);
+            float hueNormalized = (hue - (float) Math.floor(hue)) * 6.0f;
+            float fractionalPart = hueNormalized - (float) Math.floor(hueNormalized);
             float p = brightness * (1.0f - saturation);
-            float q = brightness * (1.0f - saturation * f);
-            float t = brightness * (1.0f - (saturation * (1.0f - f)));
-            switch ((int) h) {
+            float q = brightness * (1.0f - saturation * fractionalPart);
+            float t = brightness * (1.0f - (saturation * (1.0f - fractionalPart)));
+            switch ((int) hueNormalized) {
                 case 0:
                     r = (int) (brightness * 255.0f + 0.5f);
                     g = (int) (t * 255.0f + 0.5f);
@@ -86,6 +91,8 @@ public final class Color {
                     g = (int) (p * 255.0f + 0.5f);
                     b = (int) (q * 255.0f + 0.5f);
                     break;
+                default:
+                    throw new AssertionError("Unexpected HSB sector: " + (int) hueNormalized);
             }
         }
         return 0xff000000 | (r << 16) | (g << 8) | b;
@@ -112,14 +119,15 @@ public final class Color {
     }
 
     public Color brighter(double factor) {
+        if (factor <= 1.0) throw new IllegalArgumentException("factor must be > 1.0, got: " + factor);
         int r = getRed(), g = getGreen(), b = getBlue();
-        int i = (int) (1.0 / (1.0 - (1 / factor)));
+        int minChannelThreshold = (int) (1.0 / (1.0 - (1.0 / factor)));
         if (r == 0 && g == 0 && b == 0) {
-            return ofRGBA(i, i, i, getAlpha());
+            return ofRGBA(minChannelThreshold, minChannelThreshold, minChannelThreshold, getAlpha());
         }
-        if (r > 0 && r < i) r = i;
-        if (g > 0 && g < i) g = i;
-        if (b > 0 && b < i) b = i;
+        if (r > 0 && r < minChannelThreshold) r = minChannelThreshold;
+        if (g > 0 && g < minChannelThreshold) g = minChannelThreshold;
+        if (b > 0 && b < minChannelThreshold) b = minChannelThreshold;
         return ofRGBA(Math.min((int) (r / (1 / factor)), 255),
                 Math.min((int) (g / (1 / factor)), 255),
                 Math.min((int) (b / (1 / factor)), 255),
@@ -127,9 +135,10 @@ public final class Color {
     }
 
     public Color darker(double factor) {
-        return ofRGBA(Math.max((int) (getRed() * (1 / factor)), 0),
-                Math.max((int) (getGreen() * (1 / factor)), 0),
-                Math.max((int) (getBlue() * (1 / factor)), 0),
+        if (factor <= 1.0) throw new IllegalArgumentException("factor must be > 1.0, got: " + factor);
+        return ofRGBA(Math.max((int) (getRed() * (1.0 / factor)), 0),
+                Math.max((int) (getGreen() * (1.0 / factor)), 0),
+                Math.max((int) (getBlue() * (1.0 / factor)), 0),
                 getAlpha());
     }
 
@@ -147,6 +156,6 @@ public final class Color {
 
     @Override
     public String toString() {
-        return String.valueOf(color);
+        return String.format("#%08X", color);
     }
 }

@@ -14,7 +14,7 @@ layout(std140) uniform SunConfig {
 in vec2 texCoord;
 out vec4 fragColor;
 
-// --- MATH UTILS ---
+
 float hash(vec2 p) {
     p = fract(p * vec2(127.1, 311.7));
     p += dot(p, p + 19.31);
@@ -57,43 +57,30 @@ vec3 getPlasmaColor(float t) {
 void main() {
     vec2 uv = texCoord;
 
-    // --- 1. SLOWER TIMING & SMOOTHER START ---
-    // Reduced from 10.0 to 4.0 to make the noise flow "longer" and slower
     float time = Progress * 4.0;
-
-    // Using pow(Progress, 2.5) removes the initial flash by making the start very gradual
     float eased = pow(Progress, 2.5);
 
-    // --- 2. SUBTLE HEAT DISTORTION ---
     float aberration = eased * 0.012;
     float r = texture(InSampler, uv + vec2(aberration, 0.0)).r;
     float g = texture(InSampler, uv).g;
     float b = texture(InSampler, uv - vec2(aberration, 0.0)).b;
     vec4 scene = vec4(r, g, b, 1.0);
 
-    // --- 3. DOMAIN WARPED PLASMA ---
-    // Reduced warp intensity for a more "majestic" look
     vec2 warp = vec2(fbm(uv * 2.0 + time * 0.3), fbm(uv * 2.0 - time * 0.2));
     float plasma = fbm(uv * 3.5 + warp * 1.5 + time * 0.15);
     vec3 sunColor = getPlasmaColor(plasma);
 
-    // --- 4. RADIAL GLOW ---
     vec2 centered = (uv - 0.5) * vec2(InSize.x / InSize.y, 1.0);
     float dist = length(centered);
-
-    // Core glow that only appears as Progress advances
     float glow = exp(-dist * 4.0) * eased;
     sunColor += glow * 0.5;
 
-    // --- 5. FINAL COMPOSITION ---
-    // The mix is now driven by the slower 'eased' value
     vec3 finalColor = mix(scene.rgb, sunColor, eased * 0.9);
 
     // Central flare (Sun core)
     float flare = smoothstep(0.4, 0.0, dist) * eased;
     finalColor += vec3(1.0, 0.9, 0.7) * flare * 0.5;
 
-    // Soft Heat Vignette
     float vignette = smoothstep(0.2, 1.0, dist);
     finalColor = mix(finalColor, vec3(0.15, 0.0, 0.0), vignette * eased * 0.8);
 

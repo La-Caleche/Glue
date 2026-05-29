@@ -1,11 +1,5 @@
 #version 150
 
-// -----------------------------------------------------------------------------
-// Example: Additive Sprite (Vertex Shader)
-// Description: Passes vertex data through and calculates fog distances.
-// Fullbright emissive entity rendering.
-// -----------------------------------------------------------------------------
-
 #moj_import <minecraft:fog.glsl>
 #moj_import <minecraft:dynamictransforms.glsl>
 #moj_import <minecraft:projection.glsl>
@@ -34,7 +28,6 @@ void main() {
     sphericalVertexDistance = fog_spherical_distance(Position);
     cylindricalVertexDistance = fog_cylindrical_distance(Position);
 
-    // Fullbright — no directional lighting for additive sprites.
     vertexColor = Color;
 
     lightMapColor = texelFetch(Sampler2, UV2 / 16, 0);

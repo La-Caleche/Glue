@@ -2,7 +2,7 @@ package fr.lacaleche.glue.client.mixin;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import fr.lacaleche.glue.client.events.RenderEvents;
-import fr.lacaleche.glue.client.shader.ShadedBufferSource;
+import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -20,7 +20,7 @@ public class GluePostCompositeMixin {
 
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/LevelRenderer;renderLevel(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/Camera;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;Z)V", shift = At.Shift.AFTER))
     private void glue$afterLevelRenderBeforeDepthClear(DeltaTracker deltaTracker, CallbackInfo ci) {
-        ShadedBufferSource.postCompositeBlit();
+        ShaderContext.get().postCompositeBlit();
 
         RenderTarget mainTarget = Minecraft.getInstance().getMainRenderTarget();
         int mainFbo = FramebufferHelper.getFramebufferId(mainTarget);
@@ -30,6 +30,7 @@ public class GluePostCompositeMixin {
 
         RenderEvents.POST_WORLD_RENDER.invoker().run();
 
+        // Restore main FBO in case POST_WORLD_RENDER listeners changed it
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, mainFbo);
     }
 }

@@ -1,11 +1,5 @@
 #version 150
 
-// -----------------------------------------------------------------------------
-// Example: Arrival Shockwave (Post Shader)
-// Description: Renders a screen-space expanding radial ripple with glowing
-// concentric rings and a blinding center flash.
-// -----------------------------------------------------------------------------
-
 uniform sampler2D InSampler;
 
 layout(std140) uniform SamplerInfo {

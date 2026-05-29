@@ -18,7 +18,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
-import java.util.Objects;
 
 import static net.minecraft.world.phys.HitResult.Type.MISS;
 
@@ -77,25 +76,19 @@ public class EntityMixin implements EntityRaycastExtension {
     @Override
     public BlockHitResult glue$performRaycast(Vec3 origin, Vec3 target, double maxRange, List<Tuple<BlockPos, VoxelShape>> shapes) {
         BlockHitResult closestHit = null;
-        double maxRangeSquared = maxRange * maxRange;
+        double closestDistSq = Double.POSITIVE_INFINITY;
+        final double maxRangeSquared = maxRange * maxRange;
 
         for (Tuple<BlockPos, VoxelShape> shape : shapes) {
             final BlockHitResult hit = shape.getB().clip(origin, target, shape.getA());
             if (hit == null) continue;
 
-            final Vec3 hitPos = hit.getLocation();
-            final double distance = hitPos.distanceToSqr(origin);
+            final double hitDistanceSquared = hit.getLocation().distanceToSqr(origin);
+            if (hitDistanceSquared >= maxRangeSquared) continue;
+            if (hitDistanceSquared >= closestDistSq) continue;
 
-            double hitDistanceSquared = hit.getLocation().distanceToSqr(origin);
-            if (hitDistanceSquared >= maxRangeSquared)
-                continue;
-
-            if (closestHit != null && hitDistanceSquared >= closestHit.getLocation().distanceToSqr(origin))
-                continue;
-
-            if (closestHit == null || distance < Objects.requireNonNull(closestHit).getLocation().distanceToSqr(origin)) {
-                closestHit = hit;
-            }
+            closestHit = hit;
+            closestDistSq = hitDistanceSquared;
         }
 
         return closestHit;

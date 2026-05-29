@@ -1,22 +1,15 @@
 {
   "itemGroup.glue-test.test-group": "Glue Test",
 
-  "block.glue-test.test_debug": "Debug Block",
+  "block.glue-test.test_outline": "Outline Test Block",
   "block.glue-test.test_spinning": "Spinning Block",
   "block.glue-test.test_shader": "Shader Test Block",
+  "block.glue-test.test_additive_sprite": "Additive Sprite Block",
+  "block.glue-test.test_shape": "Shape Test Block",
 
   "item.glue-test.test_component": "Component Test Item",
 
   "key.categories.glue_test": "Glue Test",
   "key.glue-test.toggle_raycast_debug": "Toggle Raycast Debug",
-  "key.glue-test.toggle_blur": "Toggle Blur Post-Effect",
-  "key.glue-test.toggle_grayscale": "Toggle Grayscale Post-Effect",
-  "key.glue-test.toggle_gui_overlay": "Toggle GUI Overlay",
-  "key.glue-test.toggle_shattered": "Trigger Shattered Screen",
-  "key.glue-test.trigger_departure": "Trigger Departure Vortex",
-  "key.glue-test.trigger_arrival": "Trigger Arrival Shockwave",
-  "key.glue-test.trigger_denial": "Trigger End-Locked Denial",
-  "key.glue-test.trigger_sun": "Trigger Sun Surface",
-  "key.glue-test.trigger_chromatic": "Trigger Chromatic Aberration",
-  "key.glue-test.trigger_impact": "Trigger Impact Frame"
+  "key.glue-test.toggle_post_effect_hud": "Toggle Post-Effect Debug HUD"
 }

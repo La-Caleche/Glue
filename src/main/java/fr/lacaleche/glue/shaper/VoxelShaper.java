@@ -8,7 +8,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.apache.commons.lang3.mutable.MutableObject;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -41,8 +40,16 @@ public class VoxelShaper {
         return Direction.get(AxisDirection.POSITIVE, axis);
     }
 
+    /**
+     * Returns the horizontal angle (in degrees) for one of NORTH/EAST/SOUTH/WEST.
+     * UP and DOWN have no meaningful horizontal angle and return 0 — the caller
+     * is expected to combine this with a vertical pitch (see
+     * {@link DefaultRotationValues#apply}).
+     */
     protected static float horizontalAngleFromDirection(Direction direction) {
-        return (float) ((Math.max(direction.get2DDataValue(), 0) & 3) * 90);
+        int data = direction.get2DDataValue();
+        if (data < 0) return 0; // UP / DOWN: no horizontal component
+        return (float) ((data & 3) * 90);
     }
 
     protected static VoxelShaper forDirectionsWithRotation(VoxelShape shape, Direction facing,
@@ -72,7 +79,7 @@ public class VoxelShaper {
         if (rotation.equals(Vec3.ZERO))
             return shape;
 
-        MutableObject<VoxelShape> result = new MutableObject<>(Shapes.empty());
+        VoxelShape[] result = {Shapes.empty()};
         Vec3 center = new Vec3(8, 8, 8);
 
         shape.forAllBoxes((x1, y1, z1, x2, y2, z2) -> {
@@ -92,10 +99,10 @@ public class VoxelShaper {
                     .add(center);
 
             VoxelShape rotated = blockBox(v1, v2);
-            result.setValue(Shapes.or(result.getValue(), rotated));
+            result[0] = Shapes.or(result[0], rotated);
         });
 
-        return result.getValue();
+        return result[0];
     }
 
     protected static VoxelShape blockBox(Vec3 v1, Vec3 v2) {
@@ -109,10 +116,12 @@ public class VoxelShaper {
         );
     }
 
+    @org.jetbrains.annotations.Nullable
     public VoxelShape get(Direction direction) {
         return shapes.get(direction);
     }
 
+    @org.jetbrains.annotations.Nullable
     public VoxelShape get(Axis axis) {
         return shapes.get(axisAsFace(axis));
     }

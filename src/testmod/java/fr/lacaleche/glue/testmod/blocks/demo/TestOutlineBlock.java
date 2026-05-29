@@ -1,7 +1,8 @@
-package fr.lacaleche.glue.testmod.blocks.debug;
+package fr.lacaleche.glue.testmod.blocks.demo;
 
 import com.mojang.serialization.MapCodec;
 import fr.lacaleche.glue.block.GlueBlock;
+import fr.lacaleche.glue.block.IHaveBigOutline;
 import fr.lacaleche.glue.shaper.GlueVoxelShape;
 import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.registries.TestBlockEntities;
@@ -15,26 +16,31 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
-public class TestDebugBlock extends BaseEntityBlock implements GlueBlock {
+/**
+ * Test block for the custom outline rendering system.
+ *
+ * <p>Validates {@link GlueBlock}, {@link GlueVoxelShape}, and the
+ * data-driven outline renderer loaded from {@code glue/outlines/example.json}.</p>
+ */
+public class TestOutlineBlock extends BaseEntityBlock implements GlueBlock, IHaveBigOutline {
 
-    public static final MapCodec<TestDebugBlock> CODEC = simpleCodec(TestDebugBlock::new);
+    public static final MapCodec<TestOutlineBlock> CODEC = simpleCodec(TestOutlineBlock::new);
 
     protected static final VoxelShape SHAPE = Shapes.block();
-    protected static final VoxelShape OUTLINE_SHAPE = new GlueVoxelShape(Block.box(3, 0, 3, 13, 16, 13), 45);
+    protected static final VoxelShape OUTLINE_SHAPE = new GlueVoxelShape(Block.box(3, 0, 3, 13, 16, 13));
 
-    public TestDebugBlock(BlockBehaviour.Properties settings) {
+    public TestOutlineBlock(Properties settings) {
         super(settings);
     }
 
     @Override
-    public MapCodec<? extends TestDebugBlock> codec() {
+    public MapCodec<? extends TestOutlineBlock> codec() {
         return CODEC;
     }
 
@@ -55,13 +61,13 @@ public class TestDebugBlock extends BaseEntityBlock implements GlueBlock {
 
     @Override
     public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new TestDebugBlockEntity(pos, state);
+        return new TestOutlineBlockEntity(pos, state);
     }
 
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         if (level.isClientSide()) {
-            return createTickerHelper(type, TestBlockEntities.DEBUG_BLOCK_ENTITY, TestDebugBlockEntity::tick);
+            return createTickerHelper(type, TestBlockEntities.OUTLINE_BLOCK_ENTITY, TestOutlineBlockEntity::tick);
         }
         return null;
     }

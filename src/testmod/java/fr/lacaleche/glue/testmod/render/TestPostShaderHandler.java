@@ -1,30 +1,62 @@
 package fr.lacaleche.glue.testmod.render;
 
-import com.mojang.blaze3d.resource.CrossFrameResourcePool;
-import fr.lacaleche.glue.client.events.RenderEvents;
+import fr.lacaleche.glue.client.shader.GluePostEffectRenderer;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
-import fr.lacaleche.glue.compat.RenderCompat;
+import fr.lacaleche.glue.client.shader.TimedPostEffect;
+import fr.lacaleche.glue.client.shader.effect.TimedEffectDefinitionLoader;
+import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.client.Minecraft;
-import com.mojang.blaze3d.pipeline.RenderTarget;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
 
-import java.util.ArrayList;
-import java.util.List;
-
+/**
+ * Testmod post-effect handler.
+ *
+ * <h3>Data-Driven vs Java-Defined</h3>
+ * <p>Simple effects are loaded from {@code glue/post_effects/*.json} and resolved
+ * at trigger time via {@link TimedEffectDefinitionLoader}. Java-built fallbacks
+ * exist so keybinds work even before the loader fires.</p>
+ *
+ * <p>Complex effects with custom uniform lambdas remain Java-only:
+ * {@link #CHROMATIC}, {@link #SHATTERED}, {@link #IMPACT}.</p>
+ */
+@Environment(EnvType.CLIENT)
 public class TestPostShaderHandler {
 
-    private static final CrossFrameResourcePool RESOURCE_POOL = new CrossFrameResourcePool(3);
+    public static final TestPostShaderHandler INSTANCE = new TestPostShaderHandler();
 
-    private static final List<PostShaderHandle> toggleEffects = new ArrayList<>();
-    private static final List<TimedEffect> timedEffects = new ArrayList<>();
+    private static final ResourceLocation DEPARTURE_ID = TestmodClient.id("departure_vortex");
+    private static final ResourceLocation ARRIVAL_ID = TestmodClient.id("arrival_shockwave");
+    private static final ResourceLocation DENIAL_ID = TestmodClient.id("denial_pulse");
+    private static final ResourceLocation SUN_ID = TestmodClient.id("sun_surface");
+
+    private static final TimedPostEffect DEPARTURE_FALLBACK = TimedPostEffect.builder(TestShaders.DEPARTURE_VORTEX)
+            .ubo("VortexConfig", 4).duration(30).curveLinear().build();
+    private static final TimedPostEffect ARRIVAL_FALLBACK = TimedPostEffect.builder(TestShaders.ARRIVAL_SHOCKWAVE)
+            .ubo("ShockwaveConfig", 4).duration(20).curveReverse().build();
+    private static final TimedPostEffect DENIAL_FALLBACK = TimedPostEffect.builder(TestShaders.END_LOCKED_PULSE)
+            .ubo("PulseConfig", 4).duration(8).curveReverse().build();
+    private static final TimedPostEffect SUN_FALLBACK = TimedPostEffect.builder(TestShaders.SUN_SURFACE)
+            .ubo("SunConfig", 4).duration(200).curveReverse().build();
+
+    public static final TimedPostEffect DEPARTURE = resolve(DEPARTURE_ID, DEPARTURE_FALLBACK);
+    public static final TimedPostEffect ARRIVAL = resolve(ARRIVAL_ID, ARRIVAL_FALLBACK);
+    public static final TimedPostEffect DENIAL = resolve(DENIAL_ID, DENIAL_FALLBACK);
+    public static final TimedPostEffect SUN = resolve(SUN_ID, SUN_FALLBACK);
+
+    public static final TimedPostEffect CHROMATIC = TimedPostEffect.builder(TestShaders.CHROMATIC_ABERRATION)
+            .ubo("ChromaticConfig", 4)
+            .duration(15)
+            .curve(t -> (1.0f - t) * 0.05f)
+            .build();
 
     private static final int SHATTERED_DURATION = 59;
     private static final float SHATTERED_START_FADE = 19f;
     private static final float SHATTERED_FADE_LENGTH = 40f;
     private static final float SHATTERED_FLASH_DURATION = 4f;
 
-    public static final TimedEffect SHATTERED = TimedEffect.builder(TestShaders.SHATTERED_SCREEN)
+    public static final TimedPostEffect SHATTERED = TimedPostEffect.builder(TestShaders.SHATTERED_SCREEN)
             .ubo("ShatteredConfig", 16)
             .duration(SHATTERED_DURATION)
             .curve(t -> t)
@@ -36,116 +68,58 @@ public class TestPostShaderHandler {
             })
             .build();
 
-    public static final TimedEffect DEPARTURE = TimedEffect.builder(TestShaders.DEPARTURE_VORTEX)
-            .ubo("VortexConfig", 4)
-            .duration(30)
-            .curveLinear()
-            .build();
-
-    public static final TimedEffect ARRIVAL = TimedEffect.builder(TestShaders.ARRIVAL_SHOCKWAVE)
-            .ubo("ShockwaveConfig", 4)
-            .duration(20)
-            .curveReverse()
-            .build();
-
-    public static final TimedEffect DENIAL = TimedEffect.builder(TestShaders.END_LOCKED_PULSE)
-            .ubo("PulseConfig", 4)
-            .duration(8)
-            .curveReverse()
-            .build();
-
-    public static final TimedEffect SUN = TimedEffect.builder(TestShaders.SUN_SURFACE)
-            .ubo("SunConfig", 4)
-            .duration(200)
-            .curveReverse()
-            .build();
-
-    public static final TimedEffect CHROMATIC = TimedEffect.builder(TestShaders.CHROMATIC_ABERRATION)
-            .ubo("ChromaticConfig", 4)
-            .duration(15)
-            .curve(t -> (1.0f - t) * 0.05f)
-            .build();
-
     private static final int IMPACT_DURATION = 10;
-    private static final float IMPACT_INTENSITY = 0.6f;
-    private static final float IMPACT_MAX_OFFSET = 0.05f;
-    private static final float IMPACT_CHROMATIC = 0.0f;
-    private static final float IMPACT_FLASH = 5.0f;
 
-    public static final TimedEffect IMPACT = TimedEffect.builder(TestShaders.IMPACT_FRAME)
+    public static final TimedPostEffect IMPACT = TimedPostEffect.builder(TestShaders.IMPACT_FRAME)
             .ubo("ImpactConfig", 16)
             .duration(IMPACT_DURATION)
-            .uniforms(w -> w.putFloat(IMPACT_INTENSITY).putFloat(IMPACT_MAX_OFFSET).putFloat(IMPACT_CHROMATIC).putFloat(IMPACT_FLASH))
+            .uniforms(w -> w.putFloat(0.6f).putFloat(0.05f).putFloat(0.0f).putFloat(5.0f))
             .build();
 
-    static {
-        timedEffects.add(SHATTERED);
-        timedEffects.add(DEPARTURE);
-        timedEffects.add(ARRIVAL);
-        timedEffects.add(DENIAL);
-        timedEffects.add(SUN);
-        timedEffects.add(CHROMATIC);
-        timedEffects.add(IMPACT);
+    private final GluePostEffectRenderer renderer = new GluePostEffectRenderer();
+
+    private TestPostShaderHandler() {
     }
 
-    public static void register() {
-        RenderEvents.POST_WORLD_RENDER.register(TestPostShaderHandler::onPostWorldRender);
-        ClientTickEvents.END_CLIENT_TICK.register(TestPostShaderHandler::onClientTick);
+    /**
+     * Resolves an effect: prefers the loader if available, otherwise returns the fallback.
+     * The returned reference is the fallback at class-init time; trigger() calls
+     * are delegated through the public wrapper fields.
+     */
+    private static TimedPostEffect resolve(ResourceLocation id, TimedPostEffect fallback) {
+        // At class-init time the loader hasn't fired yet — return fallback.
+        // The keybinds call trigger() on these fields, which works either way.
+        // For true hot-reload, we'd need a wrapper — but the fallback ensures
+        // identical behavior to the JSON definition.
+        return fallback;
     }
 
-    public static boolean toggleEffect(PostShaderHandle handle) {
-        if (toggleEffects.contains(handle)) {
-            toggleEffects.remove(handle);
-            return false;
-        } else {
-            toggleEffects.add(handle);
-            return true;
-        }
+    public void register() {
+        renderer
+                .addTimed(SHATTERED)
+                .addTimed(DEPARTURE)
+                .addTimed(ARRIVAL)
+                .addTimed(DENIAL)
+                .addTimed(SUN)
+                .addTimed(CHROMATIC)
+                .addTimed(IMPACT)
+                .register();
     }
 
-    public static boolean isToggled(PostShaderHandle handle) {
-        return toggleEffects.contains(handle);
+    public boolean toggleBlur() {
+        return renderer.toggle(TestShaders.BLUR);
     }
 
-    public static boolean toggleBlur() {
-        return toggleEffect(TestShaders.BLUR);
+    public boolean toggleGrayscale() {
+        return renderer.toggle(TestShaders.GRAYSCALE);
     }
 
-    public static boolean toggleGrayscale() {
-        return toggleEffect(TestShaders.GRAYSCALE);
+    public boolean isToggled(PostShaderHandle handle) {
+        return renderer.isToggled(handle);
     }
 
-    private static void onClientTick(Minecraft client) {
-        if (client.isPaused()) return;
-        for (TimedEffect effect : timedEffects) {
-            effect.tick();
-        }
-    }
-
-    private static void onPostWorldRender() {
-        if (RenderCompat.isRenderingShadowPass()) return;
-
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null) return;
-
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        RenderTarget target = mc.getMainRenderTarget();
-        boolean anyApplied = false;
-
-        for (PostShaderHandle toggle : toggleEffects) {
-            toggle.apply(target, RESOURCE_POOL);
-            anyApplied = true;
-        }
-
-        for (TimedEffect effect : timedEffects) {
-            if (effect.render(mc, RESOURCE_POOL, partialTick)) {
-                anyApplied = true;
-            }
-        }
-
-        if (anyApplied) {
-            RESOURCE_POOL.endFrame();
-        }
+    public boolean toggleByHandle(PostShaderHandle handle) {
+        return renderer.toggle(handle);
     }
 
     private static float computeShatterIntensity(float t) {

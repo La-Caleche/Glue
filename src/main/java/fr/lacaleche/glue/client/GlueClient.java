@@ -9,11 +9,23 @@ import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.client.registries.GlueClientRegistries;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.BlockRenderer;
+import fr.lacaleche.glue.client.shader.PostShaderHandle;
+import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.client.shader.internal.DeferredDrawQueue;
+import fr.lacaleche.glue.client.shader.effect.TimedEffectDefinitionLoader;
+import fr.lacaleche.glue.client.shader.pipeline.PipelineDefinitionLoader;
+import fr.lacaleche.glue.client.render.outline.OutlineDefinitionLoader;
+import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.PackType;
 import org.lwjgl.glfw.GLFW;
 
 public class GlueClient implements ClientModInitializer {
@@ -33,7 +45,34 @@ public class GlueClient implements ClientModInitializer {
         DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);
         ParticleManagerEvents.BLOCK_BREAK.register(BlockRenderer::getBreakParticleShape);
 
-        DeferredDrawQueue.init();
+        DeferredDrawQueue.INSTANCE.register();
+
+        WorldRenderEvents.START.register(ctx -> RenderCompat.resetFrameCache());
+
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ShaderContext.get().cleanup());
+
+        // Clear post-shader handle warnings on resource reload so missing chains are
+        // re-reported if the resource pack changes.
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
+                new SimpleSynchronousResourceReloadListener() {
+                    @Override
+                    public ResourceLocation getFabricId() {
+                        return ResourceLocation.fromNamespaceAndPath("glue", "post_shader_warnings_reset");
+                    }
+
+                    @Override
+                    public void onResourceManagerReload(net.minecraft.server.packs.resources.ResourceManager manager) {
+                        PostShaderHandle.clearWarnings();
+                    }
+                }
+        );
+
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
+                new PipelineDefinitionLoader());
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
+                new TimedEffectDefinitionLoader());
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
+                new OutlineDefinitionLoader());
 
         KeyBindingHelper.registerKeyBinding(FBO_DEBUG_KEY);
 
@@ -50,6 +89,8 @@ public class GlueClient implements ClientModInitializer {
             }
             FboDebugHud.INSTANCE.tick();
         });
+
+        RenderEvents.POST_WORLD_RENDER.register(() -> FboDebugHud.INSTANCE.captureDepthNow());
 
         Glue.LOGGER.info("Glue Client library ready !");
     }

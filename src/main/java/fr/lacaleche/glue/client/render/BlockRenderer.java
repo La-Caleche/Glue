@@ -4,8 +4,11 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import fr.lacaleche.glue.block.GlueBlock;
 import fr.lacaleche.glue.client.events.DebugEvents;
 import fr.lacaleche.glue.client.registries.GlueClientRegistries;
+import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
+import fr.lacaleche.glue.client.render.outline.OutlineDefinitionLoader;
 import fr.lacaleche.glue.client.transform.GlueTransformStack;
+import fr.lacaleche.glue.math.Color;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -23,8 +26,6 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-
-import java.awt.*;
 
 public class BlockRenderer {
 
@@ -49,7 +50,16 @@ public class BlockRenderer {
 
         final VoxelShape shape = blockstate.getShape(world, pos, CollisionContext.of(client.player));
 
-        final GlueOutlineRenderer renderer = GlueClientRegistries.OUTLINE_RENDERERS.getValue(glueBlock.getOutlineRenderer());
+        // Prefer hot-reloadable loader, fall back to registry, then BASE_OUTLINE
+        GlueOutlineRenderer resolved = null;
+        OutlineDefinitionLoader outlineLoader = OutlineDefinitionLoader.getInstance();
+        if (outlineLoader != null) {
+            resolved = outlineLoader.get(glueBlock.getOutlineRenderer());
+        }
+        if (resolved == null) {
+            resolved = GlueClientRegistries.OUTLINE_RENDERERS.getValue(glueBlock.getOutlineRenderer());
+        }
+        final GlueOutlineRenderer renderer = resolved != null ? resolved : GlueOutlineRenderers.BASE_OUTLINE;
 
         DebugEvents.BLOCK_OUTLINE.invoker().onRenderBlockOutline(client, world, pos, blockstate, camera, hitResult,
                 matrices, buffers);

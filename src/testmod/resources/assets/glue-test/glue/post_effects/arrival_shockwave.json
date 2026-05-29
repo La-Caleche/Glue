@@ -1,0 +1,7 @@
+{
+    "post_chain": "glue-test:arrival_shockwave",
+    "ubo_name": "ShockwaveConfig",
+    "ubo_size": 4,
+    "duration": 20,
+    "curve": "reverse"
+}

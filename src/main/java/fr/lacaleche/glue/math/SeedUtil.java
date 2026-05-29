@@ -2,6 +2,9 @@ package fr.lacaleche.glue.math;
 
 public final class SeedUtil {
 
+    private SeedUtil() {
+    }
+
     private static int fnv1a64ToInt(long... vals) {
         long h = 0xcbf29ce484222325L;
         for (long v : vals) {
@@ -17,6 +20,8 @@ public final class SeedUtil {
     }
 
     public static int timePosSeed(long nowMs, long windowMs, double x, double y, double z, double posQuant) {
+        if (windowMs <= 0) throw new IllegalArgumentException("windowMs must be > 0, got: " + windowMs);
+        if (posQuant <= 0) throw new IllegalArgumentException("posQuant must be > 0, got: " + posQuant);
         long bucket = nowMs / windowMs;
         long qx = (long) Math.floor(x / posQuant);
         long qy = (long) Math.floor(y / posQuant);

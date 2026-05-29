@@ -1,12 +1,5 @@
 #version 150
 
-// -----------------------------------------------------------------------------
-// Example: Additive Sprite (Fragment Shader)
-// Description: Renders bright additive pixels and properly discards
-// near-black pixels to prevent the "black box occlusion" bug in Iris.
-// Applies a custom additive fog effect.
-// -----------------------------------------------------------------------------
-
 #moj_import <minecraft:fog.glsl>
 #moj_import <minecraft:dynamictransforms.glsl>
 
@@ -35,7 +28,6 @@ void main() {
     );
     color.rgb *= 1.0 - fogFactor;
 
-    // Boost the color intensity slightly to keep it emissive but reduce the massive bloom
     color.rgb *= 1.2;
 
     float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));

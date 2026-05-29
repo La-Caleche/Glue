@@ -1,0 +1,34 @@
+{
+    "textures": {
+        "0": "minecraft:block/oak_log",
+        "particle": "minecraft:block/oak_log"
+    },
+    "elements": [
+        {
+            "name": "body",
+            "from": [3, 2, 0],
+            "to": [13, 14, 16],
+            "faces": {
+                "north": { "uv": [3, 2, 13, 14],  "texture": "#0", "cullface": "north" },
+                "east":  { "uv": [0, 2, 16, 14],  "texture": "#0" },
+                "south": { "uv": [3, 2, 13, 14],  "texture": "#0", "cullface": "south" },
+                "west":  { "uv": [0, 2, 16, 14],  "texture": "#0" },
+                "up":    { "uv": [3, 0, 13, 16],  "texture": "#0" },
+                "down":  { "uv": [3, 0, 13, 16],  "texture": "#0" }
+            }
+        },
+        {
+            "name": "cross",
+            "from": [5, 0, 0],
+            "to": [11, 16, 16],
+            "faces": {
+                "north": { "uv": [5, 0, 11, 16],  "texture": "#0", "cullface": "north" },
+                "east":  { "uv": [0, 0, 16, 16],  "texture": "#0" },
+                "south": { "uv": [5, 0, 11, 16],  "texture": "#0", "cullface": "south" },
+                "west":  { "uv": [0, 0, 16, 16],  "texture": "#0" },
+                "up":    { "uv": [5, 0, 11, 16],  "texture": "#0", "cullface": "up" },
+                "down":  { "uv": [5, 0, 11, 16],  "texture": "#0", "cullface": "down" }
+            }
+        }
+    ]
+}

@@ -26,7 +26,7 @@ import java.util.*;
 public class FboDebugHud {
 
     public static final FboDebugHud INSTANCE = new FboDebugHud();
-    private static final Logger LOGGER = LoggerFactory.getLogger("glue-debug-hud");
+    private static final Logger LOGGER = LoggerFactory.getLogger("glue/debug");
     private static final int THUMB_SIZE = 256;
     private final List<CapturedTexture> irisCapturedTextures = new ArrayList<>();
     private final DepthLinearizer depthLinearizer = new DepthLinearizer();

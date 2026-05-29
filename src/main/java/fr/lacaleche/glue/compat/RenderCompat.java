@@ -14,6 +14,18 @@ public class RenderCompat {
 
     private static final String IRIS_CLASS = "net.irisshaders.iris.Iris";
 
+    // Per-frame cache for Iris depth IDs. -2 = not yet resolved this frame, -1 = unavailable.
+    private static int cachedIrisMainDepthId = -2;
+    private static int cachedIrisSceneDepthId = -2;
+
+    /**
+     * Must be called at the start of each frame (e.g. WorldRenderEvents.START) to invalidate the cache.
+     */
+    public static void resetFrameCache() {
+        cachedIrisMainDepthId = -2;
+        cachedIrisSceneDepthId = -2;
+    }
+
     public static void assignIrisProgram(RenderPipeline pipeline, String programName) {
         if (!HAS_IRIS) return;
         try {
@@ -80,20 +92,22 @@ public class RenderCompat {
 
     public static int getIrisMainDepthGlId() {
         if (!HAS_IRIS) return -1;
+        if (cachedIrisMainDepthId != -2) return cachedIrisMainDepthId;
         Object rts = getRenderTargets();
-        if (rts == null) return -1;
+        if (rts == null) return cachedIrisMainDepthId = -1;
         Object depthTex = ModCompatManager.invokeRuntime(rts, "getDepthTexture", false, new Class[0], new Object[0], Object.class, null);
-        if (depthTex == null) return -1;
-        return ModCompatManager.invokeRuntime(depthTex, "glId", false, new Class[0], new Object[0], Integer.class, -1);
+        if (depthTex == null) return cachedIrisMainDepthId = -1;
+        return cachedIrisMainDepthId = ModCompatManager.invokeRuntime(depthTex, "glId", false, new Class[0], new Object[0], Integer.class, -1);
     }
 
     public static int getIrisSceneDepthGlId() {
         if (!HAS_IRIS) return -1;
+        if (cachedIrisSceneDepthId != -2) return cachedIrisSceneDepthId;
         Object rts = getRenderTargets();
-        if (rts == null) return -1;
+        if (rts == null) return cachedIrisSceneDepthId = -1;
         Object depthTex = ModCompatManager.invokeRuntime(rts, "getDepthTextureNoHand", false, new Class[0], new Object[0], Object.class, null);
-        if (depthTex == null) return -1;
-        return ModCompatManager.invokeRuntime(depthTex, "glId", false, new Class[0], new Object[0], Integer.class, -1);
+        if (depthTex == null) return cachedIrisSceneDepthId = -1;
+        return cachedIrisSceneDepthId = ModCompatManager.invokeRuntime(depthTex, "glId", false, new Class[0], new Object[0], Integer.class, -1);
     }
 
     public static Object[] getIrisRenderTargetArray() {

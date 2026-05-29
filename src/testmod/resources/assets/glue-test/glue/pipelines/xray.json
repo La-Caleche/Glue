@@ -1,0 +1,9 @@
+{
+    "vertex_shader": "glue-test:core/entity",
+    "fragment_shader": "glue-test:core/xray",
+    "blend": "translucent",
+    "alpha_cutout": 0.1,
+    "cull": false,
+    "iris_program": "ENTITIES_TRANSLUCENT",
+    "category": "entity"
+}
