@@ -1,6 +1,6 @@
 package fr.lacaleche.glue.client.shader.effect;
 
-import fr.lacaleche.glue.client.shader.TimedPostEffect;
+import fr.lacaleche.glue.client.registries.GlueClientRegistries;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
@@ -12,21 +12,15 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /**
- * Loads {@code assets/<modid>/glue/post_effects/<name>.json} files, bakes each
- * into a {@link TimedPostEffect}, and makes them available via {@link #get(ResourceLocation)}.
- *
- * <p>Unlike pipelines, timed effects are not placed into a global registry
- * because they carry mutable tick state. Each definition bakes a fresh
- * instance on every resource reload.</p>
- *
- * <p>Effects that require custom uniform writers or arbitrary curve lambdas
- * cannot be represented in JSON and must still be created in Java — this
- * loader covers the simple "named-curve + putProgress" case.</p>
+ * Loads {@code glue/post_effects/<name>.json} and pushes parsed
+ * {@link TimedEffectDefinition}s into
+ * {@link GlueClientRegistries#TIMED_EFFECT_DEFINITIONS}.
+ * Must run after {@link PostChainDefinitionLoader}.
  */
 @Environment(EnvType.CLIENT)
 public class TimedEffectDefinitionLoader extends SimpleJsonResourceReloadListener<TimedEffectDefinition>
@@ -38,8 +32,6 @@ public class TimedEffectDefinitionLoader extends SimpleJsonResourceReloadListene
 
     private static TimedEffectDefinitionLoader instance;
 
-    private volatile Map<ResourceLocation, TimedPostEffect> effects = Collections.emptyMap();
-
     public TimedEffectDefinitionLoader() {
         super(TimedEffectDefinition.CODEC, FileToIdConverter.json("glue/post_effects"));
         instance = this;
@@ -49,39 +41,26 @@ public class TimedEffectDefinitionLoader extends SimpleJsonResourceReloadListene
     protected void apply(Map<ResourceLocation, TimedEffectDefinition> definitions,
                          ResourceManager resourceManager,
                          ProfilerFiller profiler) {
-        Map<ResourceLocation, TimedPostEffect> built = new LinkedHashMap<>();
-
         for (Map.Entry<ResourceLocation, TimedEffectDefinition> entry : definitions.entrySet()) {
-            ResourceLocation id = entry.getKey();
-            TimedEffectDefinition def = entry.getValue();
-
-            try {
-                TimedPostEffect effect = def.bake();
-                built.put(id, effect);
-            } catch (Exception e) {
-                LOGGER.error("[Glue] Failed to bake timed effect {}", id, e);
+            if (!GlueClientRegistries.POST_CHAINS.containsKey(entry.getValue().postChain())) {
+                LOGGER.warn("[Glue] Timed effect '{}' references unknown post chain '{}'",
+                        entry.getKey(), entry.getValue().postChain());
             }
         }
 
-        this.effects = Collections.unmodifiableMap(built);
+        GlueClientRegistries.TIMED_EFFECT_DEFINITIONS.reload(definitions);
 
-        if (!built.isEmpty()) {
-            LOGGER.info("[Glue] Timed effect loader: {} effect(s) baked", built.size());
+        if (!definitions.isEmpty()) {
+            LOGGER.info("[Glue] Timed effect loader: {} definition(s) loaded", definitions.size());
         }
     }
 
-    /**
-     * Returns a baked effect by its resource id, or {@code null} if not found.
-     */
-    public TimedPostEffect get(ResourceLocation id) {
-        return effects.get(id);
+    public TimedEffectDefinition get(ResourceLocation id) {
+        return GlueClientRegistries.TIMED_EFFECT_DEFINITIONS.get(id);
     }
 
-    /**
-     * Returns all baked effects (unmodifiable).
-     */
-    public Map<ResourceLocation, TimedPostEffect> getAll() {
-        return effects;
+    public Map<ResourceLocation, TimedEffectDefinition> getAll() {
+        return GlueClientRegistries.TIMED_EFFECT_DEFINITIONS.getAll();
     }
 
     @Override
@@ -89,9 +68,11 @@ public class TimedEffectDefinitionLoader extends SimpleJsonResourceReloadListene
         return FABRIC_ID;
     }
 
-    /**
-     * Returns the singleton loader instance, or {@code null} before registration.
-     */
+    @Override
+    public Collection<ResourceLocation> getFabricDependencies() {
+        return List.of(ResourceLocation.fromNamespaceAndPath("glue", "post_chain_loader"));
+    }
+
     public static TimedEffectDefinitionLoader getInstance() {
         return instance;
     }

@@ -2,7 +2,7 @@ package fr.lacaleche.glue.testmod.render.block.entity;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import fr.lacaleche.glue.client.transform.GlueTransformStack;
-import fr.lacaleche.glue.testmod.blocks.demo.TestOutlineBlockEntity;
+import fr.lacaleche.glue.testmod.blocks.demo.TickingBlockEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -13,7 +13,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
-public class TestOutlineBlockEntityRenderer implements BlockEntityRenderer<TestOutlineBlockEntity> {
+/**
+ * Demonstrates the {@link GlueTransformStack} fluent API: bobs and spins a
+ * displayed item with {@code rotateCentered()} + {@code translate()}.
+ */
+public class TestOutlineBlockEntityRenderer implements BlockEntityRenderer<TickingBlockEntity> {
 
     private static final ItemStack DISPLAY_ITEM = new ItemStack(Items.SEA_LANTERN);
 
@@ -24,7 +28,7 @@ public class TestOutlineBlockEntityRenderer implements BlockEntityRenderer<TestO
     }
 
     @Override
-    public void render(TestOutlineBlockEntity entity, float tickDelta, PoseStack matrices,
+    public void render(TickingBlockEntity entity, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay, Vec3 cameraPos) {
         float delta = (float) entity.getTicks() / 5;
         float rotation = delta + tickDelta / 20.0F;

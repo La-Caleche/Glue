@@ -6,7 +6,7 @@ import fr.lacaleche.glue.client.shader.GluePipeline;
 import fr.lacaleche.glue.client.shader.ShadedBufferSource;
 import fr.lacaleche.glue.compat.RenderCompat;
 import fr.lacaleche.glue.testmod.TestmodClient;
-import fr.lacaleche.glue.testmod.blocks.demo.TestAdditiveSpriteBlockEntity;
+import fr.lacaleche.glue.testmod.blocks.demo.TickingBlockEntity;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -27,7 +27,7 @@ import org.joml.Matrix4f;
  * The blit uses additive GL blending ({@code GL_ONE, GL_ONE}).
  * </p>
  */
-public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRenderer<TestAdditiveSpriteBlockEntity> {
+public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRenderer<TickingBlockEntity> {
 
     private static final ResourceLocation SPRITE_TEXTURE =
             TestmodClient.id("textures/imported/particle01.png");
@@ -59,7 +59,7 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
     }
 
     @Override
-    public void render(TestAdditiveSpriteBlockEntity entity, float partialTick, PoseStack poseStack,
+    public void render(TickingBlockEntity entity, float partialTick, PoseStack poseStack,
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay, Vec3 cameraPos) {
         if (RenderCompat.isRenderingShadowPass()) return;
 

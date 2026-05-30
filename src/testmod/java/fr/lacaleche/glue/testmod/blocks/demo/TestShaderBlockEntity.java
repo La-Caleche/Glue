@@ -15,6 +15,12 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Stateful block entity for {@link TestShaderBlock}: tracks the tick count for
+ * animation plus a persisted, client-synced shader index that the renderer uses
+ * to pick a {@link TestShaderPipelines} pipeline. (Stateless demos use the shared
+ * {@link TickingBlockEntity} instead.)
+ */
 public class TestShaderBlockEntity extends BlockEntity {
 
     private int ticks = 0;

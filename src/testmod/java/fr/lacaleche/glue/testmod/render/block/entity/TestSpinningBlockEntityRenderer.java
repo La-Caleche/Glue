@@ -5,7 +5,7 @@ import fr.lacaleche.glue.client.shader.GluePipeline;
 import fr.lacaleche.glue.client.shader.ShadedBufferSource;
 import fr.lacaleche.glue.client.transform.GlueTransformStack;
 import fr.lacaleche.glue.compat.RenderCompat;
-import fr.lacaleche.glue.testmod.blocks.demo.TestSpinningBlockEntity;
+import fr.lacaleche.glue.testmod.blocks.demo.TickingBlockEntity;
 import fr.lacaleche.glue.testmod.render.TestShaderPipelines;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -16,7 +16,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
-public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<TestSpinningBlockEntity> {
+/**
+ * Demonstrates advanced {@link GlueTransformStack} use: a central item plus four
+ * pseudo-randomly orbiting shards, each rendered through a {@link GluePipeline}
+ * via {@link ShadedBufferSource} and the stack's {@code then()} inline-render hook.
+ */
+public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<TickingBlockEntity> {
 
     private static final ItemStack NETHER_STAR = new ItemStack(Items.NETHER_STAR);
     private static final ItemStack AMETHYST = new ItemStack(Items.AMETHYST_SHARD);
@@ -45,7 +50,7 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Test
     }
 
     @Override
-    public void render(TestSpinningBlockEntity entity, float tickDelta, PoseStack matrices,
+    public void render(TickingBlockEntity entity, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay, Vec3 cameraPos) {
         if (RenderCompat.isRenderingShadowPass()) return;
 

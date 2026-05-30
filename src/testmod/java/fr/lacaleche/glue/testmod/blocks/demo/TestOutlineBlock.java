@@ -61,13 +61,13 @@ public class TestOutlineBlock extends BaseEntityBlock implements GlueBlock, IHav
 
     @Override
     public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new TestOutlineBlockEntity(pos, state);
+        return new TickingBlockEntity(TestBlockEntities.OUTLINE_BLOCK_ENTITY, pos, state);
     }
 
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         if (level.isClientSide()) {
-            return createTickerHelper(type, TestBlockEntities.OUTLINE_BLOCK_ENTITY, TestOutlineBlockEntity::tick);
+            return createTickerHelper(type, TestBlockEntities.OUTLINE_BLOCK_ENTITY, TickingBlockEntity::tick);
         }
         return null;
     }

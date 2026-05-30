@@ -8,6 +8,11 @@ import fr.lacaleche.glue.testmod.render.block.entity.TestShaderBlockEntityRender
 import fr.lacaleche.glue.testmod.render.block.entity.TestSpinningBlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 
+/**
+ * Demonstrates Glue's {@link BlocksRendererRegistry#registerCutout} for assigning
+ * the cutout render layer to the demo blocks, and wires each block entity to its
+ * {@link net.minecraft.client.renderer.blockentity.BlockEntityRenderer}.
+ */
 public class TestBlocksRenderer {
 
     public static final BlocksRendererRegistry REGISTRY = new BlocksRendererRegistry();

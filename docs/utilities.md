@@ -34,7 +34,20 @@ Color darker = c1.darker(1.5);
 
 ## SeedUtil
 
-`fr.lacaleche.glue.math.SeedUtil` — deterministic seed generation from block positions.
+`fr.lacaleche.glue.math.SeedUtil` — deterministic `int` seeds from a time window and a
+quantized position (FNV-1a hash). The seed is stable within each `windowMs` time bucket and
+for each `posQuant`-sized region, so it changes over time but stays consistent across calls in
+the same window/cell:
+
+```java
+// Re-rolls every 500ms, quantized to whole-block positions
+int seed = SeedUtil.timePosSeed(500L, x, y, z, 1.0);
+
+// Deterministic overload — pass an explicit timestamp (e.g. for tests)
+int seed = SeedUtil.timePosSeed(nowMs, 500L, x, y, z, 1.0);
+```
+
+`windowMs` and `posQuant` must both be `> 0` (throws `IllegalArgumentException` otherwise).
 
 ## FramebufferHelper
 
@@ -59,10 +72,12 @@ int fboId = FramebufferHelper.getFramebufferId(fb);
 
 ### GlueVoxelShape
 
-VoxelShape with rotation support:
+Wraps a `VoxelShape` and overrides its per-axis coordinates with a single `CubePointRange`,
+so the shape renders as one clean box outline rather than being subdivided along the source
+shape's edges:
 
 ```java
-VoxelShape rotated = new GlueVoxelShape(Block.box(3, 0, 3, 13, 16, 13), 45);
+VoxelShape outline = new GlueVoxelShape(Block.box(3, 0, 3, 13, 16, 13));
 ```
 
 ### VoxelShaper

@@ -21,6 +21,11 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.stream.Stream;
 
+/**
+ * Demonstrates animated block-entity rendering driven by a tick counter
+ * ({@link TickingBlockEntity}). Its renderer orbits items using the Glue
+ * transform stack; also implements {@link IHaveBigOutline}.
+ */
 public class TestSpinningBlock extends BaseEntityBlock implements GlueBlock, IHaveBigOutline {
 
     public static final MapCodec<TestSpinningBlock> CODEC = simpleCodec(TestSpinningBlock::new);
@@ -57,13 +62,13 @@ public class TestSpinningBlock extends BaseEntityBlock implements GlueBlock, IHa
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
                                                                   BlockEntityType<T> type) {
         if (level.isClientSide()) {
-            return createTickerHelper(type, TestBlockEntities.SPINNING_BLOCK_ENTITY, TestSpinningBlockEntity::tick);
+            return createTickerHelper(type, TestBlockEntities.SPINNING_BLOCK_ENTITY, TickingBlockEntity::tick);
         }
         return null;
     }
 
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new TestSpinningBlockEntity(pos, state);
+        return new TickingBlockEntity(TestBlockEntities.SPINNING_BLOCK_ENTITY, pos, state);
     }
 }

@@ -40,13 +40,13 @@ public class TestAdditiveSpriteBlock extends BaseEntityBlock implements GlueBloc
                                                                   BlockEntityType<T> type) {
         if (level.isClientSide()) {
             return createTickerHelper(type, TestBlockEntities.ADDITIVE_SPRITE_BLOCK_ENTITY,
-                    TestAdditiveSpriteBlockEntity::tick);
+                    TickingBlockEntity::tick);
         }
         return null;
     }
 
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new TestAdditiveSpriteBlockEntity(pos, state);
+        return new TickingBlockEntity(TestBlockEntities.ADDITIVE_SPRITE_BLOCK_ENTITY, pos, state);
     }
 }

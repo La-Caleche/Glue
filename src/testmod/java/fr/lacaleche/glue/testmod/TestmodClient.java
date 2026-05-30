@@ -7,13 +7,19 @@ import fr.lacaleche.glue.testmod.registries.*;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
 import fr.lacaleche.glue.testmod.render.PostEffectDebugHud;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
-import fr.lacaleche.glue.testmod.render.TestShaderPipelines;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Client entry point for the Glue test mod.
+ *
+ * <p>Wires up every demo: registers blocks/items/components/keybinds/shaders and
+ * the post-effect debug HUD. This is the top of the dependency graph — start here
+ * to trace what each feature demonstrates, or see {@code src/testmod/README.md}.</p>
+ */
 public class TestmodClient implements ClientModInitializer {
 
     public static final String MOD_ID = "glue-test";
@@ -51,7 +57,6 @@ public class TestmodClient implements ClientModInitializer {
 
         TestShaders.registerShaders();
         TestPostShaderHandler.INSTANCE.register();
-        TestShaderPipelines.init();
 
         PostEffectDebugHud.INSTANCE.init();
 

@@ -42,3 +42,10 @@ replay_*.log
 iconsrc/glyphter-font.zip
 
 dev/
+
+# local tooling / review artifacts
+
+repomix-output.xml
+*.diff
+/logs/
+/reviews/

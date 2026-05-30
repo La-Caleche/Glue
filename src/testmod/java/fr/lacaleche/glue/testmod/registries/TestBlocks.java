@@ -13,6 +13,10 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 
+/**
+ * Demonstrates Glue's {@link BlocksRegistry}: registers the five demo blocks
+ * (outline, spinning, shader, additive-sprite, shape) with their block properties.
+ */
 public class TestBlocks {
 
     public static final BlocksRegistry REGISTRY = new BlocksRegistry(TestmodClient.MOD_ID, TestmodClient::id);

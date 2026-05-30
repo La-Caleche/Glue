@@ -6,12 +6,12 @@ import fr.lacaleche.glue.client.debug.FboDebugHud;
 import fr.lacaleche.glue.client.events.DrawSelectionEvents;
 import fr.lacaleche.glue.client.events.ParticleManagerEvents;
 import fr.lacaleche.glue.client.events.RenderEvents;
-import fr.lacaleche.glue.client.registries.GlueClientRegistries;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.BlockRenderer;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.client.shader.internal.DeferredDrawQueue;
+import fr.lacaleche.glue.client.shader.effect.PostChainDefinitionLoader;
 import fr.lacaleche.glue.client.shader.effect.TimedEffectDefinitionLoader;
 import fr.lacaleche.glue.client.shader.pipeline.PipelineDefinitionLoader;
 import fr.lacaleche.glue.client.render.outline.OutlineDefinitionLoader;
@@ -40,7 +40,6 @@ public class GlueClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         GlueOutlineRenderers.registerOutlineRenderers();
-        GlueClientRegistries.bootstrap();
 
         DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);
         ParticleManagerEvents.BLOCK_BREAK.register(BlockRenderer::getBreakParticleShape);
@@ -67,6 +66,9 @@ public class GlueClient implements ClientModInitializer {
                 }
         );
 
+        // Register loaders (timed effects depend on post chains via getFabricDependencies)
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
+                new PostChainDefinitionLoader());
         ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
                 new PipelineDefinitionLoader());
         ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(

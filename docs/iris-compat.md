@@ -7,7 +7,7 @@ Glue handles Iris/Oculus shader pack compatibility at multiple levels.
 When registering core shader pipelines, pass an Iris program name so shader packs apply correct rendering:
 
 ```java
-CORE.register("my_shader", snippet, builder -> { ... }, "BLOCK_TRANSLUCENT");
+CORE.registerRaw("my_shader", snippet, builder -> { ... }, "BLOCK_TRANSLUCENT");
 ```
 
 Internally calls `IrisApi.getInstance().assignPipeline(pipeline, IrisProgram.BLOCK_TRANSLUCENT)`.
@@ -51,11 +51,12 @@ Iris's `redirectIrisProgram` mixin intercepts pipeline compilation. `withIrisByp
 ### GL State Preservation
 
 `apply()` uses the shared `SavedGlState` utility to save and restore comprehensive GL state:
-program, FBO, VAO, blend (with per-channel src/dst), depth test/func/mask, cull, scissor, active texture, and viewport.
+program, FBO, bound array buffer, VAO, texture bindings for units 0–2, blend (with per-channel
+src/dst), depth test/func/mask, cull, scissor, active texture, and viewport.
 
 ## 5. Deferred Draw Queue
 
-Raw GL draws (via `ShaderRenderer`) are dispatched through `DeferredDrawQueue`:
+Raw GL draws issued by `GluePipeline` / `ShadedBufferSource` are dispatched through the internal `DeferredDrawQueue`:
 
 - **Iris active:** Draws are deferred to `WorldRenderEvents.LAST` (after all world compositing)
 - **Iris shadow pass:** Draws are silently dropped
@@ -68,6 +69,7 @@ Raw GL draws (via `ShaderRenderer`) are dispatched through `DeferredDrawQueue`:
 | `RenderCompat.HAS_IRIS` | Whether Iris/Oculus is loaded |
 | `RenderCompat.isIrisShaderEnabled()` | Whether a shader pack is active |
 | `RenderCompat.isRenderingShadowPass()` | Whether in a shadow pass |
+| `RenderCompat.isIrisBypassing()` | Whether Iris is loaded and `ImmediateState.bypass` is currently set |
 | `RenderCompat.assignIrisProgram(pipeline, name)` | Register pipeline with Iris |
 | `RenderCompat.withIrisBypass(action)` | Run action with `ImmediateState.bypass = true` |
 | `RenderCompat.withIrisFullBypass(action)` | Run action with both `bypass` and `safeToMultiply` |

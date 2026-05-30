@@ -10,6 +10,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 
+/**
+ * Demonstrates Glue's {@link TransformationComponent} data component: the item
+ * carries a transform component (default applied in the constructor) and, on use,
+ * reads it, bumps the translation by +1 on Y, and writes it back.
+ */
 public class TestComponentItem extends Item {
 
     public TestComponentItem(Properties properties) {
