@@ -2,14 +2,9 @@
 
 Glue provides a custom block outline rendering system that replaces MC's default black wireframe.
 
-## Architecture
+## Registration
 
-- `GlueOutlineRenderer` — interface for custom outline renderers
-- `SimpleBlockOutlineRenderer` — default implementation that renders wireframe lines
-- `OutlineRendererRegistry` — registers renderers by name
-- `GlueBlock.getOutlineRenderer()` — blocks declare which renderer to use
-
-## Registering an Outline Renderer
+### Java
 
 ```java
 public static final OutlineRendererRegistry OUTLINES =
@@ -19,9 +14,25 @@ public static final GlueOutlineRenderer MY_OUTLINE =
         OUTLINES.register("custom", MyOutlineRenderer::new);
 ```
 
-## Implementing a Custom Renderer
+### Data-Driven (JSON)
 
-Extend `SimpleBlockOutlineRenderer` and override `renderShape`:
+Create `assets/<modid>/glue/outlines/<name>.json`:
+
+```json
+{
+    "type": "simple",
+    "red": 255,
+    "green": 0,
+    "blue": 0,
+    "alpha": 0.4
+}
+```
+
+Loaded into `GlueClientRegistries.OUTLINE_RENDERERS`. Hot-reloadable via F3+T.
+
+## Custom Renderer
+
+Extend `SimpleBlockOutlineRenderer`:
 
 ```java
 public class MyOutlineRenderer extends SimpleBlockOutlineRenderer {
@@ -29,7 +40,6 @@ public class MyOutlineRenderer extends SimpleBlockOutlineRenderer {
     @Override
     protected void renderShape(VoxelShape shape, PoseStack.Pose transform,
                                VertexConsumer consumer, Color color) {
-        // Render with a custom color
         super.renderShape(shape, transform, consumer, Color.RED);
     }
 }
@@ -37,35 +47,18 @@ public class MyOutlineRenderer extends SimpleBlockOutlineRenderer {
 
 ## Linking a Block to a Renderer
 
-Your block must implement `GlueBlock` and return the renderer's resource location:
+Your block must implement `GlueBlock`:
 
 ```java
 public class MyBlock extends BaseEntityBlock implements GlueBlock {
 
     @Override
     public ResourceLocation getOutlineRenderer() {
-        return MyMod.id("custom");  // Matches the name passed to register()
+        return MyMod.id("custom");
     }
-}
-```
-
-## GlueOutlineRenderer Interface
-
-```java
-public interface GlueOutlineRenderer {
-    void render(Minecraft client, Level world, VoxelShape shape,
-                PoseStack matrices, MultiBufferSource consumers,
-                BlockPos blockPos, Vec3 cameraPos);
-
-    void render(/* same */ Color color);
-
-    void renderCollisionBox(Minecraft client, Level world, VoxelShape shape,
-                            PoseStack matrices, MultiBufferSource consumers);
-
-    void renderCollisionBox(/* same */ Color color);
 }
 ```
 
 ## How It Works
 
-Glue's `DrawSelectionEvents.BLOCK` event intercepts MC's block selection rendering. When the player looks at a block that implements `GlueBlock`, the custom `GlueOutlineRenderer` is used instead of the default wireframe.
+Glue's `DrawSelectionEvents.BLOCK` event intercepts MC's block selection rendering. When the player looks at a block implementing `GlueBlock`, the custom `GlueOutlineRenderer` is used instead of the default wireframe.

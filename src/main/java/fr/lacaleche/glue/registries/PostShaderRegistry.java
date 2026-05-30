@@ -5,7 +5,6 @@ import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.LevelTargetBundle;
-import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
@@ -33,7 +32,7 @@ public class PostShaderRegistry extends GlueRegistry {
     public PostShaderHandle register(String name, Set<ResourceLocation> externalTargets) {
         ResourceLocation id = this.id(name);
         PostShaderHandle handle = new PostShaderHandle(id, externalTargets);
-        Registry.register(GlueClientRegistries.POST_CHAINS, id, handle);
+        GlueClientRegistries.POST_CHAINS.register(id, handle);
         this.handles.add(handle);
         return handle;
     }

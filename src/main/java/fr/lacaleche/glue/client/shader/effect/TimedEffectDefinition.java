@@ -53,7 +53,7 @@ public record TimedEffectDefinition(
      * @throws IllegalStateException if the referenced post chain is not registered
      */
     public TimedPostEffect bake() {
-        PostShaderHandle handle = GlueClientRegistries.POST_CHAINS.getValue(postChain);
+        PostShaderHandle handle = GlueClientRegistries.POST_CHAINS.get(postChain);
         if (handle == null) {
             throw new IllegalStateException(
                     "TimedEffectDefinition references unknown post chain: " + postChain);

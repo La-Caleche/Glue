@@ -7,7 +7,6 @@ import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,15 +28,16 @@ public class CoreShaderRegistry extends GlueRegistry {
         super(modId, idFunction);
     }
 
-
-    public RenderPipeline register(String name, RenderPipeline.Snippet snippet,
-                                   Consumer<RenderPipeline.Builder> customizer) {
-        return register(name, snippet, customizer, null);
+    /** Registers a raw {@link RenderPipeline} (not tracked in {@link GlueClientRegistries#PIPELINES}). */
+    public RenderPipeline registerRaw(String name, RenderPipeline.Snippet snippet,
+                                      Consumer<RenderPipeline.Builder> customizer) {
+        return registerRaw(name, snippet, customizer, null);
     }
 
-    public RenderPipeline register(String name, RenderPipeline.Snippet snippet,
-                                   Consumer<RenderPipeline.Builder> customizer,
-                                   @Nullable String irisProgram) {
+    /** Registers a raw {@link RenderPipeline} with an optional Iris program assignment. */
+    public RenderPipeline registerRaw(String name, RenderPipeline.Snippet snippet,
+                                      Consumer<RenderPipeline.Builder> customizer,
+                                      @Nullable String irisProgram) {
         RenderPipeline.Builder builder = RenderPipeline.builder(snippet);
         builder.withLocation(this.id("pipeline/" + name));
         customizer.accept(builder);
@@ -52,7 +52,8 @@ public class CoreShaderRegistry extends GlueRegistry {
         return pipeline;
     }
 
-    public RenderPipeline register(String name, Consumer<RenderPipeline.Builder> customizer) {
+    /** Registers a raw {@link RenderPipeline} without a snippet. */
+    public RenderPipeline registerRaw(String name, Consumer<RenderPipeline.Builder> customizer) {
         RenderPipeline.Builder builder = RenderPipeline.builder();
         builder.withLocation(this.id("pipeline/" + name));
         customizer.accept(builder);
@@ -62,16 +63,7 @@ public class CoreShaderRegistry extends GlueRegistry {
         return pipeline;
     }
 
-    /**
-     * Registers a {@link GluePipeline} backed by the fluent {@link GluePipeline.Builder}
-     * and inserts it into {@link GlueClientRegistries#PIPELINES} so it can be resolved
-     * by id from anywhere (other JSON files, data components, registry iteration, tags).
-     *
-     * <p>Use this overload when you want a wrapped pipeline ({@link GluePipeline#wrap()}
-     * for capture-blit) and id-based lookup. Use the raw
-     * {@link #register(String, Consumer) register} overloads when you only need a
-     * plain {@link RenderPipeline} (e.g. GUI shaders without compositing needs).</p>
-     */
+    /** Registers a {@link GluePipeline} tracked in {@link GlueClientRegistries#PIPELINES}. */
     public GluePipeline registerPipeline(String name,
                                          ResourceLocation vertexShader,
                                          ResourceLocation fragmentShader,
@@ -79,7 +71,7 @@ public class CoreShaderRegistry extends GlueRegistry {
         GluePipeline.Builder builder = GluePipeline.builder(this.id(name), vertexShader, fragmentShader);
         customizer.accept(builder);
         GluePipeline pipeline = builder.build();
-        return Registry.register(GlueClientRegistries.PIPELINES, this.id(name), pipeline);
+        return GlueClientRegistries.PIPELINES.register(this.id(name), pipeline);
     }
 
     public List<RenderPipeline> getPipelines() {

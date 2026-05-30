@@ -5,6 +5,10 @@ import fr.lacaleche.glue.registries.DataComponentTypesRegistry;
 import fr.lacaleche.glue.testmod.TestmodClient;
 import net.minecraft.core.component.DataComponentType;
 
+/**
+ * Demonstrates Glue's {@link DataComponentTypesRegistry}: registers a custom
+ * {@link TransformationComponent} data component with its codec and packet codec.
+ */
 public class TestDataComponents {
 
     public static final DataComponentTypesRegistry REGISTRY = new DataComponentTypesRegistry(TestmodClient.MOD_ID, TestmodClient::id);

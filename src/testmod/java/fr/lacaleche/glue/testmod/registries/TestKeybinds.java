@@ -6,6 +6,10 @@ import fr.lacaleche.glue.testmod.render.PostEffectDebugHud;
 import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
 
+/**
+ * Demonstrates Glue's {@link KeybindingsRegistry}: registers two keybinds
+ * (R = toggle raycast debug, F9 = toggle the post-effect debug HUD) with tick callbacks.
+ */
 public class TestKeybinds {
 
     public static final KeybindingsRegistry KEYBINDINGS = new KeybindingsRegistry(TestmodClient.MOD_ID, TestmodClient::id);

@@ -25,7 +25,7 @@ glue/
 │   │   ├── block/                       # GlueBlock interface
 │   │   ├── client/                      # Client-side systems
 │   │   │   ├── GlueClient.java          # Client entry point
-│   │   │   ├── shader/                  # GluePipeline, ShaderRenderer, PostShaderHandle, etc.
+│   │   │   ├── shader/                  # GluePipeline, ShadedBufferSource, PostShaderHandle, etc.
 │   │   │   ├── render/                  # Block outlines, BlockRenderer
 │   │   │   ├── transform/              # Transform stack + Flywheel stubs
 │   │   │   ├── debug/                   # FBO debug HUD

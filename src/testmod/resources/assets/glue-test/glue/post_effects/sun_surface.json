@@ -1,7 +1,0 @@
-{
-    "post_chain": "glue-test:sun_surface",
-    "ubo_name": "SunConfig",
-    "ubo_size": 4,
-    "duration": 200,
-    "curve": "reverse"
-}

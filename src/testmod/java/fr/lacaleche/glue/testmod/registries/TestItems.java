@@ -5,6 +5,10 @@ import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.items.TestComponentItem;
 import net.minecraft.world.item.Item;
 
+/**
+ * Demonstrates Glue's {@link ItemsRegistry}: block items for each demo block plus
+ * one standalone custom item ({@link TestComponentItem}).
+ */
 public class TestItems {
 
     public static final ItemsRegistry REGISTRY = new ItemsRegistry(TestmodClient.MOD_ID, TestmodClient::id);

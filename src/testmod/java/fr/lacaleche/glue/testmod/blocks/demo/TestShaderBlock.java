@@ -3,6 +3,7 @@ package fr.lacaleche.glue.testmod.blocks.demo;
 import com.mojang.serialization.MapCodec;
 import fr.lacaleche.glue.block.GlueBlock;
 import fr.lacaleche.glue.block.IHaveBigOutline;
+import fr.lacaleche.glue.client.shader.GluePipeline;
 import fr.lacaleche.glue.testmod.registries.TestBlockEntities;
 import fr.lacaleche.glue.testmod.render.TestShaderPipelines;
 import net.minecraft.core.BlockPos;
@@ -26,6 +27,11 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.stream.Stream;
 
+/**
+ * Demonstrates cycling a rendered item through every registered {@link GluePipeline}.
+ * Right-click cycles the shader (state persisted in {@link TestShaderBlockEntity});
+ * also implements {@link IHaveBigOutline} for an oversized selection outline.
+ */
 public class TestShaderBlock extends BaseEntityBlock implements GlueBlock, IHaveBigOutline {
 
     public static final MapCodec<TestShaderBlock> CODEC = simpleCodec(TestShaderBlock::new);

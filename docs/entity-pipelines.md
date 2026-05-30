@@ -1,29 +1,20 @@
 # Entity Shader Pipelines (GluePipeline)
 
-`GluePipeline` is a high-level API for applying custom shaders to block entity rendering. It creates a `RenderPipeline`, wraps it into a `ShadedBufferSource`, and handles Iris compatibility automatically.
+`GluePipeline` is a high-level API for applying custom shaders to entity/block/particle rendering. It creates a `RenderPipeline`, wraps it into a `ShadedBufferSource`, and handles Iris compatibility automatically.
 
-## Creating a Pipeline
+## Registration
 
-### Using Factory Methods
+### Java — Factory Methods
 
 ```java
 GluePipeline pipeline = GluePipeline.entity(
-        MyMod.id("my_shader"),                          // Pipeline name
-        MyMod.id("core/my_shader"),                     // Vertex shader
-        MyMod.id("core/my_shader")                      // Fragment shader
+        MyMod.id("my_shader"),
+        MyMod.id("core/my_shader"),
+        MyMod.id("core/my_shader")
 );
 ```
 
-This creates a pipeline with:
-- `NEW_ENTITY` vertex format (position, color, UV, overlay, light, normal)
-- `TRANSLUCENT` blend function
-- Iris program `ENTITIES_TRANSLUCENT`
-- Samplers: `Sampler0`, `Sampler1`, `Sampler2`
-- Alpha cutout at 0.1
-
-### Using the Builder (Full Control)
-
-For cases where the factory methods don't offer enough control, use the builder:
+### Java — Builder (full control)
 
 ```java
 GluePipeline pipeline = GluePipeline.builder(
@@ -41,11 +32,41 @@ GluePipeline pipeline = GluePipeline.builder(
     .build();
 ```
 
-Builder defaults match the `entity()` factory method. Call only the methods you need to override.
+### Java — via CoreShaderRegistry (tracked in registry)
+
+```java
+public static final GluePipeline MY_PIPELINE = CORE.registerPipeline("my_shader",
+        MyMod.id("core/entity"),
+        MyMod.id("core/my_effect"),
+        builder -> builder
+                .blend(BlendFunction.TRANSLUCENT)
+                .irisProgram("ENTITIES_TRANSLUCENT")
+);
+```
+
+This is stored in `GlueClientRegistries.PIPELINES` and can be looked up by ID.
+
+### Data-Driven (JSON)
+
+Create `assets/<modid>/glue/pipelines/<name>.json`:
+
+```json
+{
+    "vertex_shader": "mymod:core/entity",
+    "fragment_shader": "mymod:core/my_effect",
+    "blend": "translucent",
+    "alpha_cutout": 0.1,
+    "cull": false,
+    "iris_program": "ENTITIES_TRANSLUCENT",
+    "category": "entity"
+}
+```
+
+Hot-reloadable via F3+T. Stored in `GlueClientRegistries.PIPELINES`.
 
 ## Factory Methods
 
-| Method | Vertex Format | Default Iris Program | Blend |
+| Method | Vertex Format | Iris Program | Blend |
 |---|---|---|---|
 | `entity(loc, vert, frag)` | `NEW_ENTITY` | `ENTITIES_TRANSLUCENT` | Translucent |
 | `entity(loc, vert, frag, blend)` | `NEW_ENTITY` | `ENTITIES_TRANSLUCENT` | Custom |
@@ -61,9 +82,7 @@ Each pipeline has a `PipelineCategory` (`ENTITY`, `BLOCK`, or `PARTICLE`) that d
 - Which `RenderType` factory is used when calling `renderType(texture)`
 - Whether overlay state is included (entity only)
 
-When using `ShadedBufferSource`, the category is used automatically to create the correct `RenderType` for each draw call.
-
-## Using in a Block Entity Renderer
+## Usage in a Block Entity Renderer
 
 ```java
 public class MyBlockEntityRenderer implements BlockEntityRenderer<MyBlockEntity> {
@@ -84,8 +103,6 @@ public class MyBlockEntityRenderer implements BlockEntityRenderer<MyBlockEntity>
 
         ShadedBufferSource shadedSource = pipeline.wrap();
 
-        // Render items/models through the shaded source — textures are
-        // automatically routed through the custom shader pipeline
         itemRenderer.renderStatic(stack, ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
                 light, overlay, poseStack, shadedSource, entity.getLevel(), 0);
 
@@ -96,44 +113,30 @@ public class MyBlockEntityRenderer implements BlockEntityRenderer<MyBlockEntity>
 
 ## How It Works
 
-1. `pipeline.wrap()` creates a `ShadedBufferSource` that intercepts all `getBuffer()` calls
-2. For each `RenderType` submitted, the texture is extracted via mixin accessors
-3. A new `RenderType` is created using the pipeline's category (entity/block/particle) and the extracted texture
-4. When `endBatch()` is called:
-   - **Vanilla mode:** draws immediately
-   - **Iris mode:** renders into a private capture FBO with `ImmediateState.bypass = true`, then blits back to the main framebuffer after Iris compositing
-
-## Capture & Blit Pipeline (Iris)
-
-When Iris is active, the rendering flow is:
-
-```
-endBatch() → capture FBO → [Iris compositing happens] → postCompositeBlit() → main FBO
-```
-
-The `GlueDrawBufferFixMixin` redirects draw calls to the capture FBO during the bypass window. The `GluePostCompositeMixin` triggers the blit back to the main framebuffer after Iris compositing, preserving correct depth testing.
-
-## Shader Files
-
-Place shaders at:
-
-```
-assets/<modid>/shaders/core/<name>.vsh
-assets/<modid>/shaders/core/<name>.fsh
-```
-
-Entity shaders receive the standard MC uniforms (`ModelViewMat`, `ProjMat`, `FogStart`, `FogEnd`, `FogColor`, `Light0_Direction`, `Light1_Direction`) plus samplers `Sampler0` (texture), `Sampler1` (overlay), `Sampler2` (light map).
+1. `pipeline.wrap()` creates a `ShadedBufferSource` that intercepts `getBuffer()` calls
+2. For each `RenderType`, the texture is extracted and a new `RenderType` is created using the pipeline's shader
+3. On `endBatch()`:
+   - **Vanilla:** draws immediately
+   - **Iris:** renders into a capture FBO with `ImmediateState.bypass = true`, then blits back after Iris compositing
 
 ## RenderType Access
 
 ```java
-// Preferred: automatically dispatches based on pipeline category
-RenderType type = pipeline.renderType(textureLocation);
+RenderType type = pipeline.renderType(textureLocation);  // auto-dispatches by category
 
-// Direct access (for when you know the pipeline category):
+// Direct access:
 RenderType entityType   = pipeline.entityType(textureLocation);
 RenderType blockType    = pipeline.blockType(textureLocation);
 RenderType particleType = pipeline.particleType(textureLocation);
 ```
 
 Render types are cached per texture location.
+
+## Shader Files
+
+```
+assets/<modid>/shaders/core/<name>.vsh
+assets/<modid>/shaders/core/<name>.fsh
+```
+
+Entity shaders receive standard MC uniforms (`ModelViewMat`, `ProjMat`, `FogStart`, `FogEnd`, `FogColor`, `Light0_Direction`, `Light1_Direction`) plus samplers `Sampler0` (texture), `Sampler1` (overlay), `Sampler2` (light map).

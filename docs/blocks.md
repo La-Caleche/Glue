@@ -64,8 +64,10 @@ For blocks with VoxelShapes that extend beyond the standard 1×1×1 bounds, impl
 
 ## GlueVoxelShape
 
-Custom VoxelShape with rotation support:
+Wraps a `VoxelShape` so its coordinate edges collapse to a single cube range per axis,
+giving a clean single-box outline silhouette instead of one split along the source shape's
+internal subdivisions:
 
 ```java
-protected static final VoxelShape OUTLINE = new GlueVoxelShape(Block.box(3, 0, 3, 13, 16, 13), 45);
+protected static final VoxelShape OUTLINE = new GlueVoxelShape(Block.box(3, 0, 3, 13, 16, 13));
 ```

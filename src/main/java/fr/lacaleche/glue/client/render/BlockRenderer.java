@@ -6,7 +6,6 @@ import fr.lacaleche.glue.client.events.DebugEvents;
 import fr.lacaleche.glue.client.registries.GlueClientRegistries;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
-import fr.lacaleche.glue.client.render.outline.OutlineDefinitionLoader;
 import fr.lacaleche.glue.client.transform.GlueTransformStack;
 import fr.lacaleche.glue.math.Color;
 import net.minecraft.client.Minecraft;
@@ -50,15 +49,8 @@ public class BlockRenderer {
 
         final VoxelShape shape = blockstate.getShape(world, pos, CollisionContext.of(client.player));
 
-        // Prefer hot-reloadable loader, fall back to registry, then BASE_OUTLINE
-        GlueOutlineRenderer resolved = null;
-        OutlineDefinitionLoader outlineLoader = OutlineDefinitionLoader.getInstance();
-        if (outlineLoader != null) {
-            resolved = outlineLoader.get(glueBlock.getOutlineRenderer());
-        }
-        if (resolved == null) {
-            resolved = GlueClientRegistries.OUTLINE_RENDERERS.getValue(glueBlock.getOutlineRenderer());
-        }
+        // ReloadableRegistry handles both JSON and Java entries — single lookup
+        GlueOutlineRenderer resolved = GlueClientRegistries.OUTLINE_RENDERERS.get(glueBlock.getOutlineRenderer());
         final GlueOutlineRenderer renderer = resolved != null ? resolved : GlueOutlineRenderers.BASE_OUTLINE;
 
         DebugEvents.BLOCK_OUTLINE.invoker().onRenderBlockOutline(client, world, pos, blockstate, camera, hitResult,

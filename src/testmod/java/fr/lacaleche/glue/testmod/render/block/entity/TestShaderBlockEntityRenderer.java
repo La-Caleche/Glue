@@ -16,6 +16,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
+/**
+ * Demonstrates rendering an item through a {@link GluePipeline} via
+ * {@link ShadedBufferSource#wrap}, selecting the active pipeline from the block
+ * entity's cycling shader index.
+ */
 public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestShaderBlockEntity> {
 
     private static final ItemStack DISPLAY_ITEM = new ItemStack(Items.DIAMOND_SWORD);

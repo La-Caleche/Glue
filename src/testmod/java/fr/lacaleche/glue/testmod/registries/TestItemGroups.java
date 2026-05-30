@@ -7,6 +7,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 
+/**
+ * Demonstrates Glue's {@link ItemGroupsRegistry}: registers a creative tab
+ * containing all demo items.
+ */
 public class TestItemGroups {
 
     public static final ItemGroupsRegistry REGISTRY = new ItemGroupsRegistry(TestmodClient.MOD_ID, TestmodClient::id);

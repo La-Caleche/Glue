@@ -1,13 +1,16 @@
 package fr.lacaleche.glue.testmod.render;
 
+import fr.lacaleche.glue.client.registries.GlueClientRegistries;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.shader.TimedPostEffect;
+import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.*;
@@ -21,6 +24,10 @@ import java.util.*;
  *
  * <p>Hold <b>ALT</b> to ungrab the mouse and drag the panel. Releasing ALT
  * re-grabs the mouse. Player movement keys still work while ALT is held.</p>
+ *
+ * <p>Supports both Java-built effects (static {@link TimedPostEffect} fields)
+ * and data-driven effects (resolved from
+ * {@link GlueClientRegistries#TIMED_EFFECT_DEFINITIONS} at trigger time).</p>
  */
 @Environment(EnvType.CLIENT)
 public class PostEffectDebugHud {
@@ -53,16 +60,21 @@ public class PostEffectDebugHud {
      * Registers all known effects. Call once during mod init.
      */
     public void init() {
-        entries.add(new EffectEntry("Blur", EffectKind.TOGGLE, TestShaders.BLUR, null));
-        entries.add(new EffectEntry("Grayscale", EffectKind.TOGGLE, TestShaders.GRAYSCALE, null));
+        // Toggle effects (Java post chains)
+        entries.add(new EffectEntry("Blur", EffectKind.TOGGLE, TestShaders.BLUR, null, null));
+        entries.add(new EffectEntry("Grayscale", EffectKind.TOGGLE, TestShaders.GRAYSCALE, null, null));
 
-        entries.add(new EffectEntry("Departure Vortex", EffectKind.TIMED, null, TestPostShaderHandler.DEPARTURE));
-        entries.add(new EffectEntry("Arrival Shockwave", EffectKind.TIMED, null, TestPostShaderHandler.ARRIVAL));
-        entries.add(new EffectEntry("Denial Pulse", EffectKind.TIMED, null, TestPostShaderHandler.DENIAL));
-        entries.add(new EffectEntry("Sun Surface", EffectKind.TIMED, null, TestPostShaderHandler.SUN));
-        entries.add(new EffectEntry("Chromatic Aberration", EffectKind.TIMED, null, TestPostShaderHandler.CHROMATIC));
-        entries.add(new EffectEntry("Shattered Screen", EffectKind.TIMED, null, TestPostShaderHandler.SHATTERED));
-        entries.add(new EffectEntry("Impact Frame", EffectKind.TIMED, null, TestPostShaderHandler.IMPACT));
+        // Data-driven timed effect: JSON effect -> JSON post chain (glue/post_effects + glue/post_chains)
+        entries.add(new EffectEntry("Departure Vortex (JSON)", EffectKind.TIMED_REGISTRY, null, null, TestmodClient.id("departure_vortex")));
+        // Data-driven timed effect: JSON effect -> Java-registered post chain (end_locked_pulse)
+        entries.add(new EffectEntry("Denial Pulse (JSON)", EffectKind.TIMED_REGISTRY, null, null, TestmodClient.id("denial_pulse")));
+        // Java-registered definition resolved through the same registry path (not JSON)
+        entries.add(new EffectEntry("Chromatic (registry def)", EffectKind.TIMED_REGISTRY, null, null, TestmodClient.id("chromatic")));
+
+        // Java-only timed effects (custom lambdas, not expressible in JSON)
+        entries.add(new EffectEntry("Chromatic Aberration (Java)", EffectKind.TIMED, null, TestPostShaderHandler.CHROMATIC, null));
+        entries.add(new EffectEntry("Shattered Screen (Java)", EffectKind.TIMED, null, TestPostShaderHandler.SHATTERED, null));
+        entries.add(new EffectEntry("Impact Frame (Java)", EffectKind.TIMED, null, TestPostShaderHandler.IMPACT, null));
     }
 
     public void toggle() {
@@ -187,12 +199,29 @@ public class PostEffectDebugHud {
         switch (entry.kind) {
             case TOGGLE -> TestPostShaderHandler.INSTANCE.toggleByHandle(entry.handle);
             case TIMED -> { if (entry.timed != null) entry.timed.trigger(); }
+            case TIMED_REGISTRY -> triggerFromRegistry(entry);
         }
     }
 
+    /**
+     * Delegates to {@link TestPostShaderHandler}, which bakes the effect once,
+     * registers it with its renderer, and re-triggers the shared instance — so
+     * the effect actually ticks and renders, and re-triggering never leaks.
+     */
+    private void triggerFromRegistry(EffectEntry entry) {
+        if (entry.registryId == null) return;
+
+        // Don't restart while already playing.
+        if (TestPostShaderHandler.INSTANCE.isRegistryActive(entry.registryId)) return;
+
+        TestPostShaderHandler.INSTANCE.triggerFromRegistry(entry.registryId);
+    }
+
     private void stopEntry(EffectEntry entry) {
-        if (entry.kind == EffectKind.TIMED && entry.timed != null) {
-            entry.timed.stop();
+        switch (entry.kind) {
+            case TIMED -> { if (entry.timed != null) entry.timed.stop(); }
+            case TIMED_REGISTRY -> { if (entry.registryId != null) TestPostShaderHandler.INSTANCE.stopRegistry(entry.registryId); }
+            default -> {}
         }
     }
 
@@ -307,6 +336,7 @@ public class PostEffectDebugHud {
         return switch (entry.kind) {
             case TOGGLE -> TestPostShaderHandler.INSTANCE.isToggled(entry.handle) ? "ON" : "OFF";
             case TIMED -> (entry.timed != null && entry.timed.isActive()) ? "▶ PLAYING" : "READY";
+            case TIMED_REGISTRY -> TestPostShaderHandler.INSTANCE.isRegistryActive(entry.registryId) ? "▶ PLAYING" : "READY";
         };
     }
 
@@ -314,12 +344,14 @@ public class PostEffectDebugHud {
         return switch (entry.kind) {
             case TOGGLE -> TestPostShaderHandler.INSTANCE.isToggled(entry.handle) ? 0xFF55FF55 : 0xFF888888;
             case TIMED -> (entry.timed != null && entry.timed.isActive()) ? 0xFFFFAA00 : 0xFF55FF55;
+            case TIMED_REGISTRY -> TestPostShaderHandler.INSTANCE.isRegistryActive(entry.registryId) ? 0xFFFFAA00 : 0xFF55FF55;
         };
     }
 
-    private enum EffectKind { TOGGLE, TIMED }
+    private enum EffectKind { TOGGLE, TIMED, TIMED_REGISTRY }
 
     private record EffectEntry(String name, EffectKind kind,
-                               PostShaderHandle handle, TimedPostEffect timed) {
+                               PostShaderHandle handle, TimedPostEffect timed,
+                               ResourceLocation registryId) {
     }
 }

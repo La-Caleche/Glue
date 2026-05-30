@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.testmod.render;
 
+import fr.lacaleche.glue.client.registries.GlueClientRegistries;
 import fr.lacaleche.glue.client.shader.GluePipeline;
-import fr.lacaleche.glue.client.shader.pipeline.PipelineDefinitionLoader;
 import fr.lacaleche.glue.testmod.TestmodClient;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -14,42 +14,24 @@ import java.util.Map;
 /**
  * Cyclable shader pipeline registry for the Shader Test Block.
  *
- * <p>{@code hologram} is registered in Java to prove the builder path.
- * All other pipelines are discovered automatically from the
- * {@link PipelineDefinitionLoader} by filtering on the {@code glue-test}
- * namespace — no hardcoded ids needed.</p>
+ * <p>Discovers all pipelines from the unified {@link GlueClientRegistries#PIPELINES}
+ * registry — both Java-registered ({@code TestShaders.HOLOGRAM}) and
+ * JSON-loaded ({@code glue/pipelines/*.json}) appear automatically.</p>
  */
 @Environment(EnvType.CLIENT)
 public final class TestShaderPipelines {
 
-    /** The single Java-built pipeline, excluded from data-driven discovery. */
-    private static final ResourceLocation HOLOGRAM_ID = TestmodClient.id("hologram");
-    private static GluePipeline hologramPipeline;
-
     private TestShaderPipelines() {
     }
 
-    /** Eagerly builds the Java-only pipeline. Call once during mod init. */
-    public static void init() {
-        hologramPipeline = GluePipeline.entity(
-                HOLOGRAM_ID,
-                TestmodClient.id("core/entity"),
-                TestmodClient.id("core/hologram")
-        );
-    }
-
-    /** Snapshot of all currently available pipelines (Java + discovered JSON). */
+    /** Snapshot of all currently available pipelines (Java + JSON) for this mod. */
     private static List<Entry> resolve() {
         List<Entry> entries = new ArrayList<>();
-        entries.add(new Entry("hologram (Java)", hologramPipeline));
 
-        PipelineDefinitionLoader loader = PipelineDefinitionLoader.getInstance();
-        if (loader != null) {
-            for (Map.Entry<ResourceLocation, GluePipeline> e : loader.getAll().entrySet()) {
-                ResourceLocation id = e.getKey();
-                if (TestmodClient.MOD_ID.equals(id.getNamespace()) && !id.equals(HOLOGRAM_ID)) {
-                    entries.add(new Entry(id.getPath() + " (JSON)", e.getValue()));
-                }
+        for (Map.Entry<ResourceLocation, GluePipeline> e : GlueClientRegistries.PIPELINES.getAll().entrySet()) {
+            ResourceLocation id = e.getKey();
+            if (TestmodClient.MOD_ID.equals(id.getNamespace())) {
+                entries.add(new Entry(id.getPath(), e.getValue()));
             }
         }
         return entries;
