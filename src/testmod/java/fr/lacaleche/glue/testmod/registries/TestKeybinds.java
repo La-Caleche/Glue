@@ -2,6 +2,7 @@ package fr.lacaleche.glue.testmod.registries;
 
 import fr.lacaleche.glue.registries.KeybindingsRegistry;
 import fr.lacaleche.glue.testmod.TestmodClient;
+import fr.lacaleche.glue.testmod.file.FileDialogTestScreen;
 import fr.lacaleche.glue.testmod.render.PostEffectDebugHud;
 import fr.lacaleche.glue.testmod.scene.BlockSceneTestScreen;
 import fr.lacaleche.glue.testmod.scene.FpsViewportTestScreen;
@@ -12,7 +13,8 @@ import org.lwjgl.glfw.GLFW;
 /**
  * Demonstrates Glue's {@link KeybindingsRegistry}: registers keybinds
  * (R = toggle raycast debug, F9 = toggle the post-effect debug HUD,
- * F6 = FPS scene, F7 = block scene test, F8 = gizmo test) with tick callbacks.
+ * F6 = FPS scene, F7 = block scene test, F8 = gizmo test,
+ * F10 = file dialog test) with tick callbacks.
  */
 public class TestKeybinds {
 
@@ -42,6 +44,11 @@ public class TestKeybinds {
             "open_gizmo_test",
             "key.categories.glue_test", GLFW.GLFW_KEY_F8,
             client -> client.setScreen(new GizmoTestScreen()));
+
+    public static final KeyMapping OPEN_FILE_DIALOG_TEST = KEYBINDINGS.register(
+            "open_file_dialog_test",
+            "key.categories.glue_test", GLFW.GLFW_KEY_F10,
+            client -> client.setScreen(new FileDialogTestScreen()));
 
     public static void registerKeybinds() {
     }

@@ -32,6 +32,13 @@ dependencies {
 
     compileOnly(libs.iris)
 
+    // LWJGL Native File Dialog - for OS file open/save dialogs
+    implementation("org.lwjgl:lwjgl-nfd:3.3.3")
+    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-windows")
+    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-linux")
+    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-macos")
+    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-macos-arm64")
+
     "testmodImplementation"(sourceSets.main.get().output)
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")

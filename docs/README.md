@@ -19,4 +19,5 @@
 13. [FBO Debug HUD](debug-hud.md)
 14. [3D Scene Viewport](scene-viewport.md)
 15. [Utilities](utilities.md)
-16. [Mod Compatibility (Reflection)](mod-compat.md)
+16. [File Dialogs](file-dialogs.md)
+17. [Mod Compatibility (Reflection)](mod-compat.md)
