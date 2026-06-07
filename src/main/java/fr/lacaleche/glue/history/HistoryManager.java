@@ -1,55 +1,82 @@
 package fr.lacaleche.glue.history;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
+/**
+ * Linear undo/redo stack.
+ * When a new command is pushed after an undo, the redo future is discarded.
+ */
 public class HistoryManager {
-    private final Deque<Command> undoStack = new ArrayDeque<>();
-    private final Deque<Command> redoStack = new ArrayDeque<>();
-    private static final int MAX_HISTORY = 50;
 
-    private Runnable onChange;
+    private static final int DEFAULT_MAX_HISTORY = 128;
 
-    public void setOnChange(Runnable onChange) {
-        this.onChange = onChange;
+    private final int maxHistory;
+    private final List<Command> commands = new ArrayList<>();
+    /**
+     * Points to the next slot — commands[0..cursor-1] are undoable.
+     */
+    private int cursor = 0;
+
+    public HistoryManager() {
+        this(DEFAULT_MAX_HISTORY);
     }
 
-    public void push(Command command) {
-        undoStack.push(command);
-        redoStack.clear();
-        if (undoStack.size() > MAX_HISTORY) {
-            undoStack.removeLast();
+    public HistoryManager(int maxHistory) {
+        this.maxHistory = maxHistory;
+    }
+
+    /**
+     * Executes the command, then pushes it onto the stack.
+     * Any redo future beyond the cursor is discarded.
+     */
+    public void execute(Command command) {
+        command.execute();
+
+        while (commands.size() > cursor) {
+            commands.removeLast();
         }
-        notifyChange();
-    }
 
-    public void undo() {
-        if (!undoStack.isEmpty()) {
-            Command command = undoStack.pop();
-            command.undo();
-            redoStack.push(command);
-            notifyChange();
-        }
-    }
+        commands.add(command);
+        cursor++;
 
-    public void redo() {
-        if (!redoStack.isEmpty()) {
-            Command command = redoStack.pop();
-            command.redo();
-            undoStack.push(command);
-            notifyChange();
+        if (commands.size() > maxHistory) {
+            commands.removeFirst();
+            cursor--;
         }
     }
 
     public boolean canUndo() {
-        return !undoStack.isEmpty();
+        return cursor > 0;
     }
 
     public boolean canRedo() {
-        return !redoStack.isEmpty();
+        return cursor < commands.size();
     }
 
-    private void notifyChange() {
-        if (onChange != null) onChange.run();
+    public void undo() {
+        if (!canUndo()) return;
+        cursor--;
+        commands.get(cursor).undo();
+    }
+
+    public void redo() {
+        if (!canRedo()) return;
+        commands.get(cursor).execute();
+        cursor++;
+    }
+
+    public int getCursor() {
+        return cursor;
+    }
+
+    public List<Command> getCommands() {
+        return Collections.unmodifiableList(commands);
+    }
+
+    public void clear() {
+        commands.clear();
+        cursor = 0;
     }
 }

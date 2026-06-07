@@ -70,7 +70,7 @@ public class SceneTestController extends Abstract3DController {
             TransformationComponent finalTransform = blockTransforms.getOrDefault(selectedBlockPos, null);
             if (finalTransform != null && !initialDragTransform.equals(finalTransform)) {
                 historyManager
-                        .push(new UpdateItemCommand(this, selectedBlockPos, initialDragTransform, finalTransform));
+                        .execute(new UpdateItemCommand(this, selectedBlockPos, initialDragTransform, finalTransform));
             }
         }
         initialDragTransform = null;

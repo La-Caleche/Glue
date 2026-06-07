@@ -19,13 +19,18 @@ public class UpdateItemCommand implements Command {
     }
 
     @Override
-    public void undo() {
-        applyProperties(oldTransform);
+    public String getLabel() {
+        return "Transform " + blockPos.toShortString();
     }
 
     @Override
-    public void redo() {
+    public void execute() {
         applyProperties(newTransform);
+    }
+
+    @Override
+    public void undo() {
+        applyProperties(oldTransform);
     }
 
     private void applyProperties(TransformationComponent transform) {
