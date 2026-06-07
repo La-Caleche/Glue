@@ -17,5 +17,6 @@
 11. [Iris / Oculus Compatibility](iris-compat.md)
 12. [Events](events.md)
 13. [FBO Debug HUD](debug-hud.md)
-14. [Utilities](utilities.md)
-15. [Mod Compatibility (Reflection)](mod-compat.md)
+14. [3D Scene Viewport](scene-viewport.md)
+15. [Utilities](utilities.md)
+16. [Mod Compatibility (Reflection)](mod-compat.md)

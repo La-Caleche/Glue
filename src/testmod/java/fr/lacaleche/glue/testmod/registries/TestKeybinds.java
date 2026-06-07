@@ -3,12 +3,16 @@ package fr.lacaleche.glue.testmod.registries;
 import fr.lacaleche.glue.registries.KeybindingsRegistry;
 import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.render.PostEffectDebugHud;
+import fr.lacaleche.glue.testmod.scene.BlockSceneTestScreen;
+import fr.lacaleche.glue.testmod.scene.FpsViewportTestScreen;
+import fr.lacaleche.glue.testmod.scene.GizmoTestScreen;
 import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Demonstrates Glue's {@link KeybindingsRegistry}: registers two keybinds
- * (R = toggle raycast debug, F9 = toggle the post-effect debug HUD) with tick callbacks.
+ * Demonstrates Glue's {@link KeybindingsRegistry}: registers keybinds
+ * (R = toggle raycast debug, F9 = toggle the post-effect debug HUD,
+ * F6 = FPS scene, F7 = block scene test, F8 = gizmo test) with tick callbacks.
  */
 public class TestKeybinds {
 
@@ -24,6 +28,22 @@ public class TestKeybinds {
             "key.categories.glue_test", GLFW.GLFW_KEY_F9,
             client -> PostEffectDebugHud.INSTANCE.toggle());
 
+    public static final KeyMapping OPEN_FPS_SCENE = KEYBINDINGS.register(
+            "open_fps_scene",
+            "key.categories.glue_test", GLFW.GLFW_KEY_F6,
+            client -> client.setScreen(new FpsViewportTestScreen()));
+
+    public static final KeyMapping OPEN_BLOCK_SCENE = KEYBINDINGS.register(
+            "open_block_scene",
+            "key.categories.glue_test", GLFW.GLFW_KEY_F7,
+            client -> client.setScreen(new BlockSceneTestScreen()));
+
+    public static final KeyMapping OPEN_GIZMO_TEST = KEYBINDINGS.register(
+            "open_gizmo_test",
+            "key.categories.glue_test", GLFW.GLFW_KEY_F8,
+            client -> client.setScreen(new GizmoTestScreen()));
+
     public static void registerKeybinds() {
     }
 }
+
