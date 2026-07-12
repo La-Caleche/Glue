@@ -8,6 +8,7 @@ import fr.lacaleche.glue.client.events.ParticleManagerEvents;
 import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.BlockRenderer;
+import fr.lacaleche.glue.client.render.light.LightRenderer;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.client.shader.internal.DeferredDrawQueue;
@@ -50,7 +51,14 @@ public class GlueClient implements ClientModInitializer {
         WorldRenderEvents.START.register(ctx -> RenderCompat.resetFrameCache());
         RaycastUtils.register();
 
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ShaderContext.get().cleanup());
+        // Deferred colored-light subsystem. Registered after RaycastUtils so the
+        // frame matrix cache is live when the POST_WORLD_RENDER pass reads it.
+        LightRenderer.init();
+
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            ShaderContext.get().cleanup();
+            LightRenderer.cleanup();
+        });
 
         // Clear post-shader handle warnings on resource reload so missing chains are
         // re-reported if the resource pack changes.

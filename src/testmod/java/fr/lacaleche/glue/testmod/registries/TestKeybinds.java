@@ -1,8 +1,10 @@
 package fr.lacaleche.glue.testmod.registries;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import fr.lacaleche.glue.registries.KeybindingsRegistry;
 import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.file.FileDialogTestScreen;
+import fr.lacaleche.glue.testmod.render.LightDebugHud;
 import fr.lacaleche.glue.testmod.render.PostEffectDebugHud;
 import fr.lacaleche.glue.testmod.scene.BlockSceneTestScreen;
 import fr.lacaleche.glue.testmod.scene.FpsViewportTestScreen;
@@ -49,6 +51,17 @@ public class TestKeybinds {
             "open_file_dialog_test",
             "key.categories.glue_test", GLFW.GLFW_KEY_F10,
             client -> client.setScreen(new FileDialogTestScreen()));
+
+    public static final KeyMapping TOGGLE_LIGHTS = KEYBINDINGS.register(
+            "toggle_lights",
+            "key.categories.glue_test", GLFW.GLFW_MOUSE_BUTTON_5,
+            InputConstants.Type.MOUSE,
+            client -> TestLighting.toggle());
+
+    public static final KeyMapping TOGGLE_LIGHT_HUD = KEYBINDINGS.register(
+            "toggle_light_hud",
+            "key.categories.glue_test", GLFW.GLFW_KEY_F12,
+            client -> LightDebugHud.INSTANCE.toggle());
 
     public static void registerKeybinds() {
     }

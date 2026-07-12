@@ -36,6 +36,25 @@ public final class RaycastUtils {
     @Nullable
     private static Camera lastCamera;
 
+    /**
+     * The projection matrix used to render the last world frame.
+     *
+     * @return a fresh copy of the cached projection matrix (identity if no frame has rendered yet).
+     */
+    public static Matrix4f getLastProjectionMatrix() {
+        return new Matrix4f(lastProjectionMatrix);
+    }
+
+    /**
+     * The camera (position + rotation) used to render the last world frame.
+     *
+     * @return the cached camera, or {@code null} if no frame has been rendered yet.
+     */
+    @Nullable
+    public static Camera getLastCamera() {
+        return lastCamera;
+    }
+
     public static HitResult raycastViewport(float x, float y, float distance, Predicate<Entity> predicate,
                                             boolean includeFluids) {
         Window window = Minecraft.getInstance().getWindow();

@@ -5,6 +5,8 @@ import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
 import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.testmod.registries.*;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
+import fr.lacaleche.glue.testmod.render.LightDebugHud;
+import fr.lacaleche.glue.testmod.render.LightShapePreviewRenderer;
 import fr.lacaleche.glue.testmod.render.PostEffectDebugHud;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import net.fabricmc.api.ClientModInitializer;
@@ -58,6 +60,8 @@ public class TestmodClient implements ClientModInitializer {
         TestShaders.registerShaders();
         TestPostShaderHandler.INSTANCE.register();
 
+        TestLighting.register();
+
         PostEffectDebugHud.INSTANCE.init();
 
         // Post-effect debug HUD lifecycle
@@ -68,6 +72,17 @@ public class TestmodClient implements ClientModInitializer {
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             PostEffectDebugHud.INSTANCE.tick();
+        });
+
+        // Light debug HUD (F12): panel + in-world shape preview
+        DebugManager.getInstance().register(new LightShapePreviewRenderer());
+        RenderEvents.RENDER_HUD.register(guiGraphics -> {
+            if (LightDebugHud.INSTANCE.isActive()) {
+                LightDebugHud.INSTANCE.render(guiGraphics);
+            }
+        });
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            LightDebugHud.INSTANCE.tick();
         });
 
         AdditiveSpriteRenderer.init();

@@ -21,7 +21,7 @@ public record SavedGlState(
         boolean scissor,
         int activeTexture,
         int[] viewport,
-        int tex0, int tex1, int tex2
+        int tex0, int tex1, int tex2, int tex3, int tex4, int tex5, int tex6
 ) {
     public static SavedGlState save() {
         int[] vp = new int[4];
@@ -34,6 +34,14 @@ public record SavedGlState(
         int tex1 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         GL13.glActiveTexture(GL13.GL_TEXTURE2);
         int tex2 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL13.glActiveTexture(GL13.GL_TEXTURE3);
+        int tex3 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL13.glActiveTexture(GL13.GL_TEXTURE4);
+        int tex4 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL13.glActiveTexture(GL13.GL_TEXTURE5);
+        int tex5 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL13.glActiveTexture(GL13.GL_TEXTURE6);
+        int tex6 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         GL13.glActiveTexture(activeTexture);
 
         return new SavedGlState(
@@ -53,7 +61,7 @@ public record SavedGlState(
                 GL11.glIsEnabled(GL11.GL_SCISSOR_TEST),
                 activeTexture,
                 vp,
-                tex0, tex1, tex2
+                tex0, tex1, tex2, tex3, tex4, tex5, tex6
         );
     }
 
@@ -66,9 +74,13 @@ public record SavedGlState(
         else GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDepthFunc(depthFunc);
         GL11.glDepthMask(depthWrite);
+        // Restore the blend function unconditionally, even when blending is off.
+        // GlStateManager._blendFuncSeparate is cached: if we leave GL_ONE/GL_ONE
+        // behind, its cache still reads SRC_ALPHA/ONE_MINUS_SRC_ALPHA and the next
+        // call to set that is a no-op, so the following draw blends additively.
+        GL14.glBlendFuncSeparate(blendSrcRgb, blendDstRgb, blendSrcAlpha, blendDstAlpha);
         if (blend) {
             GL11.glEnable(GL11.GL_BLEND);
-            GL14.glBlendFuncSeparate(blendSrcRgb, blendDstRgb, blendSrcAlpha, blendDstAlpha);
         } else {
             GL11.glDisable(GL11.GL_BLEND);
         }
@@ -83,6 +95,14 @@ public record SavedGlState(
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex1);
         GL13.glActiveTexture(GL13.GL_TEXTURE2);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex2);
+        GL13.glActiveTexture(GL13.GL_TEXTURE3);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex3);
+        GL13.glActiveTexture(GL13.GL_TEXTURE4);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex4);
+        GL13.glActiveTexture(GL13.GL_TEXTURE5);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex5);
+        GL13.glActiveTexture(GL13.GL_TEXTURE6);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex6);
 
         GL13.glActiveTexture(activeTexture);
         GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);

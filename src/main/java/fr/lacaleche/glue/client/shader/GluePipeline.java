@@ -2,6 +2,7 @@ package fr.lacaleche.glue.client.shader;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import fr.lacaleche.glue.compat.RenderCompat;
@@ -237,12 +238,28 @@ public class GluePipeline {
      */
     public RenderType renderType(ResourceLocation texture, String stateKey,
                                  Function<ResourceLocation, RenderType.CompositeState> stateFactory) {
-        String cacheKey = "custom#" + stateKey + "#" + texture;
+        return renderType(texture, stateKey, true, stateFactory);
+    }
+
+    /**
+     * Variant of {@link #renderType(ResourceLocation, String, Function)} with control over
+     * quad sorting.
+     *
+     * <p>{@code sortOnUpload} makes {@code BufferSource.endBatch} re-sort every quad
+     * back-to-front from the projection origin. That is what translucency wants on the
+     * camera path, but it silently OVERRIDES any submission order the caller arranged.
+     * Pass {@code false} when the pass depends on its own draw order &mdash; e.g. the
+     * shadow tint bake, which draws panes front-to-back from the light so the depth test
+     * keeps only the nearest one per texel.</p>
+     */
+    public RenderType renderType(ResourceLocation texture, String stateKey, boolean sortOnUpload,
+                                 Function<ResourceLocation, RenderType.CompositeState> stateFactory) {
+        String cacheKey = "custom#" + stateKey + "#" + sortOnUpload + "#" + texture;
         return renderTypeCache.computeIfAbsent(cacheKey, k ->
                 RenderType.create(
                         "glue_" + name + "_" + stateKey,
                         GlueConstants.DEFAULT_BUFFER_SIZE,
-                        false, true, pipeline,
+                        false, sortOnUpload, pipeline,
                         stateFactory.apply(texture)));
     }
 
@@ -330,6 +347,9 @@ public class GluePipeline {
         private boolean alphaCutoutEnabled = true;
         private float alphaCutout = 0.1f;
         private boolean cull = false;
+        private boolean colorWrite = true;
+        private boolean depthWrite = true;
+        private @Nullable DepthTestFunction depthTest = null;
         private String irisProgram = "ENTITIES_TRANSLUCENT";
         private PipelineCategory category = PipelineCategory.ENTITY;
         private List<String> samplers = new ArrayList<>(List.of("Sampler0", "Sampler1", "Sampler2"));
@@ -363,6 +383,32 @@ public class GluePipeline {
 
         public Builder cull(boolean cull) {
             this.cull = cull;
+            return this;
+        }
+
+        /**
+         * Whether fragments write colour. Set {@code false} for a depth-only pass
+         * (shadow maps, depth pre-passes).
+         */
+        public Builder colorWrite(boolean colorWrite) {
+            this.colorWrite = colorWrite;
+            return this;
+        }
+
+        /**
+         * Whether fragments write depth. Set {@code false} to draw against an existing
+         * depth buffer without occluding anything behind you.
+         */
+        public Builder depthWrite(boolean depthWrite) {
+            this.depthWrite = depthWrite;
+            return this;
+        }
+
+        /**
+         * Depth comparison function. Left at the pipeline default ({@code LEQUAL}) unless set.
+         */
+        public Builder depthTest(DepthTestFunction depthTest) {
+            this.depthTest = depthTest;
             return this;
         }
 
@@ -416,7 +462,13 @@ public class GluePipeline {
                     .withVertexShader(vertShader)
                     .withFragmentShader(fragShader)
                     .withCull(cull)
+                    .withColorWrite(colorWrite)
+                    .withDepthWrite(depthWrite)
                     .withVertexFormat(vertexFormat, vertexMode);
+
+            if (depthTest != null) {
+                pb.withDepthTestFunction(depthTest);
+            }
 
             if (alphaCutoutEnabled) {
                 pb.withShaderDefine("ALPHA_CUTOUT", alphaCutout);

@@ -13,6 +13,7 @@ import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.ARGB;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
 
 public abstract class AbstractSceneRenderer {
 
@@ -66,6 +67,11 @@ public abstract class AbstractSceneRenderer {
                 Std140Builder.intoBuffer(view.data()).putMat4f(projection);
             }
 
+            // The viewport is not part of RenderSystem's backup/restore, and this
+            // renderer can run mid-frame (light shadow maps), so snapshot it here.
+            int[] prevViewport = new int[4];
+            GL11.glGetIntegerv(GL11.GL_VIEWPORT, prevViewport);
+
             RenderSystem.backupProjectionMatrix();
             PoseStack matrices = buildModelViewMatrix(buildViewMatrix(), getScale());
             RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
@@ -88,6 +94,7 @@ public abstract class AbstractSceneRenderer {
                 RenderSystem.outputDepthTextureOverride = null;
                 RenderSystem.getModelViewStack().popMatrix();
                 RenderSystem.restoreProjectionMatrix();
+                GlStateManager._viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
             }
 
             return FramebufferHelper.getColorTextureId(framebuffer);

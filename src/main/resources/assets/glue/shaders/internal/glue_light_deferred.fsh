@@ -1,0 +1,458 @@
+#version 150
+
+// Deferred light accumulation pass. Runs once per light, additively blended into
+// an HDR lighting buffer. Normals are reconstructed from the scene depth buffer
+// (the vanilla path has no normal G-buffer).
+
+uniform sampler2D SceneDepth;   // unit 0: main render target depth
+uniform sampler2D Gobo;         // unit 1: projected mask (GOBO only)
+uniform sampler2D ShadowMap;    // unit 2: light-POV depth, OPAQUE casters only
+uniform sampler2D ShadowTint;   // unit 3: light-POV transmittance (glass colour)
+uniform int HasShadowTint;      // 1 if the transmittance + tint depth maps are bound
+uniform sampler2D TintDepth;    // unit 6: light-POV depth, opaque PLUS translucent
+uniform sampler2D GlassAlbedo;  // unit 4: camera-POV nearest-pane albedo (glass G-buffer)
+uniform sampler2D GlassDepth;   // unit 5: camera-POV glass depth (glass G-buffer)
+uniform int HasGlassG;          // 1 if the glass G-buffer is bound
+
+uniform mat4 InvViewProj;       // clip -> camera-relative world position
+uniform mat4 ViewProj;          // camera-relative world -> clip (screen-space shadows)
+uniform mat4 LightMatrix;       // world -> gobo clip (GOBO only)
+uniform mat4 LightViewProj;     // camera-relative world -> shadow-map clip
+uniform vec2 TexelSize;         // 1/width, 1/height
+
+uniform float ShadowTexel;      // 1/shadowMapSize
+uniform float ShadowNear;       // shadow frustum near plane
+uniform float ShadowFar;        // shadow frustum far plane
+uniform float ShadowFocalY;     // lightProj[1][1] -- converts world size <-> NDC size
+uniform float LightSize;        // emitter radius, blocks. Drives penumbra width.
+uniform int HasShadowMap;       // 1 if a real shadow map is bound
+uniform int ShadowFace;         // cube face 0..5 for a point light, -1 for a spot
+
+uniform vec3 LightPos;          // camera-relative
+uniform vec3 LightColor;        // linear RGB, already scaled by intensity
+uniform float Range;            // max reach, blocks
+uniform int LightType;          // 0 = POINT, 1 = SPOT, 2 = GOBO
+uniform vec3 SpotDir;           // normalized world direction (SPOT/GOBO)
+uniform float CosInner;         // cos(inner half-angle)
+uniform float CosOuter;         // cos(outer half-angle)
+uniform int HasGobo;            // 1 if a gobo texture is bound
+
+const int BLOCKER_TAPS = 8;
+const int PCF_TAPS = 12;
+
+// Coloured-shadow diffusion (a mini-PCSS over the with-translucents depth map).
+const int TINT_SEARCH_TAPS = 6;
+const int TINT_TAPS = 8;
+// Sideways spread, in blocks per block travelled past the glass. Light scattering
+// through a pane keeps diffusing after it exits, so the coloured pool's edge softens
+// with distance behind the pane instead of staying a hard projected silhouette.
+const float GLASS_DIFFUSION = 0.25;
+
+// Backlit glass glows with what it transmits rather than going black because its front
+// face happens to point away from the light. 1.0 = as bright as a facing surface.
+const float GLASS_TRANSMISSION = 0.8;
+
+// Same opacity boost the shadow bake applies (glue_shadow_tint.fsh): vanilla stained
+// glass is ~50% opaque, which tints far too weakly to read as coloured light. The glow
+// and the projected pool must use the same value or the pane visibly disagrees with
+// the light it casts.
+const float TINT_STRENGTH = 1.4;
+
+in vec2 texCoord;
+out vec4 fragColor;
+
+vec3 reconstruct(vec2 uv, float depth) {
+    vec4 clip = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec4 worldH = InvViewProj * clip;
+    return worldH.xyz / worldH.w;
+}
+
+// Golden-angle spiral: even areal coverage from few taps, which is what lets 18
+// samples look smooth where a 3x3 box grid looks like a 3x3 box grid.
+vec2 vogel(int i, int n, float phi) {
+    float r = sqrt((float(i) + 0.5) / float(n));
+    float theta = float(i) * 2.39996323 + phi;
+    return vec2(cos(theta), sin(theta)) * r;
+}
+
+// Per-pixel rotation of the sample disk. Interleaved gradient noise, not a white-noise
+// hash: it decorrelates neighbouring pixels just as well but its error is low-frequency,
+// so a soft shadow edge comes out grainy rather than salt-and-pepper. Spatial only -- a
+// frame-varying phase would shimmer, and there is no temporal filter here to resolve it.
+float rotationPhi() {
+    float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    return 6.2831853 * ign;
+}
+
+float linearizeShadow(float d) {
+    float z = d * 2.0 - 1.0;
+    return (2.0 * ShadowNear * ShadowFar)
+         / (ShadowFar + ShadowNear - z * (ShadowFar - ShadowNear));
+}
+
+// Which cube face a direction from the light falls on. The six faces are rendered
+// with 90-degree frusta, so "dominant axis" and "inside that face's frustum" are the
+// same test -- the faces tile the sphere with no gap and no double-counting.
+int cubeFace(vec3 d) {
+    vec3 a = abs(d);
+    if (a.x >= a.y && a.x >= a.z) return d.x > 0.0 ? 0 : 1;
+    if (a.y >= a.z)               return d.y > 0.0 ? 2 : 3;
+    return d.z > 0.0 ? 4 : 5;
+}
+
+// Normal-offset bias: nudge the receiver off its surface, toward the light, BEFORE
+// projecting. Removes acne without the peter-panning a pure depth bias causes (the
+// shadow stays anchored to the caster's base). Takes and returns LIGHT-relative
+// space -- the map is baked light-relative so it survives camera movement and can
+// be cached. The caller must use the biased position for BOTH cube-face selection
+// and sampling: pick the face from the unbiased point and the bias can nudge it out
+// of that face's frustum, which shows up as bright lines along the face seams.
+vec3 shadowBiasedPos(vec3 P, vec3 N, vec3 L, float distToLight, float ndotl) {
+    float shadowRes = 1.0 / max(ShadowTexel, 1e-6);
+    // World-space WIDTH of one shadow texel at this distance. Deriving the bias from it
+    // means it holds at any shadow-map resolution.
+    float texelWorld = distToLight / max(ShadowFocalY, 1e-4) * (2.0 / shadowRes);
+
+    // ...but width is not what causes acne: the DEPTH a texel spans across the surface
+    // grows as 1/cos(incidence). On a floor lit at a grazing angle -- exactly what an
+    // eye-height point light does to the ground a few blocks away -- one texel covers a
+    // huge depth range, and a bias sized for the width lets the floor shadow itself in
+    // long streaks. Scale the offset with the slope.
+    float slope = clamp(1.0 / max(ndotl, 0.1), 1.0, 8.0);
+    return (P - LightPos) + (N + L) * max(0.02, 1.5 * texelWorld * slope);
+}
+
+// One PCF tap, compared THEN bilinearly blended.
+//
+// The obvious way round -- point-sample the depth, compare once -- makes every tap a
+// hard yes/no, so a partially-shadowed pixel gets a coin flip and the result is
+// salt-and-pepper. Comparing the four texels around the tap and interpolating the four
+// binary answers gives a smooth partial occlusion per tap, which is worth roughly 4x the
+// taps for a quarter of the noise. (Hardware does this for free via sampler2DShadow, but
+// the blocker search below needs the raw depth from the same texture.)
+float shadowTap(vec2 uv, float cmp) {
+    float res = 1.0 / max(ShadowTexel, 1e-6);
+    vec2 t = uv * res - 0.5;
+    vec2 f = fract(t);
+    vec2 base = (floor(t) + 0.5) * ShadowTexel;
+
+    float s00 = step(cmp, texture(ShadowMap, base).r);
+    float s10 = step(cmp, texture(ShadowMap, base + vec2(ShadowTexel, 0.0)).r);
+    float s01 = step(cmp, texture(ShadowMap, base + vec2(0.0, ShadowTexel)).r);
+    float s11 = step(cmp, texture(ShadowMap, base + vec2(ShadowTexel, ShadowTexel)).r);
+
+    return mix(mix(s00, s10, f.x), mix(s01, s11, f.x), f.y);
+}
+
+// PCSS: search for blockers, estimate the penumbra from how far in front of the
+// receiver they sit, then filter over exactly that width. Contact shadows come
+// out sharp and distant ones soften, instead of everything being uniformly blurry.
+// Pb is the light-relative, already-biased receiver. Returns 1 (lit) .. 0 (shadowed).
+//
+// Coloured shadows use the shaderpack dual-depth convention: ShadowMap holds OPAQUE
+// casters only (glass must not cast black), TintDepth holds opaque PLUS translucent.
+// A receiver shadowed in TintDepth but lit here has a pane -- and only a pane --
+// between it and the light: behindPane is the filtered coverage (0..1, soft at the
+// pool's edges) and tintRaw the filtered transmittance. Biased depth compares at full
+// depth precision: no distances packed into 8-bit alpha (whose quantisation used to
+// band the tint boundary into waves and start the tint on the pane itself).
+float sampleShadowMap(vec3 Pb, float distToLight, out vec4 tintRaw, out float behindPane,
+                      out float paneAhead) {
+    tintRaw = vec4(1.0);
+    behindPane = 0.0;
+    paneAhead = 0.0;
+
+    vec4 lc = LightViewProj * vec4(Pb, 1.0);
+    if (lc.w <= 0.0) return 1.0;
+    vec3 ndc = lc.xyz / lc.w;
+    if (abs(ndc.z) > 1.0) return 1.0;   // beyond the map's depth range
+
+    // A spot's map covers only its cone: outside it, there is nothing to occlude.
+    // A cube face is guaranteed in range by the face test, up to float slop at the
+    // seam -- so clamp there instead of rejecting, or the slop becomes a bright line.
+    if (ShadowFace < 0 && any(greaterThan(abs(ndc.xy), vec2(1.0)))) return 1.0;
+
+    vec2 uv = clamp(ndc.xy * 0.5 + 0.5, vec2(0.0), vec2(1.0));
+    float refDepth = ndc.z * 0.5 + 0.5;
+
+    float phi = rotationPhi();
+
+    // Keep every tap inside the map. A tap that walks off the edge of a cube face
+    // would otherwise wrap onto whatever the clamp mode hands back, which reads as a
+    // hard line along the seam; clamping to the border texel continues the surface
+    // approximately right instead.
+    vec2 lo = vec2(0.5 * ShadowTexel);
+    vec2 hi = vec2(1.0 - 0.5 * ShadowTexel);
+
+    // Perspective-scaled depth bias: non-linear depth loses precision with
+    // distance, so a constant bias is far too small near the far plane.
+    float bias = 0.05 * ShadowFar * ShadowNear
+               / max(distToLight * distToLight * (ShadowFar - ShadowNear), 1e-6);
+    float cmp = refDepth - bias;
+
+    float recvDist = linearizeShadow(refDepth);
+
+    // World size -> shadow-map UV radius at this depth.
+    float uvPerWorld = ShadowFocalY / max(recvDist, 0.1) * 0.5;
+    float searchRadius = max(LightSize * uvPerWorld, 2.0 * ShadowTexel);
+
+    // Has the light crossed glass on the way to this receiver? Shadowed in the
+    // with-translucents map (while the PCSS below samples the opaque-only map) means
+    // yes. The same bias that stops opaque acne keeps a pane from tinting ITSELF: its
+    // own stored depth sits at its refDepth, just behind cmp. Runs before the fully-lit
+    // early-out below, or a receiver whose only blocker is glass would lose its colour.
+    //
+    // Mini-PCSS for the tint: find the pane's distance, then filter the compare AND the
+    // colour over a disk that widens with how far the receiver sits behind the pane --
+    // light scattering through glass keeps diffusing after it exits, so the coloured
+    // pool's edge softens with distance instead of staying a hard projected silhouette,
+    // and overlapping projections of different panes cross-fade into each other.
+    if (HasShadowTint == 1) {
+        // Larger bias than the opaque compare: an obliquely-lit pane's NEIGHBOURING
+        // texels (the disk taps) sit marginally closer to the light than the pixel's
+        // own depth, and with the tight bias a pane partially "tints itself" in
+        // irregular blotches. The extra bias only shifts where the tint starts by a
+        // few centimetres behind the pane.
+        float cmpTint = refDepth - 2.5 * bias;
+
+        float tintSearch = max(searchRadius, 8.0 * ShadowTexel);
+        float paneSum = 0.0;
+        int paneCount = 0;
+        for (int i = 0; i < TINT_SEARCH_TAPS; i++) {
+            vec2 t = clamp(uv + vogel(i, TINT_SEARCH_TAPS, phi + 2.5) * tintSearch, lo, hi);
+            float pd = texture(TintDepth, t).r;
+            if (pd < cmpTint) {
+                paneSum += linearizeShadow(pd);
+                paneCount++;
+            }
+        }
+        if (paneCount > 0) {
+            float paneDist = paneSum / float(paneCount);
+            float spreadWorld = max(recvDist - paneDist, 0.0)
+                              * (GLASS_DIFFUSION + LightSize / max(paneDist, 0.5));
+            float tintRadius = clamp(spreadWorld * uvPerWorld,
+                                     1.5 * ShadowTexel, 24.0 * ShadowTexel);
+
+            vec3 col = vec3(0.0);
+            float frac = 0.0;
+            for (int i = 0; i < TINT_TAPS; i++) {
+                vec2 t = clamp(uv + vogel(i, TINT_TAPS, phi + 2.5) * tintRadius, lo, hi);
+                if (texture(TintDepth, t).r < cmpTint) {
+                    col += texture(ShadowTint, t).rgb;
+                    frac += 1.0;
+                } else {
+                    col += vec3(1.0);   // taps outside the pane pull the tint toward clear
+                }
+            }
+            behindPane = frac / float(TINT_TAPS);
+            tintRaw = vec4(col / float(TINT_TAPS), 1.0);
+            // How far in FRONT of the receiver the blocking pane really sits. When the
+            // receiver is itself a pane, its own presence in the tint maps yields a
+            // paneDist barely closer than recvDist -- this fades that self-term to
+            // zero while a genuinely stacked pane (>= 1 block ahead) keeps full effect.
+            paneAhead = smoothstep(0.25, 1.0, recvDist - paneDist);
+        }
+    }
+
+    // 1) Blocker search.
+    float blockerSum = 0.0;
+    int blockerCount = 0;
+    for (int i = 0; i < BLOCKER_TAPS; i++) {
+        vec2 t = clamp(uv + vogel(i, BLOCKER_TAPS, phi) * searchRadius, lo, hi);
+        float s = texture(ShadowMap, t).r;
+        if (s < cmp) {
+            blockerSum += linearizeShadow(s);
+            blockerCount++;
+        }
+    }
+    if (blockerCount == 0) return 1.0;   // fully lit, and we skip the PCF entirely
+    float avgBlocker = blockerSum / float(blockerCount);
+
+    // 2) Penumbra width from the similar-triangles estimate.
+    float penumbraWorld = (recvDist - avgBlocker) / max(avgBlocker, 0.05) * LightSize;
+    // The upper clamp is a noise budget, not a style choice: spread the disk wider than
+    // the tap count can cover and a "softer" shadow just becomes a grainier one.
+    float pcfRadius = clamp(penumbraWorld * uvPerWorld,
+                            1.5 * ShadowTexel, 14.0 * ShadowTexel);
+
+    // 3) PCF over that width.
+    float lit = 0.0;
+    for (int i = 0; i < PCF_TAPS; i++) {
+        lit += shadowTap(clamp(uv + vogel(i, PCF_TAPS, phi) * pcfRadius, lo, hi), cmp);
+    }
+    float shadow = lit / float(PCF_TAPS);
+
+    // A spot's map ends at its frustum, and "outside = lit" against "inside =
+    // shadowed" reads as a hard-edged quadrilateral on the floor -- so fade it out.
+    // A cube face must NOT fade: its border is a seam with the next face, not an
+    // edge of the shadowed region.
+    if (ShadowFace < 0) {
+        vec2 f = smoothstep(vec2(0.0), vec2(0.06), uv)
+               * (1.0 - smoothstep(vec2(0.94), vec2(1.0), uv));
+        shadow = mix(1.0, shadow, f.x * f.y);
+    }
+    return shadow;
+}
+
+void main() {
+    float depth = texture(SceneDepth, texCoord).r;
+    // Sky / no geometry: nothing to light. This also gives free depth occlusion --
+    // we only ever shade the visible surface.
+    if (depth >= 1.0) discard;
+
+    vec3 P = reconstruct(texCoord, depth);
+
+    // Cheap reject before the (much more expensive) normal reconstruction. The exact
+    // cube-face test has to wait until the shadow bias is known -- see below.
+    if (distance(P, LightPos) > Range) discard;
+
+    // Edge-aware normal reconstruction: sample depth at the 4 neighbours and, on
+    // each axis, use the derivative toward the CLOSER neighbour. Plain dFdx/dFdy
+    // produce garbage normals (and haloing) across silhouette edges, where the 2x2
+    // quad straddles two surfaces.
+    float dr = texture(SceneDepth, texCoord + vec2(TexelSize.x, 0.0)).r;
+    float dl = texture(SceneDepth, texCoord - vec2(TexelSize.x, 0.0)).r;
+    float du = texture(SceneDepth, texCoord + vec2(0.0, TexelSize.y)).r;
+    float dd = texture(SceneDepth, texCoord - vec2(0.0, TexelSize.y)).r;
+
+    vec3 ddxPos = abs(dr - depth) < abs(depth - dl)
+        ? reconstruct(texCoord + vec2(TexelSize.x, 0.0), dr) - P
+        : P - reconstruct(texCoord - vec2(TexelSize.x, 0.0), dl);
+    vec3 ddyPos = abs(du - depth) < abs(depth - dd)
+        ? reconstruct(texCoord + vec2(0.0, TexelSize.y), du) - P
+        : P - reconstruct(texCoord - vec2(0.0, TexelSize.y), dd);
+
+    // Normalize the tangents BEFORE crossing them. They are the world-space step
+    // between neighbouring pixels, so close to a surface they are tiny -- at half a
+    // block away a pixel spans ~3e-4 blocks, making |cross| ~1e-7 for a perfectly
+    // good normal. Testing that raw magnitude against a fixed epsilon throws away
+    // every fragment near the camera, and the surface goes black. Normalized, the
+    // test is about the ANGLE between the tangents, which is what we actually mean.
+    float lx = dot(ddxPos, ddxPos);
+    float ly = dot(ddyPos, ddyPos);
+    if (lx < 1e-24 || ly < 1e-24) discard;   // no gradient at all
+    vec3 cr = cross(ddxPos * inversesqrt(lx), ddyPos * inversesqrt(ly));
+    float crl = dot(cr, cr);
+    if (crl < 1e-8) discard;                 // tangents collinear: no plane to fit
+    vec3 N = cr * inversesqrt(crl);
+
+    vec3 viewDir = normalize(-P);            // camera sits at the origin here
+    if (dot(N, viewDir) < 0.0) N = -N;
+
+    vec3 toLight = LightPos - P;
+    float dist = length(toLight);
+    if (dist > Range) discard;
+    vec3 L = toLight / max(dist, 1e-4);
+
+    // NOT clamped yet: a backlit pane of glass has a negative N.L and still has to glow.
+    // The facing-away discard waits until we know whether this fragment IS the glass.
+    float ndotl = dot(N, L);
+
+    // Windowed falloff (Frostbite): near-inverse-square through most of the range
+    // but driven cleanly to zero at Range, so a light never cuts off mid-air.
+    float dr4 = dist / Range;
+    dr4 = dr4 * dr4;
+    dr4 = dr4 * dr4;
+    float atten = max(1.0 - dr4, 0.0);
+    atten *= atten;
+
+    float shape = 1.0;
+    if (LightType >= 1) {
+        float cosA = dot(-L, normalize(SpotDir));
+        shape = smoothstep(CosOuter, CosInner, cosA);
+        if (LightType == 2 && HasGobo == 1) {
+            vec4 lp = LightMatrix * vec4(P, 1.0);
+            if (lp.w > 0.0) {
+                vec2 guv = (lp.xy / lp.w) * 0.5 + 0.5;
+                if (guv.x >= 0.0 && guv.x <= 1.0 && guv.y >= 0.0 && guv.y <= 1.0) {
+                    shape *= texture(Gobo, guv).r;
+                } else {
+                    shape = 0.0;
+                }
+            } else {
+                shape = 0.0;
+            }
+        }
+    }
+    if (shape <= 0.0) discard;
+
+    float shadow = 1.0;
+    vec4 tintRaw = vec4(1.0);
+    float behindPane = 0.0;
+    float paneAhead = 0.0;
+    if (HasShadowMap == 1) {
+        // abs(), not max(,0): a backlit pane is a real receiver here. Clamping to 0
+        // maxes the slope bias for every backlit fragment, and the biased position is
+        // also what the TINT map is sampled with -- so backlit glass was reading its
+        // transmittance several texels off its true position, right where pane
+        // ownership changes.
+        vec3 Pb = shadowBiasedPos(P, N, L, dist, abs(ndotl));
+
+        // A point light is accumulated once per cube face; each pass owns the
+        // fragments whose dominant axis from the light is its face, so the six tile
+        // the sphere without shading anything twice. Select the face from the BIASED
+        // position -- the same one we are about to sample with -- or the bias can
+        // nudge a fragment out of the face it was assigned to, which reads as bright
+        // lines running along every face seam.
+        if (ShadowFace >= 0 && cubeFace(Pb) != ShadowFace) discard;
+
+        shadow = sampleShadowMap(Pb, dist, tintRaw, behindPane, paneAhead);
+    } else if (ShadowFace >= 0) {
+        discard;   // a face pass with no map would double-count this fragment
+    }
+
+    // Is the visible surface at this pixel glass? Answered GEOMETRICALLY, not from the
+    // tint map: the glass G-buffer re-rasterised the nearby panes with the exact frame
+    // matrices, so if its depth reconstructs to (almost) the same point as the scene
+    // depth, the scene's frontmost surface is a pane -- on every face, including the
+    // ray-grazing ones where the tint map's per-texel distance heuristic falls apart.
+    bool isGlass = false;
+    vec4 glassAlbedo = vec4(0.0);
+    if (HasGlassG == 1) {
+        float gd = texture(GlassDepth, texCoord).r;
+        if (gd < 1.0) {
+            vec3 Pg = reconstruct(texCoord, gd);
+            isGlass = distance(Pg, P) < 0.02 + 0.01 * length(P);
+            glassAlbedo = texture(GlassAlbedo, texCoord);
+        }
+    }
+
+    vec3 tint = vec3(1.0);
+    float diffuse;
+
+    if (isGlass) {
+        // The pixel IS glass. Glow from either side -- a backlit pane doesn't go black,
+        // it glows with what it transmits -- and colour the glow with the pane's OWN
+        // albedo (its texture, in place, like any lit surface) rather than whatever the
+        // shadow-map tint texel projects through it from the light's point of view.
+        diffuse = abs(ndotl) * GLASS_TRANSMISSION;
+        tint = mix(vec3(1.0), glassAlbedo.rgb, clamp(glassAlbedo.a * TINT_STRENGTH, 0.0, 1.0));
+
+        // Light that crossed ANOTHER pane before reaching this one arrives pre-tinted.
+        // Only the colour is wanted, not that pane's texture pattern -- normalising by
+        // the max channel keeps the channel ratios (hue, saturation) and drops the
+        // luminance detail. Gated by paneAhead (the tint maps include this pane itself;
+        // self-tint reads as coloured blotches printed on the face) and weighted by
+        // coverage, so a faint contaminated fringe stays faint instead of being
+        // amplified to full strength by the normalisation.
+        float crossStrength = paneAhead * behindPane;
+        if (crossStrength > 0.0) {
+            float tintMax = max(tintRaw.r, max(tintRaw.g, tintRaw.b));
+            if (tintMax >= 0.05) {
+                tint *= mix(vec3(1.0), tintRaw.rgb * (0.9 / tintMax), crossStrength);
+            }
+        }
+    } else {
+        if (ndotl <= 0.0) discard;
+        diffuse = ndotl;
+        // Tinted when the with-translucents depth map says a pane sits between this
+        // receiver and the light. tintRaw was filtered against white over the diffusion
+        // disk, so the pool's edge fades out instead of cutting off.
+        if (behindPane > 0.0) {
+            tint = tintRaw.rgb;
+        }
+    }
+
+    vec3 result = LightColor * tint * (diffuse * atten * shape * shadow);
+    fragColor = vec4(result, 1.0);
+}
