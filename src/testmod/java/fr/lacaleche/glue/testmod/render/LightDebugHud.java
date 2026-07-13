@@ -267,6 +267,7 @@ public class LightDebugHud {
         BLUE("Blue", 0.05f, 0f, 1f, false, p -> p.b, (p, v) -> p.b = v),
         INTENSITY("Intensity", 0.1f, 0f, 25f, false, p -> p.intensity, (p, v) -> p.intensity = v),
         RANGE("Range", 0.5f, 1f, 64f, false, p -> p.range, (p, v) -> p.range = v),
+        SHADOW("Shadow", 1f, 0f, 1f, false, p -> p.castsShadow ? 1f : 0f, (p, v) -> p.castsShadow = v >= 0.5f),
         POS_X("Pos X", 0.25f, -3.0e7f, 3.0e7f, false, p -> (float) p.x, (p, v) -> p.x = v),
         POS_Y("Pos Y", 0.25f, -3.0e7f, 3.0e7f, false, p -> (float) p.y, (p, v) -> p.y = v),
         POS_Z("Pos Z", 0.25f, -3.0e7f, 3.0e7f, false, p -> (float) p.z, (p, v) -> p.z = v),
@@ -309,6 +310,7 @@ public class LightDebugHud {
         float r, g, b, intensity, range;
         float yaw, pitch, inner, outer;
         int goboTextureId;
+        boolean castsShadow;
 
         static Params of(Light light) {
             Params p = new Params();
@@ -327,6 +329,7 @@ public class LightDebugHud {
             p.inner = (float) Math.toDegrees(Math.acos(Math.clamp(light.cosInner, -1.0, 1.0)));
             p.outer = (float) Math.toDegrees(Math.acos(Math.clamp(light.cosOuter, -1.0, 1.0)));
             p.goboTextureId = light.goboTextureId;
+            p.castsShadow = light.castsShadow;
             return p;
         }
 
@@ -337,11 +340,12 @@ public class LightDebugHud {
             float dx = (float) (-Math.sin(yawRad) * xz);
             float dy = (float) -Math.sin(pitchRad);
             float dz = (float) (Math.cos(yawRad) * xz);
-            return switch (type) {
+            Light light = switch (type) {
                 case POINT -> Light.point(x, y, z, r, g, b, intensity, range);
                 case SPOT -> Light.spot(x, y, z, dx, dy, dz, r, g, b, intensity, range, inner, outer);
                 case GOBO -> Light.gobo(x, y, z, dx, dy, dz, r, g, b, intensity, range, inner, outer, goboTextureId);
             };
+            return light.withShadow(castsShadow);
         }
     }
 
@@ -582,7 +586,8 @@ public class LightDebugHud {
 
         graphics.drawString(font, "§7" + field.label, panelX + 22, y + 2, 0xFFAAAAAA);
 
-        String text = (field == Field.YAW || field == Field.PITCH || field == Field.INNER || field == Field.OUTER)
+        String text = field == Field.SHADOW ? (value >= 0.5f ? "ON" : "OFF")
+                : (field == Field.YAW || field == Field.PITCH || field == Field.INNER || field == Field.OUTER)
                 ? String.format("%.1f", value)
                 : String.format("%.2f", value);
         String display = rowSelected ? "§e◂ §f" + text + " §e▸" : "§f" + text;

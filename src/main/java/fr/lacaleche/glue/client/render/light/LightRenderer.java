@@ -18,9 +18,11 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
+import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 
+import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -63,6 +65,9 @@ public final class LightRenderer {
 
     private static boolean initialized = false;
 
+    /** Cull distance in blocks; {@code <= 0} follows the render distance. */
+    private static double maxLightDistance = 0;
+
     private LightRenderer() {
     }
 
@@ -71,6 +76,25 @@ public final class LightRenderer {
         initialized = true;
         ShadowPipelines.init();   // must be registered at init, not mid-frame
         RenderEvents.POST_WORLD_RENDER.register(LightRenderer::renderPass);
+    }
+
+    /**
+     * Caps how many shadow-casting lights of each type actually get shadow maps per
+     * frame (default 6 spot/gobo + 4 point). Lights past the budget still illuminate,
+     * just without shadows. The recurring cost is what the budget guards: every
+     * shadowed spot is a fullscreen PCSS pass per frame, and a point light is six.
+     */
+    public static void setShadowBudget(int spotShadows, int pointShadows) {
+        SHADOWS.setBudget(spotShadows, pointShadows);
+    }
+
+    /**
+     * Lights farther than this from the camera (measured to the edge of their range)
+     * are skipped entirely: not accumulated, no shadow slot claimed. {@code <= 0}
+     * (the default) follows the current render distance.
+     */
+    public static void setMaxLightDistance(double blocks) {
+        maxLightDistance = blocks;
     }
 
     private static void renderPass() {
@@ -104,7 +128,12 @@ public final class LightRenderer {
         Vec3 camPosVec = camera.getPosition();
         Vector3d camPos = new Vector3d(camPosVec.x, camPosVec.y, camPosVec.z);
 
-        List<Light> lights = manager.snapshot();
+        List<Light> all = manager.snapshot();
+
+        // Point lights use their exact sphere of influence. Spot and gobo lights use
+        // a tighter sphere enclosing their spherical cone sector.
+        List<Light> lights = cull(mc, all, viewProj, camPos);
+        if (lights.isEmpty()) return;
 
         // --- Pass 1: shadow maps (MC rendering). Cached -- a light that hasn't
         // moved costs nothing here after its first frame.
@@ -117,7 +146,7 @@ public final class LightRenderer {
         // (it depends on the camera).
         int glassColorId = -1;
         int glassDepthId = -1;
-        List<BlockPos> glassBlocks = collectGlass(mc, lights);
+        List<BlockPos> glassBlocks = collectGlass(mc, all, lights);
         if (!glassBlocks.isEmpty()) {
             Matrix4f view = FrameMatrices.getView();
             Matrix4f proj = FrameMatrices.getProjection();
@@ -157,17 +186,56 @@ public final class LightRenderer {
     }
 
     /**
-     * The union of every light's (cached) nearby translucent blocks &mdash; the set the
-     * glass G-buffer rasterises this frame. Stale cache entries (lights that are gone)
-     * are dropped here, keyed on identity like the shadow slots.
+     * Drops lights that cannot contribute this frame: outside the view frustum or
+     * farther than the cull distance. The viewProj is camera-relative (translation
+     * lives in {@code camPos}), so the sphere test runs in that space too.
      */
-    private static List<BlockPos> collectGlass(Minecraft mc, List<Light> lights) {
+    private static List<Light> cull(Minecraft mc, List<Light> all, Matrix4f viewProj, Vector3d camPos) {
+        double maxDist = maxLightDistance > 0 ? maxLightDistance
+                : mc.options.getEffectiveRenderDistance() * 16.0;
+        FrustumIntersection frustum = new FrustumIntersection(viewProj);
+
+        List<Light> visible = new ArrayList<>(all.size());
+        for (Light light : all) {
+            double centerOffset = 0.0;
+            double radius = light.range;
+            if (light.type != LightType.POINT) {
+                double cosOuter = Math.clamp(light.cosOuter, -1.0, 1.0);
+                if (cosOuter > 0.0) {
+                    double sinOuter = Math.sqrt(1.0 - cosOuter * cosOuter);
+                    if (cosOuter >= Math.sqrt(0.5)) {
+                        centerOffset = light.range / (2.0 * cosOuter);
+                        radius = centerOffset;
+                    } else {
+                        centerOffset = light.range * cosOuter;
+                        radius = light.range * sinOuter;
+                    }
+                }
+            }
+
+            double dx = light.x + light.direction.x * centerOffset - camPos.x;
+            double dy = light.y + light.direction.y * centerOffset - camPos.y;
+            double dz = light.z + light.direction.z * centerOffset - camPos.z;
+            if (dx * dx + dy * dy + dz * dz > (maxDist + radius) * (maxDist + radius)) continue;
+            if (!frustum.testSphere((float) dx, (float) dy, (float) dz, (float) radius)) continue;
+            visible.add(light);
+        }
+        return visible;
+    }
+
+    /**
+     * The union of every visible light's (cached) nearby translucent blocks &mdash; the
+     * set the glass G-buffer rasterises this frame. Stale cache entries (lights that are
+     * gone) are dropped here, keyed on identity like the shadow slots; merely culled
+     * lights keep their cached lists so re-entering the frustum costs no rescan.
+     */
+    private static List<BlockPos> collectGlass(Minecraft mc, List<Light> all, List<Light> visible) {
         java.util.Set<Light> live = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
-        live.addAll(lights);
+        live.addAll(all);
         GLASS_BLOCKS.keySet().retainAll(live);
 
         LinkedHashSet<BlockPos> union = new LinkedHashSet<>();
-        for (Light light : lights) {
+        for (Light light : visible) {
             union.addAll(GLASS_BLOCKS.computeIfAbsent(light, l ->
                     GlassSceneRenderer.collectTranslucents(mc, l.x, l.y, l.z, l.range)));
         }

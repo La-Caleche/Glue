@@ -52,7 +52,7 @@ public final class Light {
 
     private Light(LightType type, double x, double y, double z, Vector3f direction,
                   float r, float g, float b, float intensity, float range,
-                  float cosInner, float cosOuter, int goboTextureId) {
+                  float cosInner, float cosOuter, int goboTextureId, boolean castsShadow) {
         this.type = type;
         this.x = x;
         this.y = y;
@@ -66,7 +66,18 @@ public final class Light {
         this.cosInner = cosInner;
         this.cosOuter = cosOuter;
         this.goboTextureId = goboTextureId;
-        this.castsShadow = true;
+        this.castsShadow = castsShadow;
+    }
+
+    /**
+     * A copy of this light with {@link #castsShadow} set ({@code this} if unchanged).
+     * A non-shadowed light never claims a slot from the shadow budget, so it is the
+     * cheap way to spawn many lights: no bake, no per-frame shadow sampling.
+     */
+    public Light withShadow(boolean castsShadow) {
+        if (this.castsShadow == castsShadow) return this;
+        return new Light(type, x, y, z, direction, r, g, b, intensity, range,
+                cosInner, cosOuter, goboTextureId, castsShadow);
     }
 
     /**
@@ -75,7 +86,7 @@ public final class Light {
     public static Light point(double x, double y, double z,
                               float r, float g, float b, float intensity, float range) {
         return new Light(LightType.POINT, x, y, z, new Vector3f(0f, -1f, 0f),
-                r, g, b, intensity, range, 1f, -1f, 0);
+                r, g, b, intensity, range, 1f, -1f, 0, true);
     }
 
     /**
@@ -87,7 +98,7 @@ public final class Light {
                              float innerAngleDeg, float outerAngleDeg) {
         return new Light(LightType.SPOT, x, y, z, normalized(dirX, dirY, dirZ),
                 r, g, b, intensity, range,
-                cos(innerAngleDeg), cos(outerAngleDeg), 0);
+                cos(innerAngleDeg), cos(outerAngleDeg), 0, true);
     }
 
     /**
@@ -100,7 +111,7 @@ public final class Light {
                              float innerAngleDeg, float outerAngleDeg, int goboTextureId) {
         return new Light(LightType.GOBO, x, y, z, normalized(dirX, dirY, dirZ),
                 r, g, b, intensity, range,
-                cos(innerAngleDeg), cos(outerAngleDeg), goboTextureId);
+                cos(innerAngleDeg), cos(outerAngleDeg), goboTextureId, true);
     }
 
     private static Vector3f normalized(float x, float y, float z) {

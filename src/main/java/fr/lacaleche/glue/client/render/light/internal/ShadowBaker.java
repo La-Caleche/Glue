@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Renders and <strong>caches</strong> each light's shadow map(s).
@@ -26,10 +27,12 @@ import java.util.Map;
  * the camera, so a light that has not moved keeps its maps indefinitely and costs
  * nothing after the first frame.</p>
  *
- * <p>Slots are assigned by position in the light list and hold onto the {@link Light}
- * they last baked. {@code Light} is immutable, so a light that moves arrives as a new
- * instance, the identity check fails, and that slot &mdash; only that slot &mdash;
- * re-bakes.</p>
+ * <p>Slots are keyed by their owning {@link Light} and evicted lazily: a light that
+ * drops out of the wanted set (culled, removed, or over budget) keeps its slot &mdash;
+ * and its baked maps &mdash; until another light actually needs it, so a light that
+ * comes back into view re-bakes nothing unless the pool ran out in the meantime.
+ * {@code Light} is immutable, so a light that moves arrives as a new instance, never
+ * matches its old slot, and re-bakes.</p>
  *
  * <p><strong>Known gap:</strong> a block placed or broken near a light does not
  * invalidate its map. Toggling the light re-bakes it.</p>
@@ -41,8 +44,8 @@ public final class ShadowBaker {
     /** Point lights need six of these, so they are kept smaller. */
     private static final int POINT_FACE_SIZE = 512;
 
-    private static final int MAX_SPOT_SHADOWS = 3;
-    private static final int MAX_POINT_SHADOWS = 3;
+    private int maxSpotShadows = 5;
+    private int maxPointShadows = 5;
 
     private static final float NEAR = 0.05f;
     /**
@@ -91,38 +94,35 @@ public final class ShadowBaker {
         glRenderer.blurTint(target.getFramebufferId(), target.getTintTextureId(), size);
     }
 
+    /**
+     * Caps how many lights of each type get shadow maps per frame. Shrinking the budget
+     * frees the surplus slots' GPU resources immediately.
+     */
+    public void setBudget(int spotShadows, int pointShadows) {
+        maxSpotShadows = Math.max(0, spotShadows);
+        maxPointShadows = Math.max(0, pointShadows);
+        trim(spotSlots, maxSpotShadows);
+        trim(pointSlots, maxPointShadows);
+    }
+
     /** Bake (or reuse) every shadow-casting light's maps. Call once per frame, before accumulation. */
     public void bake(Minecraft mc, GlLightRenderer glRenderer, List<Light> lights) {
         this.glRenderer = glRenderer;
         frame.clear();
-        int spotIndex = 0;
-        int pointIndex = 0;
 
+        List<Light> spots = new ArrayList<>();
+        List<Light> points = new ArrayList<>();
         for (Light light : lights) {
             if (!light.castsShadow) continue;
-
             if (light.type == LightType.POINT) {
-                if (pointIndex >= MAX_POINT_SHADOWS) continue;
-                Slot slot = acquire(pointSlots, pointIndex++, 6);
-                if (slot.owner != light) {
-                    bakePoint(mc, slot, light);
-                    slot.owner = light;
-                }
-                frame.put(light, slot.maps);
-            } else {
-                if (spotIndex >= MAX_SPOT_SHADOWS) continue;
-                Slot slot = acquire(spotSlots, spotIndex++, 1);
-                if (slot.owner != light) {
-                    bakeSpot(mc, slot, light);
-                    slot.owner = light;
-                }
-                frame.put(light, slot.maps);
+                if (points.size() < maxPointShadows) points.add(light);
+            } else if (spots.size() < maxSpotShadows) {
+                spots.add(light);
             }
         }
 
-        // Drop maps for slots nobody claimed, so a stale light can't keep being sampled.
-        releaseUnused(spotSlots, spotIndex);
-        releaseUnused(pointSlots, pointIndex);
+        assign(mc, spotSlots, spots, maxSpotShadows, 1, this::bakeSpot);
+        assign(mc, pointSlots, points, maxPointShadows, 6, this::bakePoint);
     }
 
     /** The maps baked for {@code light} this frame, or {@code null} if it casts no shadow. */
@@ -242,21 +242,60 @@ public final class ShadowBaker {
     // Slots
     // ------------------------------------------------------------------
 
-    private static Slot acquire(List<Slot> slots, int index, int rendererCount) {
-        while (slots.size() <= index) {
-            slots.add(new Slot());
-        }
-        Slot slot = slots.get(index);
-        while (slot.renderers.size() < rendererCount) {
-            slot.renderers.add(new LightDepthSceneRenderer());
-        }
-        return slot;
+    private interface SlotBaker {
+        void bake(Minecraft mc, Slot slot, Light light);
     }
 
-    private static void releaseUnused(List<Slot> slots, int usedCount) {
-        for (int i = usedCount; i < slots.size(); i++) {
-            slots.get(i).owner = null;
-            slots.get(i).maps = List.of();
+    private void assign(Minecraft mc, List<Slot> slots, List<Light> wanted, int budget,
+                        int rendererCount, SlotBaker baker) {
+        Set<Light> want = Collections.newSetFromMap(new IdentityHashMap<>());
+        want.addAll(wanted);
+
+        for (Light light : wanted) {
+            Slot slot = slotOwnedBy(slots, light);
+            if (slot == null) {
+                slot = claimSlot(slots, want, budget);
+                if (slot == null) continue;
+            }
+            while (slot.renderers.size() < rendererCount) {
+                slot.renderers.add(new LightDepthSceneRenderer());
+            }
+            if (slot.owner != light) {
+                baker.bake(mc, slot, light);
+                slot.owner = light;
+            }
+            frame.put(light, slot.maps);
+        }
+    }
+
+    @Nullable
+    private static Slot slotOwnedBy(List<Slot> slots, Light light) {
+        for (Slot slot : slots) {
+            if (slot.owner == light) return slot;
+        }
+        return null;
+    }
+
+    /** A free slot, a new one if the budget allows, else evict one whose owner is not wanted this frame. */
+    @Nullable
+    private static Slot claimSlot(List<Slot> slots, Set<Light> want, int budget) {
+        for (Slot slot : slots) {
+            if (slot.owner == null) return slot;
+        }
+        if (slots.size() < budget) {
+            Slot slot = new Slot();
+            slots.add(slot);
+            return slot;
+        }
+        for (Slot slot : slots) {
+            if (!want.contains(slot.owner)) return slot;
+        }
+        return null;
+    }
+
+    private static void trim(List<Slot> slots, int budget) {
+        while (slots.size() > budget) {
+            slots.remove(slots.size() - 1).cleanup();
         }
     }
 

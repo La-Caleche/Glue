@@ -84,12 +84,24 @@ light whose range can see the changed block, so shadows never go stale.
 
 ## Shadows
 
-Every light casts real shadow maps — one for a spot/gobo, six (a cube) for a
-point light — filtered with PCSS, so contact shadows are sharp and they soften
-with distance from the caster.
+By default every light casts real shadow maps — one for a spot/gobo, six (a
+cube) for a point light — filtered with PCSS, so contact shadows are sharp and
+they soften with distance from the caster.
 
-- At most **3 spot/gobo** and **3 point** lights have shadow maps at a time
-  (`ShadowBaker` caps). Further lights still illuminate, just without shadows.
+- **Per-light opt-out:** `Light.point(...).withShadow(false)` spawns a light
+  that never claims a shadow slot — no bake, no per-frame shadow sampling.
+  This is the cheap way to scatter many small lights.
+- **Shadow budget:** at most **6 spot/gobo** and **4 point** lights have shadow
+  maps at a time; further shadow-casting lights still illuminate, just without
+  shadows. The budget is configurable:
+
+  ```java
+  LightRenderer.setShadowBudget(6, 4);   // spots/gobos, points
+  ```
+
+  The recurring cost is what the budget guards: every shadowed spot is a
+  fullscreen PCSS pass per frame, and a shadowed point light is **six**.
+  Shrinking the budget frees the surplus GPU textures immediately.
 - **Colored shadows:** translucent casters (stained glass, ice) don't block
   light — they tint it. The tint is one flat color per pane (the sprite's
   average), stacked panes multiply (red behind blue projects violet), and the
@@ -97,12 +109,27 @@ with distance from the caster.
   behind glass still shadow normally.
 - Entities do not cast shadows (yet); only blocks are rasterized into the maps.
 
+## Culling
+
+Lights outside the view frustum, or farther from the camera than the render
+distance, are skipped entirely each frame: no accumulation draw and no shadow
+slot claimed. Point lights use their full sphere of influence. Spot and gobo
+lights use a tighter bounding sphere around their cone, avoiding work when the
+light's range sphere is visible but its directed beam is not. The bounds remain
+conservative, so a light still renders whenever anything it can reach is visible.
+Culled lights keep their baked maps as long as no other light needs the slot,
+so looking away and back re-bakes nothing unless the pool actually ran out.
+
+```java
+LightRenderer.setMaxLightDistance(96.0);  // blocks; <= 0 = follow render distance (default)
+```
+
 ## Debug tooling
 
 The **testmod** (not shipped with Glue itself) binds **F12** to a light
 inspector: it lists active lights with in-world wireframes (reach sphere for
 points, cone for spots), and lets you live-edit color / intensity / range /
-position / yaw–pitch / cone angles, add and delete lights. If you are tuning
+shadow on–off / position / yaw–pitch / cone angles, add and delete lights. If you are tuning
 light parameters, do it there and copy the numbers into your code. See
 `src/testmod/.../render/LightDebugHud.java`.
 
@@ -195,8 +222,8 @@ route is for shapes whose **geometry** differs, not whose silhouette does.
 ## Performance & limitations
 
 - Cost per frame = shadow re-bakes (only for new/replaced/invalidated lights)
-  + one full-screen accumulation pass per light (six for shadowed point
-  lights, one per cube face) + one composite. Range affects bake cost (bigger
+  + one full-screen accumulation pass per **visible** light (six for shadowed
+  point lights, one per cube face) + one composite. Range affects bake cost (bigger
   region to rasterize), not accumulation cost.
 - The deferred pass shades the **frontmost** surface in the depth buffer.
   Vanilla glass writes depth, so glass in front of a lit floor receives the
