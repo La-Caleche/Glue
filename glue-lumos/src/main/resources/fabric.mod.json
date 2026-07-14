@@ -1,0 +1,31 @@
+{
+    "schemaVersion": 1,
+    "id": "glue-lumos",
+    "version": "${version}",
+    "name": "Glue Lumos",
+    "description": "Colored dynamic lighting for Glue",
+    "authors": [
+        "Malo <malo@lacaleche.cc>",
+        "Theo <theo@lacaleche.cc>"
+    ],
+    "contact": {
+        "homepage": "https://lacaleche.cc",
+        "sources": "https://gitlab.lacaleche.cc/loccamy/java/glue"
+    },
+    "environment": "client",
+    "entrypoints": {
+        "client": [
+            "fr.lacaleche.glue.client.render.light.GlueLumosClient"
+        ]
+    },
+    "mixins": [
+        "glue-lumos.client.mixins.json"
+    ],
+    "depends": {
+        "fabricloader": ">=0.14.6",
+        "minecraft": "~1.21.8",
+        "java": ">=21",
+        "fabric-api": "*",
+        "glue-render": "${version}"
+    }
+}

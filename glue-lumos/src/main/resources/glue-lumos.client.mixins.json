@@ -1,0 +1,11 @@
+{
+  "package": "fr.lacaleche.glue.client.render.light.mixin",
+  "required": true,
+  "compatibilityLevel": "JAVA_21",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "client": [
+    "LumosLevelRendererMixin"
+  ]
+}

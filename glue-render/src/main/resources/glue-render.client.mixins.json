@@ -1,0 +1,31 @@
+{
+  "package": "fr.lacaleche.glue.client.mixin",
+  "required": true,
+  "compatibilityLevel": "JAVA_21",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "conformVisibility": true
+  },
+  "mixins": [
+    "CollisionGetterMixin",
+    "EntityMixin"
+  ],
+  "client": [
+    "ChunkSectionsToRenderMixin",
+    "CompositeRenderTypeAccessor",
+    "CompositeStateAccessor",
+    "DebugRendererMixin",
+    "DebugScreenOverlayMixin",
+    "GlueDrawBufferFixMixin",
+    "GluePostCompositeMixin",
+    "GuiMixin",
+    "LevelRendererMixin",
+    "ParticleEngineMixin",
+    "PostChainAccessor",
+    "PostPassAccessor",
+    "PoseStackMixin",
+    "TextureStateShardAccessor"
+  ]
+}
