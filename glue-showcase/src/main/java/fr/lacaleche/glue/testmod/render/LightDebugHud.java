@@ -249,7 +249,7 @@ public class LightDebugHud {
                     case ADD_SPOT -> addLight(true);
                 }
             }
-            default -> {}
+            default -> { }
         }
     }
 
@@ -273,8 +273,8 @@ public class LightDebugHud {
         POS_Z("Pos Z", 0.25f, -3.0e7f, 3.0e7f, false, p -> (float) p.z, (p, v) -> p.z = v),
         YAW("Yaw", 2.5f, -1.0e6f, 1.0e6f, true, p -> p.yaw, (p, v) -> p.yaw = v),
         PITCH("Pitch", 2.5f, -89.9f, 89.9f, true, p -> p.pitch, (p, v) -> p.pitch = v),
-        INNER("Inner °", 1f, 0.5f, 89f, true, p -> p.inner, (p, v) -> p.inner = v),
-        OUTER("Outer °", 1f, 0.5f, 89f, true, p -> p.outer, (p, v) -> p.outer = v);
+        INNER("Inner °", 1f, 0.5f, 88.5f, true, p -> p.inner, (p, v) -> p.inner = v),
+        OUTER("Outer °", 1f, 0.5f, 88.5f, true, p -> p.outer, (p, v) -> p.outer = v);
 
         final String label;
         final float step;
@@ -323,9 +323,8 @@ public class LightDebugHud {
             p.b = light.b;
             p.intensity = light.intensity;
             p.range = light.range;
-            Vector3f d = light.direction;
-            p.pitch = (float) Math.toDegrees(Math.asin(Math.clamp(-d.y, -1.0, 1.0)));
-            p.yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
+            p.pitch = (float) Math.toDegrees(Math.asin(Math.clamp(-light.directionY, -1.0, 1.0)));
+            p.yaw = (float) Math.toDegrees(Math.atan2(-light.directionX, light.directionZ));
             p.inner = (float) Math.toDegrees(Math.acos(Math.clamp(light.cosInner, -1.0, 1.0)));
             p.outer = (float) Math.toDegrees(Math.acos(Math.clamp(light.cosOuter, -1.0, 1.0)));
             p.goboTextureId = light.goboTextureId;
@@ -356,8 +355,8 @@ public class LightDebugHud {
         f.setter.set(p, Math.clamp(value, f.min, f.max));
 
         // Keep the cone well-formed: the angle being edited pushes the other.
-        if (f == Field.INNER) p.outer = Math.max(p.outer, p.inner);
-        if (f == Field.OUTER) p.inner = Math.min(p.inner, p.outer);
+        if (f == Field.INNER) p.outer = Math.max(p.outer, p.inner + 0.5f);
+        if (f == Field.OUTER) p.inner = Math.min(p.inner, p.outer - 0.5f);
         if (f == Field.YAW) p.yaw = Mth.wrapDegrees(p.yaw);
 
         replaceLight(row.light, p.build());

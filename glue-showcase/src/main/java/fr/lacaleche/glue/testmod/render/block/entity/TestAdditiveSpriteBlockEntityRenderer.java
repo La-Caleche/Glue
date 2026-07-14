@@ -2,6 +2,7 @@ package fr.lacaleche.glue.testmod.render.block.entity;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import fr.lacaleche.glue.client.render.EmissiveMaterial;
 import fr.lacaleche.glue.client.shader.GluePipeline;
 import fr.lacaleche.glue.client.shader.ShadedBufferSource;
 import fr.lacaleche.glue.compat.RenderCompat;
@@ -31,11 +32,7 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
 
     private static final ResourceLocation SPRITE_TEXTURE =
             TestmodClient.id("textures/imported/particle01.png");
-
-    /**
-     * Full-bright packed light value (sky=15, block=15).
-     */
-    private static final int FULL_BRIGHT = 15728880;
+    private static final EmissiveMaterial EMISSIVE = EmissiveMaterial.unshaded(SPRITE_TEXTURE);
 
     public TestAdditiveSpriteBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -71,6 +68,7 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
 
         RenderType renderType = pipeline.renderType(SPRITE_TEXTURE);
         VertexConsumer consumer = shadedSource.getBuffer(renderType);
+        VertexConsumer emissiveConsumer = bufferSource.getBuffer(EMISSIVE.renderType());
 
         float pulse = 1.0f + 0.15f * (float) Math.sin(time * 2.5);
         float size = 0.75f * pulse;
@@ -90,10 +88,20 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
         float halfH = 0.5f;
         int r = 255, g = 125, b = 185, a = 255;
 
-        vertex(consumer, pose, -halfW, -halfH, 0, 0f, 1f, r, g, b, a, FULL_BRIGHT);
-        vertex(consumer, pose, halfW, -halfH, 0, 1f, 1f, r, g, b, a, FULL_BRIGHT);
-        vertex(consumer, pose, halfW, halfH, 0, 1f, 0f, r, g, b, a, FULL_BRIGHT);
-        vertex(consumer, pose, -halfW, halfH, 0, 0f, 0f, r, g, b, a, FULL_BRIGHT);
+        vertex(consumer, pose, -halfW, -halfH, 0, 0f, 1f, r, g, b, a, EMISSIVE.packedLight());
+        vertex(consumer, pose, halfW, -halfH, 0, 1f, 1f, r, g, b, a, EMISSIVE.packedLight());
+        vertex(consumer, pose, halfW, halfH, 0, 1f, 0f, r, g, b, a, EMISSIVE.packedLight());
+        vertex(consumer, pose, -halfW, halfH, 0, 0f, 0f, r, g, b, a, EMISSIVE.packedLight());
+
+        float core = 0.24f;
+        vertex(emissiveConsumer, pose, -core, -core, 0.01f, 0f, 1f, 255, 255, 255, a,
+                EMISSIVE.packedLight());
+        vertex(emissiveConsumer, pose, core, -core, 0.01f, 1f, 1f, 255, 255, 255, a,
+                EMISSIVE.packedLight());
+        vertex(emissiveConsumer, pose, core, core, 0.01f, 1f, 0f, 255, 255, 255, a,
+                EMISSIVE.packedLight());
+        vertex(emissiveConsumer, pose, -core, core, 0.01f, 0f, 0f, 255, 255, 255, a,
+                EMISSIVE.packedLight());
 
         poseStack.popPose();
 

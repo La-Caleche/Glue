@@ -1,6 +1,7 @@
-# Glue Test Mod
+# Glue Showcase
 
-A runnable mod (`glue-test`) that exercises every public Glue feature in-game.
+A runnable module (`glue-showcase`) that exercises every public Glue feature in-game. Its content
+continues to use the `glue-test` resource namespace to avoid an unrelated asset migration.
 Each demo is intentionally small and maps to one library feature so it can be
 read as living documentation. Entry point: **`TestmodClient`** — it registers
 everything in `onInitializeClient()`.
@@ -78,33 +79,34 @@ in the same registry. The debug HUD shows one of each path:
 Open the HUD with **F9**; hold **ALT** to drag it, arrows to navigate,
 Enter to fire, Backspace to stop.
 
-## Deferred lights (Phase 1)
+## Deferred lights (`glue-lumos`)
 
-Press **L** to drop three **static** colored point lights (red / green / blue) in
-a ring around you, plus a warm **spot** "flashlight" that follows your view. They
-illuminate existing world geometry via a screen-space deferred pass
+Press **L** to create a 29-light test scene: three **static** shadowed point
+lights, a 24-light unshadowed stress ring, a point attached to a block, and a
+warm **spot** attached to the player's interpolated eye transform. They illuminate
+existing world geometry via a screen-space deferred pass
 (`LightRenderer`, hung off `POST_WORLD_RENDER`): reconstruct world position from
 the scene depth buffer, derive edge-aware normals from depth (5-tap), accumulate
-colored `N·L` falloff into an **HDR (RGBA16F)** buffer, then composite with a
-Reinhard tonemap so bright/overlapping lights roll off instead of clipping.
+colored `N·L` falloff into an **HDR (RGBA16F)** buffer, then composite in linear
+space with exponential rolloff so bright/overlapping lights do not hard-clip.
 
-**Every light casts real shadows.** `LightDepthSceneRenderer` rasterises scene depth
-from the light's point of view: one map for the spot, six — a cube — for each point
-light, with the deferred pass run once per face so the six tile the sphere without
-overlapping. The pass filters them with **PCSS** (search for blockers, estimate the
+Shadow-enabled lights use real maps. `LightDepthSceneRenderer` rasterises scene
+depth from the light's point of view: one map for the spot, six — a cube — for each
+point light. The pass filters them with **PCSS** (search for blockers, estimate the
 penumbra from how far in front of the receiver they sit, then filter over exactly
-that width), so contact shadows stay sharp while distant ones soften.
+that width), so contact shadows stay sharp while distant ones soften. The stress
+ring uses `withShadow(false)` to demonstrate the lower-cost many-light path.
 
 Maps are baked in **light-relative** space, which makes them independent of the
-camera and therefore **cacheable**: a light that hasn't moved costs nothing after its
-first frame. That is what makes six-face point shadows affordable — expect a brief
-hitch when you first press **L**, then a steady cost of zero. Casters are culled per
-face and against the light's range/cone, so a face only rasterises the blocks that
-can appear in it.
+camera and therefore **cacheable**: a light that hasn't moved costs nothing after
+its first bake. Separate resident-map and per-frame update budgets spread initial
+and invalidated bakes across frames. Loaded non-empty chunk sections are scanned
+once per point light, then the resulting casters are culled and reused for all six
+faces.
 
 Light is tinted by the surface it lands on (the scene colour stands in for albedo,
-since the vanilla path has no albedo G-buffer), then rolled off with a Reinhard
-tonemap, so overlapping lights saturate in colour rather than blowing out to white.
+since the vanilla path has no albedo G-buffer), then exponentially rolled off in
+linear space so overlapping lights saturate in colour rather than blowing out.
 
 Open the **light inspector** with **F12**: it lists every active light with an
 in-world wireframe preview (reach sphere for points, cone for spots — the expanded
@@ -116,6 +118,10 @@ point/spot light at your position. Every edit swaps a rebuilt `Light` into the
 re-bake, which is the intended invalidation path. Hold **ALT** to drag the panel
 and click rows, like the post-effect HUD.
 
-Still to come: **entity** shadow casters (mobs don't occlude yet), invalidating a
-light's map when a nearby block changes (toggle the light to re-bake), and Iris
-parity. The vanilla render path is the quality target for now.
+The additive sprite block-entity renderer also draws a white core through
+`EmissiveMaterial.unshaded`, demonstrating a self-lit custom material alongside
+the existing additive shader pass.
+
+Still to come: **entity** shadow casters (mobs don't occlude yet) and Iris parity.
+Nearby block changes already invalidate affected light maps. The vanilla render path is the quality
+target for now.

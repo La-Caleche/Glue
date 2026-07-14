@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Wires up every demo: registers blocks/items/components/keybinds/shaders and
  * the post-effect debug HUD. This is the top of the dependency graph — start here
- * to trace what each feature demonstrates, or see {@code src/testmod/README.md}.</p>
+ * to trace what each feature demonstrates, or see {@code glue-showcase/README.md}.</p>
  */
 public class TestmodClient implements ClientModInitializer {
 
@@ -60,7 +60,6 @@ public class TestmodClient implements ClientModInitializer {
         TestShaders.registerShaders();
         TestPostShaderHandler.INSTANCE.register();
 
-        TestLighting.register();
 
         PostEffectDebugHud.INSTANCE.init();
 
