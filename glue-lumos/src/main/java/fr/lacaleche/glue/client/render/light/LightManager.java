@@ -1,5 +1,6 @@
 package fr.lacaleche.glue.client.render.light;
 
+import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
 import java.util.List;
 import net.minecraft.client.multiplayer.ClientLevel;
 import org.jetbrains.annotations.Nullable;
@@ -33,7 +34,7 @@ public final class LightManager {
     }
 
     @Nullable
-    synchronized WorldLightContext switchWorld(@Nullable ClientLevel level) {
+    public synchronized WorldLightContext switchWorld(@Nullable ClientLevel level) {
         if (context != null && context.level() == level) return null;
         WorldLightContext previous = context;
         context = level == null ? null : new WorldLightContext(level);

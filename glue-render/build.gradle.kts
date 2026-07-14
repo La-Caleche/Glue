@@ -12,6 +12,9 @@ dependencies {
     modImplementation(libs.fabric.api)
 
     compileOnly(libs.iris)
+    // Sodium is never a runtime requirement: the adapter is behind runtime detection and
+    // falls back when absent. compileOnly only so the mixins can be typed instead of @Pseudo.
+    modCompileOnly(libs.sodium)
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

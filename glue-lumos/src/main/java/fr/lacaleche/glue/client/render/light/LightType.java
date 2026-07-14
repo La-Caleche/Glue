@@ -5,7 +5,7 @@ package fr.lacaleche.glue.client.render.light;
  *
  * <p>The ordinal is passed directly to the deferred lighting shader as the
  * {@code LightType} uniform, so the declaration order is part of the shader
- * contract (see {@code assets/glue/shaders/internal/glue_light_deferred.fsh}).</p>
+ * contract (see {@code assets/glue/shaders/internal/light/deferred.fsh}).</p>
  */
 public enum LightType {
     /** Omnidirectional point light with distance falloff. */
