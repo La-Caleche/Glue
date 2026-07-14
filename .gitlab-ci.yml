@@ -9,12 +9,13 @@ stages:
 build:
   stage: build
   script:
-    - ./gradlew --build-cache --refresh-dependencies clean publish
+    - ./gradlew --build-cache --refresh-dependencies clean :glue-core:publish :glue-render:publish :glue-lumos:publish :glue-showcase:publish
   cache:
     key: "$CI_COMMIT_REF_NAME"
     policy: push
     paths:
       - build
+      - .gradle
   artifacts:
     paths:
       - build/libs/*.jar

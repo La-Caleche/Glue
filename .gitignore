@@ -47,5 +47,5 @@ dev/
 
 repomix-output.xml
 *.diff
-/logs/
+logs/
 /reviews/
