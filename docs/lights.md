@@ -1,18 +1,44 @@
 # Dynamic Lights (Deferred)
 
-Glue ships a deferred colored-light subsystem: real-time light sources with
+`glue-lumos` supplies Glue's deferred colored-light subsystem: real-time light sources with
 **shape** (point / spot / gobo), **colored shadows** (stained glass tints the
 light passing through it), and **cached shadow maps**. It lights the world the
 player already sees — no block-light emission, no chunk relighting — by
 reconstructing world positions from the scene depth buffer after
 `LevelRenderer.renderLevel` returns (`RenderEvents.POST_WORLD_RENDER`).
 
-The subsystem is registered automatically by `GlueClient`; there is nothing to
+The subsystem is registered automatically by `GlueLumosClient`; there is nothing to
 initialize. It currently targets the **vanilla render path** (it runs under
 Iris, but parity with shaderpacks is still in progress — see
 [Iris / Oculus Compatibility](iris-compat.md)).
 
 Package: `fr.lacaleche.glue.client.render.light`.
+
+Add `fr.lacaleche.glue:glue-lumos` as a mod dependency. Lumos depends on `glue-render`, which owns
+the frame capture, render event, shader pipeline, scene renderer, and GL-state infrastructure.
+
+## Vanilla material buffer
+
+Iris is not required for material-aware lighting. While Lumos lights are active,
+`glue-render` replays Minecraft's already-visible opaque chunk VBOs into a private
+linear material buffer. The replay uses the original section transforms, atlas,
+cutout thresholds, and an `EQUAL` depth test, so it does not rescan blocks or draw
+hidden surfaces. A matching depth snapshot ensures the material is used only when
+opaque terrain is still the final visible surface at that pixel.
+
+This removes the vanilla lightmap and fog from Lumos's albedo input. Vanilla bakes
+biome tint, directional shade, and ambient occlusion into one vertex color, so the
+fallback removes their common brightness while retaining tint ratios. The same pass
+packs the terrain vertex normal into the material buffer, avoiding depth-derived
+normal errors at room corners. A Sodium adapter can preserve tint and AO separately
+instead of reconstructing them.
+
+Entities and translucent surfaces use the scene-color estimate for now. Stained
+glass additionally has its dedicated camera-space linear albedo buffer. Fabulous
+graphics also uses the fallback because its translucent depth is held in a separate
+target. Sodium and active Iris shaderpacks currently use the fallback until their
+explicit adapters are implemented; Lumos never assumes a shaderpack's arbitrary
+`colortex` layout.
 
 ## Quick start
 
@@ -30,7 +56,9 @@ LightManager.getInstance().remove(lamp);
 
 `add` returns the same instance for convenient field storage. `LightManager` is
 synchronized and snapshotted once per frame, so you may add/remove from client
-tick code freely.
+tick code freely. Lights belong to the active `ClientLevel`: changing dimensions,
+disconnecting, or replacing the world disposes its lights and GPU caches. Calling
+`add` or `attach` while no client world exists throws `IllegalStateException`.
 
 ## Light types
 
@@ -45,22 +73,22 @@ tick code freely.
 - **Position** — absolute world coordinates (`double`). The renderer converts to
   camera-relative space internally, so far-from-origin precision is handled.
 - **Color** — *linear* RGB in `[0, 1]`. `intensity` multiplies it; values well
-  above 1 are fine (the accumulation buffer is HDR and the composite tonemaps,
+  above 1 are fine (the accumulation buffer is HDR and the composite rolls off,
   so overlapping bright lights saturate in color instead of clipping to white).
 - **Range** — maximum reach in blocks. Falloff is near-inverse-square through
   most of the range and driven smoothly to zero at `range` (a light never cuts
   off mid-air). Range also sizes the shadow bake region — see performance notes.
-- **Direction** — any non-zero vector; normalized for you. Degenerate input
-  falls back to straight down.
+- **Direction** — any finite, non-zero vector; normalized for you. Invalid input
+  is rejected.
 - **Inner / outer angles** — cone *half*-angles in degrees,
   `inner <= outer`. Full brightness inside the inner cone, smooth falloff to
   zero at the outer. They are pre-converted to cosines on the `Light`
   (`cosInner` / `cosOuter`).
 
-## Lights are immutable — move them by replacing them
+## Static and attached lights
 
-`Light` has no setters. To move, recolor, or otherwise animate a light, build a
-new instance and swap it:
+`Light` is an immutable definition. For a static light, build a new instance and
+swap it when its properties change:
 
 ```java
 LightManager manager = LightManager.getInstance();
@@ -69,15 +97,43 @@ flashlight = manager.add(Light.spot(eye.x, eye.y, eye.z,
         look.x, look.y, look.z, 1.0f, 0.85f, 0.6f, 3.0f, 26.0f, 12.0f, 22.0f));
 ```
 
-This is not a workaround; it is the invalidation mechanism. Shadow maps and
-glass caches are keyed on `Light` **identity**: a light that keeps the same
-instance costs *nothing* after its first frame (its maps are cached), and a
-replaced instance re-bakes only its own slot. The corollary:
+Shadow maps and glass caches are keyed on `Light` **identity**: a static light
+that keeps the same instance costs nothing after its first frame, and a replaced
+instance re-bakes only its own slot.
 
-- **Static lights are cheap.** Bake once, then free.
-- **A light you replace every frame re-bakes every frame** (a spot is one
-  1024² depth pass over nearby blocks; a point light is six 512² passes). A
-  handful of moving lights is fine; don't attach one to every particle.
+For a moving light, attach the definition to a frame-sampled transform instead
+of replacing it from a client tick:
+
+```java
+Light definition = Light.spot(0, 0, 0, 0, -1, 0,
+        1.0f, 0.85f, 0.6f, 3.0f, 26.0f, 12.0f, 22.0f);
+
+LightHandle flashlight = LightManager.getInstance().attach(
+        definition, LightAttachments.entityEyes(player));
+
+// Change color/range/cone while retaining the attachment:
+flashlight.light(rebuiltDefinition);
+
+// Remove it explicitly when its owning gameplay object is done:
+flashlight.remove();
+```
+
+Built-in sources are `LightAttachments.entity(entity)`,
+`LightAttachments.entityEyes(entity)`, and `LightAttachments.block(pos)`.
+Entity sources interpolate position and view direction with the render partial
+tick. A custom `LightAttachment` writes into the supplied `LightTransform` and
+returns `false` while it cannot provide a light:
+
+```java
+LightAttachment attachment = (level, partialTick, result) -> {
+    if (!active) return false;
+    result.position(x, y, z).direction(dx, dy, dz);
+    return true;
+};
+```
+
+The handle is stable, but moving a shadow-casting light still invalidates and
+re-bakes its map. Prefer `withShadow(false)` for numerous fast-moving lights.
 
 Block changes are handled for you: `LightRenderer.onBlockChanged` re-bakes any
 light whose range can see the changed block, so shadows never go stale.
@@ -100,8 +156,15 @@ they soften with distance from the caster.
   ```
 
   The recurring cost is what the budget guards: every shadowed spot is a
-  fullscreen PCSS pass per frame, and a shadowed point light is **six**.
+  screen-bounded PCSS pass per frame, and a shadowed point light is **six**.
   Shrinking the budget frees the surplus GPU textures immediately.
+- **Update budget:** resident maps and new map renders are controlled separately.
+  By default Lumos renders at most two new spot maps and one new point cubemap per
+  frame, preserving already-cached maps and spreading bursts across frames:
+
+  ```java
+  LightRenderer.setShadowUpdateBudget(2, 1);
+  ```
 - **Colored shadows:** translucent casters (stained glass, ice) don't block
   light — they tint it. The tint is one flat color per pane (the sprite's
   average), stacked panes multiply (red behind blue projects violet), and the
@@ -124,14 +187,44 @@ so looking away and back re-bakes nothing unless the pool actually ran out.
 LightRenderer.setMaxLightDistance(96.0);  // blocks; <= 0 = follow render distance (default)
 ```
 
+Accumulation is clipped to each light's screen-space bounds with a GL scissor,
+so small visible lights do not shade unrelated pixels.
+
+## Emissive surfaces
+
+`glue-render` provides `EmissiveMaterial` for caller-rendered entity, item, and
+block-entity geometry. It supplies a fullbright render type and packed light;
+you still emit the model or vertices through the returned render type:
+
+```java
+EmissiveMaterial material = EmissiveMaterial.unshaded(GLOW_TEXTURE);
+VertexConsumer vertices = buffers.getBuffer(material.renderType());
+renderGlow(vertices, material.packedLight());
+```
+
+Use `EmissiveMaterial.shaded(texture)` to retain Minecraft's directional entity
+shading or `unshaded(texture)` for fully self-lit output. This does not modify
+static block-model lighting and does not illuminate nearby surfaces by itself.
+
+When the same object should also emit world light, `EmissiveEmitter` pairs the
+material with an attached Lumos light and removes the light through `close()`:
+
+```java
+EmissiveEmitter emitter = EmissiveEmitter.attach(
+        material, lightDefinition, LightAttachments.block(pos));
+
+// When the rendered object is removed:
+emitter.close();
+```
+
 ## Debug tooling
 
-The **testmod** (not shipped with Glue itself) binds **F12** to a light
+The **showcase** module (not shipped with Glue itself) binds **F12** to a light
 inspector: it lists active lights with in-world wireframes (reach sphere for
 points, cone for spots), and lets you live-edit color / intensity / range /
 shadow on–off / position / yaw–pitch / cone angles, add and delete lights. If you are tuning
 light parameters, do it there and copy the numbers into your code. See
-`src/testmod/.../render/LightDebugHud.java`.
+`glue-showcase/src/main/java/.../render/LightDebugHud.java`.
 
 ## Creating new shapes
 
@@ -221,15 +314,31 @@ route is for shapes whose **geometry** differs, not whose silhouette does.
 
 ## Performance & limitations
 
-- Cost per frame = shadow re-bakes (only for new/replaced/invalidated lights)
-  + one full-screen accumulation pass per **visible** light (six for shadowed
+- Cost per frame = budgeted shadow re-bakes (only for new/moved/invalidated lights)
+  + one screen-bounded accumulation pass per **visible** light (six for shadowed
   point lights, one per cube face) + one composite. Range affects bake cost (bigger
   region to rasterize), not accumulation cost.
+- On the vanilla chunk renderer, active lights add one opaque-terrain material
+  replay and one depth copy per frame. The replay uses the existing visible VBO
+  lists and early `EQUAL` depth rejection; no chunk rebuild or CPU block walk occurs.
+- Range has no API cap. Shadow and translucent-caster collection traverses loaded,
+  non-empty chunk sections intersecting the light instead of scanning a fixed
+  dense cube. Point-light casters are collected once and reused for all six faces.
+  Extremely large values still increase the number of loaded sections considered;
+  visibility, resident-shadow, and update budgets remain the practical controls.
+- Lumos adds its result on top of the vanilla scene, so sky and block light remain
+  the primary ambient fill. Each dynamic light also contributes a small, broad,
+  desaturated fill proportional to its intensity. This approximates first-bounce
+  light and limits excessive contrast at corners without attempting full global
+  illumination. A sealed, otherwise unlit room remains an intentionally adversarial
+  case: it exposes quantization and geometric discontinuities that ordinary scenes
+  keep below the visibility threshold.
 - The deferred pass shades the **frontmost** surface in the depth buffer.
   Vanilla glass writes depth, so glass in front of a lit floor receives the
   light as a glow on the pane (by design), but surfaces *behind* other
   translucents can't be lit independently.
 - **Fabulous graphics** is unhandled: translucents render to a separate target
   there, so glass is invisible to the lighting pass.
-- Normals are reconstructed from depth (the vanilla path has no G-buffer), so
-  extremely thin geometry (flowers, tripwire) lights approximately.
+- Opaque vanilla terrain uses captured vertex normals. Entities, translucent
+  surfaces, Sodium, and active Iris shaderpacks currently reconstruct normals from
+  depth, so extremely thin geometry (flowers, tripwire) lights approximately.
