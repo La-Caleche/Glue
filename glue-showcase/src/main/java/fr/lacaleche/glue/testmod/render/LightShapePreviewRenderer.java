@@ -89,7 +89,7 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
 
     private void drawCone(PoseStack.Pose pose, VertexConsumer vc, Light light,
                           float ax, float ay, float az, int color, boolean selected) {
-        Vector3f dir = new Vector3f(light.direction);
+        Vector3f dir = new Vector3f(light.directionX, light.directionY, light.directionZ);
         Vector3f up = Math.abs(dir.y) > 0.99f ? new Vector3f(0, 0, 1) : new Vector3f(0, 1, 0);
         Vector3f u = new Vector3f(dir).cross(up).normalize();
         Vector3f v = new Vector3f(u).cross(dir).normalize();

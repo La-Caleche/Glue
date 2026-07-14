@@ -1,8 +1,9 @@
 {
     "schemaVersion": 1,
-    "id": "glue-test",
+    "id": "glue-showcase",
     "version": "${version}",
-    "description": "Simple test mod for Glue",
+    "name": "Glue Showcase",
+    "description": "Development mod showcasing Glue features",
     "entrypoints": {
         "client": [
             "fr.lacaleche.glue.testmod.TestmodClient"
@@ -13,6 +14,8 @@
         "minecraft": "~1.21.8",
         "java": ">=21",
         "fabric-api": "*",
-        "glue": "*"
+        "glue": "${version}",
+        "glue-render": "${version}",
+        "glue-lumos": "${version}"
     }
 }
