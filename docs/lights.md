@@ -8,9 +8,10 @@ reconstructing world positions from the scene depth buffer after
 `LevelRenderer.renderLevel` returns (`RenderEvents.POST_WORLD_RENDER`).
 
 The subsystem is registered automatically by `GlueLumosClient`; there is nothing to
-initialize. It currently targets the **vanilla render path** (it runs under
-Iris, but parity with shaderpacks is still in progress — see
-[Iris / Oculus Compatibility](iris-compat.md)).
+initialize. Lumos consumes the renderer-neutral [world render pipeline](world-render-pipelines.md).
+Vanilla and Sodium `0.7.3` have coherent providers with material capture. An active Iris shaderpack
+selects `glue:iris_final_color` and Lumos runs, but without material capture and without a proof
+that the pack's color and depth describe one stage.
 
 Package: `fr.lacaleche.glue.client.render.light`.
 
@@ -30,15 +31,18 @@ This removes the vanilla lightmap and fog from Lumos's albedo input. Vanilla bak
 biome tint, directional shade, and ambient occlusion into one vertex color, so the
 fallback removes their common brightness while retaining tint ratios. The same pass
 packs the terrain vertex normal into the material buffer, avoiding depth-derived
-normal errors at room corners. A Sodium adapter can preserve tint and AO separately
-instead of reconstructing them.
+normal errors at room corners. Sodium `0.7.3` writes the same contract as a second
+opaque-terrain output without replaying its geometry.
 
 Entities and translucent surfaces use the scene-color estimate for now. Stained
-glass additionally has its dedicated camera-space linear albedo buffer. Fabulous
-graphics also uses the fallback because its translucent depth is held in a separate
-target. Sodium and active Iris shaderpacks currently use the fallback until their
-explicit adapters are implemented; Lumos never assumes a shaderpack's arbitrary
-`colortex` layout.
+glass additionally has its dedicated camera-space linear albedo buffer. Under Fabulous
+graphics the terrain material buffer is suppressed (translucents composite from a separate
+target, so a captured material depth would not match the main scene depth), and glass is not
+lit; Lumos still runs on opaque surfaces using the scene-color estimate. Non-terrain fallback
+surfaces estimate reflectance from the already-lit scene and can inherit vanilla lightmap hue
+and AO. Sodium versions whose shader layout does not match the guarded `0.7.3` adapter also
+fall back safely. Under an active Iris shaderpack there is no material capture at all — the
+pack owns its own colortex layout — so *every* surface uses the scene-color estimate.
 
 ## Quick start
 
@@ -271,7 +275,7 @@ Notes:
 If a masked cone can't express what you need (a fluorescent *tube*, an *area*
 panel, a *ring*), you are adding a light type to the engine. The shape of a
 light lives in **one place**: the `shape` factor in
-`assets/glue/shaders/internal/glue_light_deferred.fsh` —
+`assets/glue/shaders/internal/light/deferred.fsh` —
 
 ```glsl
 float shape = 1.0;
@@ -290,10 +294,10 @@ computing it. The full checklist:
 2. **`Light`** — add a static factory carrying whatever parameters the shape
    needs (an axis and a half-length for a tube, a width/height for a panel).
    Keep the class immutable; parameters are final fields like `cosInner`.
-3. **`internal/GlLightRenderer.accumulateLight`** — upload the new parameters
+3. **`internal/gl/GlDeferredLightPass.render`** — upload the new parameters
    as uniforms next to `SpotDir` / `CosInner` / `CosOuter`, and declare them in
    the deferred shader.
-4. **`glue_light_deferred.fsh`** — branch on your `LightType` value and compute
+4. **`internal/light/deferred.fsh`** — branch on your `LightType` value and compute
    `shape`. For *area-like* lights you typically also replace `L` (the
    to-light direction) with the direction to the **nearest point** on the
    light's surface, so `N·L` and the falloff behave across the light's extent.
@@ -330,15 +334,19 @@ route is for shapes whose **geometry** differs, not whose silhouette does.
   the primary ambient fill. Each dynamic light also contributes a small, broad,
   desaturated fill proportional to its intensity. This approximates first-bounce
   light and limits excessive contrast at corners without attempting full global
-  illumination. A sealed, otherwise unlit room remains an intentionally adversarial
-  case: it exposes quantization and geometric discontinuities that ordinary scenes
-  keep below the visibility threshold.
+  illumination.
 - The deferred pass shades the **frontmost** surface in the depth buffer.
   Vanilla glass writes depth, so glass in front of a lit floor receives the
   light as a glow on the pane (by design), but surfaces *behind* other
   translucents can't be lit independently.
-- **Fabulous graphics** is unhandled: translucents render to a separate target
-  there, so glass is invisible to the lighting pass.
-- Opaque vanilla terrain uses captured vertex normals. Entities, translucent
-  surfaces, Sodium, and active Iris shaderpacks currently reconstruct normals from
-  depth, so extremely thin geometry (flowers, tripwire) lights approximately.
+- **Fabulous graphics** lights opaque surfaces but not glass: translucents render
+  to a separate target, so the terrain material buffer is suppressed and the deferred
+  pass runs on the scene-color estimate without glass glow.
+- Opaque Vanilla and supported Sodium terrain use captured geometric normals.
+  Entities and translucent surfaces reconstruct normals from depth, so extremely
+  thin geometry (flowers, tripwire) lights approximately.
+- **Active Iris shaderpacks** run Lumos through `glue:iris_final_color`, but with no
+  material capture: normals are reconstructed from depth everywhere, and albedo is
+  estimated from the already-lit (possibly tonemapped) scene color. The pack's own
+  scene depth may also differ from the main depth Lumos reads. Treat the result as an
+  approximation.

@@ -26,6 +26,7 @@ public final class FrameMatrices {
     private static final Matrix4f VIEW = new Matrix4f();
     private static final Matrix4f PROJECTION = new Matrix4f();
     private static boolean captured = false;
+    private static long captureVersion;
 
     private FrameMatrices() {
     }
@@ -35,6 +36,7 @@ public final class FrameMatrices {
         VIEW.set(view);
         PROJECTION.set(projection);
         captured = true;
+        captureVersion++;
     }
 
     /** Camera-relative world -&gt; clip, exactly as the level was drawn, or {@code null}. */
@@ -54,5 +56,10 @@ public final class FrameMatrices {
     @Nullable
     public static Matrix4f getProjection() {
         return captured ? new Matrix4f(PROJECTION) : null;
+    }
+
+    /** Monotonic token identifying the most recent matrix capture. */
+    public static long getCaptureVersion() {
+        return captureVersion;
     }
 }

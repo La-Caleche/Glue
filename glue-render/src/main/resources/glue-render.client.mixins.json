@@ -1,5 +1,6 @@
 {
   "package": "fr.lacaleche.glue.client.mixin",
+  "plugin": "fr.lacaleche.glue.client.mixin.GlueRenderMixinPlugin",
   "required": true,
   "compatibilityLevel": "JAVA_21",
   "injectors": {
@@ -13,19 +14,21 @@
     "EntityMixin"
   ],
   "client": [
-    "ChunkSectionsToRenderMixin",
-    "CompositeRenderTypeAccessor",
-    "CompositeStateAccessor",
+    "material.ChunkSectionsToRenderMixin",
+    "shader.pipeline.CompositeRenderTypeAccessor",
+    "shader.pipeline.CompositeStateAccessor",
     "DebugRendererMixin",
     "DebugScreenOverlayMixin",
-    "GlueDrawBufferFixMixin",
-    "GluePostCompositeMixin",
+    "shader.capture.GlueDrawBufferFixMixin",
+    "shader.capture.GluePostCompositeMixin",
     "GuiMixin",
     "LevelRendererMixin",
     "ParticleEngineMixin",
-    "PostChainAccessor",
-    "PostPassAccessor",
+    "shader.post.PostChainAccessor",
+    "shader.post.PostPassAccessor",
     "PoseStackMixin",
-    "TextureStateShardAccessor"
+    "material.sodium.SodiumShaderChunkRendererMixin",
+    "material.sodium.SodiumShaderLoaderMixin",
+    "shader.pipeline.TextureStateShardAccessor"
   ]
 }

@@ -8,8 +8,10 @@ package fr.lacaleche.glue.client.render.light;
  * that reconstruction stays in single-precision-friendly ranges. Colors are
  * <em>linear</em> RGB in {@code [0, 1]}; {@link #intensity} scales them.</p>
  *
- * <p>Create instances with the static factories {@link #point} / {@link #spot} /
- * {@link #gobo}. Angles are supplied in degrees and pre-converted to cosines.</p>
+ * <p>Create instances with {@link #point(double, double, double, float, float, float, float, float)},
+ * {@link #spot(double, double, double, float, float, float, float, float, float, float, float, float, float)},
+ * or {@link #gobo(double, double, double, float, float, float, float, float, float, float, float, float, float, int)}.
+ * Angles are supplied in degrees and pre-converted to cosines.</p>
  */
 public final class Light {
 

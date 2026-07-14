@@ -1,5 +1,6 @@
 package fr.lacaleche.glue.client.shader.internal;
 
+import fr.lacaleche.glue.client.render.internal.gl.SavedGlState;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import fr.lacaleche.glue.compat.RenderCompat;

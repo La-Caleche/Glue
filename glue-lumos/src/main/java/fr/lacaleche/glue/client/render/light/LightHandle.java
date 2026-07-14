@@ -1,5 +1,7 @@
 package fr.lacaleche.glue.client.render.light;
 
+import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
+
 /** Stable world-owned handle for a frame-sampled light attachment. */
 public final class LightHandle {
 
@@ -10,7 +12,7 @@ public final class LightHandle {
     private Light resolved;
     private boolean removed;
 
-    LightHandle(WorldLightContext owner, Light template, LightAttachment attachment) {
+    public LightHandle(WorldLightContext owner, Light template, LightAttachment attachment) {
         this.owner = owner;
         this.template = template;
         this.attachment = attachment;
@@ -32,7 +34,7 @@ public final class LightHandle {
         return removed;
     }
 
-    Light resolve(float partialTick) {
+    public Light resolve(float partialTick) {
         if (removed || !attachment.sample(owner.level(), partialTick, transform)) return null;
         if (resolved != null
                 && resolved.x == transform.x && resolved.y == transform.y && resolved.z == transform.z
@@ -46,15 +48,15 @@ public final class LightHandle {
         return resolved;
     }
 
-    Light resolved() {
+    public Light resolved() {
         return resolved;
     }
 
-    void markRemoved() {
+    public void markRemoved() {
         removed = true;
     }
 
-    void updateTemplate(Light light) {
+    public void updateTemplate(Light light) {
         template = light;
         resolved = null;
     }

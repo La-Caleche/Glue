@@ -1,7 +1,8 @@
 package fr.lacaleche.glue.client.render.light;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import fr.lacaleche.glue.client.render.internal.TerrainMaterialBuffer;
+import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
+import fr.lacaleche.glue.client.render.pipeline.WorldRenderPipelines;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
@@ -9,7 +10,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientWorldEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
@@ -21,8 +21,7 @@ public final class GlueLumosClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         LightRenderer.init();
-        WorldRenderEvents.START.register(context -> TerrainMaterialBuffer.beginFrame(
-                !LightManager.getInstance().isEmpty()));
+        WorldRenderPipelines.requestMaterial(() -> !LightManager.getInstance().isEmpty());
         switchWorld(Minecraft.getInstance().level);
         ClientWorldEvents.AFTER_CLIENT_WORLD_CHANGE.register((client, level) -> switchWorld(level));
         ClientChunkEvents.CHUNK_LOAD.register((level, chunk) -> invalidateChunk(level, chunk.getPos()));

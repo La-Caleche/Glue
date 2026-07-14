@@ -8,7 +8,9 @@ import fr.lacaleche.glue.client.events.ParticleManagerEvents;
 import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.BlockRenderer;
-import fr.lacaleche.glue.client.render.internal.TerrainMaterialBuffer;
+import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
+import fr.lacaleche.glue.client.render.internal.world.DefaultWorldRenderPipelines;
+import fr.lacaleche.glue.client.render.pipeline.WorldRenderPipelines;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.client.shader.internal.DeferredDrawQueue;
@@ -42,6 +44,7 @@ public class GlueClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         TerrainMaterialBuffer.init();
+        DefaultWorldRenderPipelines.register();
         GlueOutlineRenderers.registerOutlineRenderers();
 
         DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);
@@ -49,7 +52,10 @@ public class GlueClient implements ClientModInitializer {
 
         DeferredDrawQueue.INSTANCE.register();
 
-        WorldRenderEvents.START.register(ctx -> RenderCompat.resetFrameCache());
+        WorldRenderEvents.START.register(ctx -> {
+            RenderCompat.resetFrameCache();
+            WorldRenderPipelines.beginFrame();
+        });
         RaycastUtils.register();
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {

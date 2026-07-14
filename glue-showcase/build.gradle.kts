@@ -18,6 +18,9 @@ dependencies {
     modImplementation(libs.fabric.api)
 
     compileOnly(libs.iris)
+    if (providers.gradleProperty("glue.showcase.sodium").orNull != "false") {
+        modRuntimeOnly(libs.sodium)
+    }
 
     implementation("org.lwjgl:lwjgl-nfd:3.3.3")
     runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-windows")
