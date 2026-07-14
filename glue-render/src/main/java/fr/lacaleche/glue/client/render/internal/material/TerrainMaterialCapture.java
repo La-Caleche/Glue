@@ -1,16 +1,16 @@
 package fr.lacaleche.glue.client.render.internal.material;
 
-import fr.lacaleche.glue.client.render.pipeline.MaterialFrame;
-
-import java.util.Optional;
-
 interface TerrainMaterialCapture {
 
     void beginFrame(long frameSequence);
 
     void cancelFrame();
 
-    Optional<MaterialFrame> currentFrame(long frameSequence);
+    /** GL texture id of the captured material color for the current frame, or -1 if none. */
+    int colorTextureId();
+
+    /** GL depth texture id matching {@link #colorTextureId()}, or -1 if none. */
+    int depthTextureId();
 
     void cleanup();
 }

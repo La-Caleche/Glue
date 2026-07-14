@@ -3,7 +3,6 @@ package fr.lacaleche.glue.client.render.light.internal.pipeline;
 import fr.lacaleche.glue.client.render.light.Light;
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
 import fr.lacaleche.glue.client.render.light.internal.scene.GlassSceneRenderer;
-import fr.lacaleche.glue.client.render.pipeline.WorldRenderFrame;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import org.joml.Matrix4f;
@@ -18,7 +17,7 @@ import java.util.Set;
 /** Builds the camera-space glass textures consumed by deferred lighting. */
 final class GlassBufferPass {
 
-    Textures render(WorldLightContext context, Minecraft minecraft, WorldRenderFrame frame,
+    Textures render(WorldLightContext context, Minecraft minecraft, LumosFrame frame,
                     Vector3d camera, List<Light> all, List<Light> visible) {
         List<BlockPos> blocks = collectBlocks(context, minecraft, all, visible);
         if (blocks.isEmpty()) return Textures.NONE;

@@ -63,23 +63,6 @@ Raw GL draws issued by `GluePipeline` / `ShadedBufferSource` are dispatched thro
 - **Iris shadow pass:** Draws are silently dropped
 - **Vanilla:** Draws execute immediately
 
-## 6. Deferred lighting
-
-An active shaderpack selects the `glue:iris_final_color` world render pipeline, and Lumos runs.
-That provider publishes Minecraft's main render target (color + depth) and the matrices captured
-for the level pass — the same inputs as the non-Iris `glue:main_target` path — with **no material
-frame**, because an active pack owns an arbitrary colortex layout and there is nothing to capture
-terrain material from. Lumos therefore estimates reflectance from the already-lit scene color for
-every surface.
-
-This is an approximation, not a proven-coherent frame. The pack may already have applied exposure,
-bloom, or tonemapping to the color Glue reads and writes, and the pack's own scene depth may differ
-from Minecraft's main depth attachment.
-
-Iris installed with shaders disabled continues through `glue:main_target` with full material
-capture. See [World Render Pipelines](world-render-pipelines.md) for the runtime matrix, extension
-API, and conflict checklist.
-
 ## API Reference
 
 | Method | Description |

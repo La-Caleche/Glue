@@ -26,4 +26,3 @@ that provides the required feature; each higher-level module declares the lower-
 17. [File Dialogs](file-dialogs.md)
 18. [Mod Compatibility (Reflection)](mod-compat.md)
 19. [Sodium Material Adapter](sodium-material-adapter.md)
-20. [World Render Pipelines](world-render-pipelines.md)

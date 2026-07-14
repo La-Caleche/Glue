@@ -1,7 +1,6 @@
 package fr.lacaleche.glue.client.render.internal.material;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import fr.lacaleche.glue.client.render.pipeline.MaterialFrame;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.minecraft.client.Minecraft;
@@ -13,15 +12,12 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.Optional;
 
 final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue/material-buffer");
-    private static final String PROVIDER_ID = "glue:sodium_0_7_3_mrt";
 
     private final MaterialCaptureTarget target = new MaterialCaptureTarget("Glue Sodium terrain material");
-    private long frameSequence;
     private boolean frameActive;
     private boolean available;
     private boolean passAttached;
@@ -34,7 +30,6 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
 
     @Override
     public void beginFrame(long sequence) {
-        frameSequence = sequence;
         available = false;
         frameActive = false;
         if (passAttached) {
@@ -112,10 +107,13 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
     }
 
     @Override
-    public Optional<MaterialFrame> currentFrame(long sequence) {
-        if (!available || sequence != frameSequence) return Optional.empty();
-        return Optional.of(new MaterialFrame(sequence, PROVIDER_ID,
-                target.colorTextureId(), target.depthTextureId(), target.width(), target.height()));
+    public int colorTextureId() {
+        return available ? target.colorTextureId() : -1;
+    }
+
+    @Override
+    public int depthTextureId() {
+        return available ? target.depthTextureId() : -1;
     }
 
     @Override
