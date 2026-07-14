@@ -8,8 +8,6 @@ import fr.lacaleche.glue.client.render.light.internal.gl.GlTintBlurPass;
 import fr.lacaleche.glue.client.render.light.internal.gl.LightAccumulator;
 import fr.lacaleche.glue.client.render.light.internal.shadow.ShadowBaker;
 import fr.lacaleche.glue.client.render.light.internal.shadow.ShadowParams;
-import fr.lacaleche.glue.client.render.pipeline.MaterialFrame;
-import fr.lacaleche.glue.client.render.pipeline.WorldRenderFrame;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 
@@ -28,16 +26,15 @@ final class DeferredLightPass {
         return tintBlur;
     }
 
-    void render(WorldRenderFrame frame, Matrix4f viewProjection, Matrix4f inverseViewProjection,
+    void render(LumosFrame frame, Matrix4f viewProjection, Matrix4f inverseViewProjection,
                 Vector3d camera, List<Light> lights, ShadowBaker shadows,
                 GlassBufferPass.Textures glass) {
         if (!accumulator.beginFrame(frame.width(), frame.height())) return;
         int lightFramebuffer = accumulator.getFramebufferId();
         if (lightFramebuffer <= 0) return;
 
-        MaterialFrame material = frame.material().orElse(null);
-        int materialColor = material == null ? -1 : material.colorTextureId();
-        int materialDepth = material == null ? -1 : material.depthTextureId();
+        int materialColor = frame.materialColorTextureId();
+        int materialDepth = frame.materialDepthTextureId();
 
         for (Light light : lights) {
             int[] bounds = LightInfluence.of(light, camera)
@@ -55,10 +52,10 @@ final class DeferredLightPass {
             }
         }
 
-        accumulator.captureScene(frame.sourceFramebufferId());
+        accumulator.captureScene(frame.framebufferId());
         composite.render(accumulator.getColorTextureId(),
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
-                materialColor, materialDepth, frame.destinationFramebufferId(),
+                materialColor, materialDepth, frame.framebufferId(),
                 frame.width(), frame.height());
     }
 
@@ -68,7 +65,7 @@ final class DeferredLightPass {
         accumulator.cleanup();
     }
 
-    private void accumulate(int lightFramebuffer, WorldRenderFrame frame,
+    private void accumulate(int lightFramebuffer, LumosFrame frame,
                             Matrix4f viewProjection, Matrix4f inverseViewProjection,
                             Vector3d camera, Light light, int[] bounds, ShadowParams shadow,
                             GlassBufferPass.Textures glass, int materialColor, int materialDepth) {

@@ -8,10 +8,10 @@ reconstructing world positions from the scene depth buffer after
 `LevelRenderer.renderLevel` returns (`RenderEvents.POST_WORLD_RENDER`).
 
 The subsystem is registered automatically by `GlueLumosClient`; there is nothing to
-initialize. Lumos consumes the renderer-neutral [world render pipeline](world-render-pipelines.md).
-Vanilla and Sodium `0.7.3` have coherent providers with material capture. An active Iris shaderpack
-selects `glue:iris_final_color` and Lumos runs, but without material capture and without a proof
-that the pack's color and depth describe one stage.
+initialize. Lumos runs only on the vanilla **Fancy** graphics path, reading Minecraft's main
+render target directly. Opaque terrain uses a captured material buffer — a vanilla chunk replay,
+or the Sodium `0.7.3` adapter when Sodium is installed. Lumos does **not** run under Fabulous
+graphics or an active Iris shaderpack (Iris support will be rebuilt separately).
 
 Package: `fr.lacaleche.glue.client.render.light`.
 
@@ -35,14 +35,11 @@ normal errors at room corners. Sodium `0.7.3` writes the same contract as a seco
 opaque-terrain output without replaying its geometry.
 
 Entities and translucent surfaces use the scene-color estimate for now. Stained
-glass additionally has its dedicated camera-space linear albedo buffer. Under Fabulous
-graphics the terrain material buffer is suppressed (translucents composite from a separate
-target, so a captured material depth would not match the main scene depth), and glass is not
-lit; Lumos still runs on opaque surfaces using the scene-color estimate. Non-terrain fallback
+glass additionally has its dedicated camera-space linear albedo buffer. Non-terrain fallback
 surfaces estimate reflectance from the already-lit scene and can inherit vanilla lightmap hue
-and AO. Sodium versions whose shader layout does not match the guarded `0.7.3` adapter also
-fall back safely. Under an active Iris shaderpack there is no material capture at all — the
-pack owns its own colortex layout — so *every* surface uses the scene-color estimate.
+and AO. Sodium versions whose shader layout does not match the guarded `0.7.3` adapter fall
+back safely to the vanilla replay. Under Fabulous graphics or an active Iris shaderpack Lumos
+does not run at all.
 
 ## Quick start
 
@@ -339,14 +336,12 @@ route is for shapes whose **geometry** differs, not whose silhouette does.
   Vanilla glass writes depth, so glass in front of a lit floor receives the
   light as a glow on the pane (by design), but surfaces *behind* other
   translucents can't be lit independently.
-- **Fabulous graphics** lights opaque surfaces but not glass: translucents render
-  to a separate target, so the terrain material buffer is suppressed and the deferred
-  pass runs on the scene-color estimate without glass glow.
+- **Fabulous graphics** disables Lumos entirely: translucents composite from a
+  separate target, so the captured material depth would not match the main scene
+  depth. Switch to Fancy graphics for dynamic lighting.
 - Opaque Vanilla and supported Sodium terrain use captured geometric normals.
   Entities and translucent surfaces reconstruct normals from depth, so extremely
   thin geometry (flowers, tripwire) lights approximately.
-- **Active Iris shaderpacks** run Lumos through `glue:iris_final_color`, but with no
-  material capture: normals are reconstructed from depth everywhere, and albedo is
-  estimated from the already-lit (possibly tonemapped) scene color. The pack's own
-  scene depth may also differ from the main depth Lumos reads. Treat the result as an
-  approximation.
+- **Active Iris shaderpacks** disable Lumos entirely; the pack owns its own colortex
+  layout. Iris support will be rebuilt separately. Iris installed with shaders
+  disabled runs the normal vanilla Fancy path with full material capture.

@@ -9,7 +9,6 @@ import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import fr.lacaleche.glue.client.render.pipeline.MaterialFrame;
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -18,19 +17,15 @@ import net.minecraft.client.renderer.chunk.ChunkSectionsToRender;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
 final class VanillaTerrainMaterialCapture implements TerrainMaterialCapture {
 
-    private static final String PROVIDER_ID = "glue:vanilla_terrain_replay";
-
     private final MaterialCaptureTarget target = new MaterialCaptureTarget("Glue vanilla terrain material");
     private RenderPipeline solidPipeline;
     private RenderPipeline cutoutMippedPipeline;
     private RenderPipeline cutoutPipeline;
-    private long frameSequence;
     private boolean requested;
     private boolean available;
 
@@ -53,7 +48,6 @@ final class VanillaTerrainMaterialCapture implements TerrainMaterialCapture {
 
     @Override
     public void beginFrame(long sequence) {
-        frameSequence = sequence;
         requested = true;
         available = false;
     }
@@ -97,10 +91,13 @@ final class VanillaTerrainMaterialCapture implements TerrainMaterialCapture {
     }
 
     @Override
-    public Optional<MaterialFrame> currentFrame(long sequence) {
-        if (!available || sequence != frameSequence) return Optional.empty();
-        return Optional.of(new MaterialFrame(sequence, PROVIDER_ID,
-                target.colorTextureId(), target.depthTextureId(), target.width(), target.height()));
+    public int colorTextureId() {
+        return available ? target.colorTextureId() : -1;
+    }
+
+    @Override
+    public int depthTextureId() {
+        return available ? target.depthTextureId() : -1;
     }
 
     @Override

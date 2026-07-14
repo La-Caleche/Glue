@@ -242,8 +242,8 @@ be fogged — albedo is a surface property. Write it before/independently of the
 **Resize.** Each implementation owns a `MaterialCaptureTarget` that follows the main render
 target's size.
 
-**Frame publication.** Each implementation publishes `Optional<MaterialFrame>` only for its
-matching frame sequence. A failed or partial pass publishes nothing.
+**Frame publication.** Each implementation exposes its material color/depth texture ids only
+once the current frame's capture is complete. A failed or partial pass exposes nothing (-1).
 
 **Translucents.** Only the *opaque* passes feed this buffer. Stained glass has its own
 camera-space albedo buffer (`GlassSceneRenderer`). Don't touch it.
@@ -266,12 +266,9 @@ inputs. Do not use exposure to hide a parity failure.
 Sodium adapter is what runs — so fixing Sodium fixes the Iris-installed-but-idle case for free.
 
 When a pack *is* active, the adapter does not attach its MRT because the pack owns an arbitrary,
-pack-defined `colortex` layout. There is intentionally no speculative second terrain pass:
-material color alone does not prove alignment with the shaderpack's scene depth, projection, or
-composite destination. Lumos still runs under an active pack through the `glue:iris_final_color`
-world pipeline — but with **no** material buffer, so it falls back to the scene-color albedo
-estimate everywhere (with the coherence caveats documented for that provider). See
-[World Render Pipelines](world-render-pipelines.md).
+pack-defined `colortex` layout. Lumos does not run at all under an active Iris pack (or under
+Fabulous graphics); Iris support will be rebuilt separately. The Sodium adapter therefore covers
+the vanilla/Sodium **Fancy** path — the setup nearly every player runs.
 
 ---
 

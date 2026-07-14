@@ -1,10 +1,13 @@
 package fr.lacaleche.glue.client.render.light.internal.pipeline;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
 import fr.lacaleche.glue.client.render.light.Light;
 import fr.lacaleche.glue.client.render.light.LightManager;
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
-import fr.lacaleche.glue.client.render.pipeline.WorldRenderFrame;
-import fr.lacaleche.glue.client.render.pipeline.WorldRenderPipelines;
+import fr.lacaleche.glue.client.utils.FrameMatrices;
+import fr.lacaleche.glue.client.utils.FramebufferHelper;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import org.joml.FrustumIntersection;
@@ -27,8 +30,6 @@ public final class LightRenderCoordinator {
     private double maxLightDistance;
 
     public void render() {
-        if (WorldRenderPipelines.isAuxiliaryPass()) return;
-
         LightManager manager = LightManager.getInstance();
         if (manager.isEmpty()) return;
 
@@ -36,14 +37,28 @@ public final class LightRenderCoordinator {
         WorldLightContext context = manager.currentWorld();
         if (context == null || context.level() != minecraft.level) return;
 
-        WorldRenderFrame frame = WorldRenderPipelines.currentFrame().orElse(null);
-        if (frame == null) return;
-        if (frame.colorEncoding() != WorldRenderFrame.ColorEncoding.SRGB
-                || frame.compositeStage() != WorldRenderFrame.CompositeStage.FINAL_COLOR) return;
+        // Lumos targets the vanilla Fancy path only; it does not run under Fabulous graphics or an
+        // active Iris shaderpack (Iris support will be rebuilt separately).
+        if (Minecraft.useShaderTransparency()
+                || fr.lacaleche.glue.compat.RenderCompat.isIrisShaderEnabled()) return;
 
-        Matrix4f viewProjection = frame.viewProjection();
+        RenderTarget main = minecraft.getMainRenderTarget();
+        Camera mainCamera = minecraft.gameRenderer.getMainCamera();
+        Matrix4f view = FrameMatrices.getView();
+        Matrix4f projection = FrameMatrices.getProjection();
+        if (view == null || projection == null) return;
+        int fbo = FramebufferHelper.getFramebufferId(main);
+        int depth = FramebufferHelper.getDepthTextureId(main);
+        if (fbo <= 0 || depth <= 0) return;
+        int materialColor = TerrainMaterialBuffer.currentColorTextureId();
+        int materialDepth = TerrainMaterialBuffer.currentDepthTextureId();
+        LumosFrame frame = new LumosFrame(fbo, depth, main.width, main.height, view, projection,
+                materialColor, materialDepth);
+
+        Matrix4f viewProjection = new Matrix4f(projection).mul(view);
         Matrix4f inverseViewProjection = new Matrix4f(viewProjection).invert();
-        Vector3d camera = new Vector3d(frame.cameraPosition());
+        Vector3d camera = new Vector3d(mainCamera.getPosition().x, mainCamera.getPosition().y,
+                mainCamera.getPosition().z);
         float partialTick = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<Light> all = manager.snapshot(partialTick);
         List<Light> visible = cull(minecraft, all, viewProjection, camera);
