@@ -21,10 +21,10 @@ uniform sampler2D GlassDepth;
 uniform int HasGlassG;
 uniform mat4 InvViewProj;
 
-// Dynamic material G-buffer: entities (and later particles) captured in the same draw as the
-// scene, so their albedo+normal are REAL, not guessed. GBufferId carries the material class
-// (2 = entity); GBufferAlbedo is linear albedo (RGB) + packed normal (A). Reading a captured
-// albedo here is what finally kills the entity flood -- a grey wither stays grey.
+// Dynamic material G-buffer: supported entity surfaces are captured in the same draw as the
+// scene. GBufferId carries the material class plus owning depth; GBufferAlbedo is linear albedo
+// (RGB) + packed normal (A). The normal is reserved for the deferred pass; this composite uses
+// captured albedo so a grey entity stays grey.
 uniform sampler2D GBufferAlbedo;
 uniform sampler2D GBufferId;
 uniform int HasGBuffer;
@@ -57,10 +57,14 @@ vec3 reconstruct(vec2 uv, float depth) {
     return worldH.xyz / worldH.w;
 }
 
+float unpackDepth24(vec3 encodedDepth) {
+    vec3 depthBytes = floor(encodedDepth * 255.0 + 0.5);
+    return dot(depthBytes, vec3(65536.0, 256.0, 1.0)) / 16777215.0;
+}
+
 // True when the frontmost surface at uv is a glass pane: the glass G-buffer point reconstructs
 // to (almost) the same world position as the scene surface, so both the deferred glass pass and
-// this pass agree on what "is glass". Used to keep glass out of the entity cap AND to drop a
-// captured entity that a pane (drawn after it) now hides.
+// this pass agree on what "is glass". Dynamic material ownership is validated separately.
 bool frontmostIsGlass(vec2 uv, float sceneDepth) {
     if (HasGlassG != 1) return false;
     float gd = texture(GlassDepth, uv).r;
@@ -94,13 +98,16 @@ void main() {
     // like terrain: use the albedo directly and never fall to the guess-or-cap path.
     bool gbufferEntity = false;
     if (HasGBuffer == 1) {
-        float id = texture(GBufferId, texCoord).r * 255.0;
-        gbufferEntity = id > 1.5 && id < 2.5;
+        vec4 dynamicMaterial = texture(GBufferId, texCoord);
+        float id = dynamicMaterial.r * 255.0;
+        // The entity owns this pixel only if the depth it wrote still matches the scene depth --
+        // otherwise something opaque or translucent (a pane) took over in front and the id is
+        // stale. Match at the same tolerance the terrain path uses: SceneDepth is not bit-exact
+        // to the geometry's gl_FragCoord.z, so a 24-bit ULP window rejects every visible entity.
+        float ownerDepth = unpackDepth24(dynamicMaterial.gba);
+        bool ownsPixel = abs(ownerDepth - sceneDepth) < 1e-5;
+        gbufferEntity = ownsPixel && id > 1.5 && id < 2.5;
     }
-    // A captured entity's id lingers even when a glass pane, drawn after it, took over this
-    // pixel's depth (glass writes depth here). When the frontmost surface is that pane the entity
-    // is behind it, so drop the flag and let the glass path own the pixel.
-    if (gbufferEntity && isGlass) gbufferEntity = false;
 
     if (gbufferEntity) {
         albedo = texture(GBufferAlbedo, texCoord).rgb;

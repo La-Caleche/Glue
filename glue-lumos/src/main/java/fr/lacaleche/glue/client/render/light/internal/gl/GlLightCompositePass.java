@@ -17,14 +17,14 @@ public final class GlLightCompositePass {
         this.resources = resources;
     }
 
-    public void render(int lightTexture, int sceneColor, int sceneDepth,
-                       int materialColor, int materialDepth, int glassDepth,
-                       int gbufferAlbedo, int gbufferId,
-                       Matrix4f inverseViewProjection,
-                       int destinationFramebuffer, int width, int height) {
+    public boolean render(int lightTexture, int sceneColor, int sceneDepth,
+                          int materialColor, int materialDepth, int glassDepth,
+                          int gbufferAlbedo, int gbufferId,
+                          Matrix4f inverseViewProjection,
+                          int destinationFramebuffer, int width, int height) {
         int program = resources.program("glue_light_composite",
                 "light/deferred.vsh", "light/composite.fsh");
-        if (program == 0 || lightTexture <= 0 || sceneColor <= 0) return;
+        if (program == 0 || lightTexture <= 0 || sceneColor <= 0) return false;
 
         SavedGlState state = SavedGlState.save();
         try {
@@ -71,6 +71,7 @@ public final class GlLightCompositePass {
 
             resources.uniform1f(program, "Exposure", EXPOSURE);
             resources.drawFullscreen(program);
+            return true;
         } finally {
             state.restore();
         }
@@ -82,5 +83,6 @@ public final class GlLightCompositePass {
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDepthMask(false);
         GL11.glDisable(GL11.GL_CULL_FACE);
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
 }
