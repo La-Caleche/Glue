@@ -45,10 +45,13 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
         List<Light> lights = LightManager.getInstance().snapshot();
         if (lights.isEmpty()) return;
 
-        VertexConsumer lines = vertexConsumers.getBuffer(RenderType.lines());
         PoseStack.Pose pose = matrices.last();
 
-        int index = 0;
+        // All wireframes go into one lines batch first, then the floating text. The two must
+        // not interleave: the debug pass shares Minecraft's immediate buffer source, and asking
+        // it for the text buffer ends the current lines batch -- so a lines consumer cached
+        // across a renderFloatingText call would be flushed mid-loop and throw "Not building!".
+        VertexConsumer lines = vertexConsumers.getBuffer(RenderType.lines());
         for (Light light : lights) {
             boolean selected = (light == hud.getSelectedLight());
             int color = wireColor(light, selected);
@@ -64,7 +67,11 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
             }
 
             cross(pose, lines, x, y, z, 0.25f, selected ? 0xFFFFFFFF : color);
+        }
 
+        int index = 0;
+        for (Light light : lights) {
+            boolean selected = (light == hud.getSelectedLight());
             DebugRenderer.renderFloatingText(matrices, vertexConsumers,
                     "#" + index + " " + light.type,
                     light.x, light.y + 0.5, light.z,
