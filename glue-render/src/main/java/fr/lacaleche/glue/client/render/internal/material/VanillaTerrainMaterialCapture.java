@@ -101,11 +101,6 @@ final class VanillaTerrainMaterialCapture implements TerrainMaterialCapture {
     }
 
     @Override
-    public RenderTarget renderTarget() {
-        return available ? target.renderTarget() : null;
-    }
-
-    @Override
     public void cleanup() {
         cancelFrame();
         target.cleanup();

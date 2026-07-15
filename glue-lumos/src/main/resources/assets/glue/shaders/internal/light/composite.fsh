@@ -57,6 +57,19 @@ vec3 reconstruct(vec2 uv, float depth) {
     return worldH.xyz / worldH.w;
 }
 
+// True when the frontmost surface at uv is a glass pane: the glass G-buffer point reconstructs
+// to (almost) the same world position as the scene surface, so both the deferred glass pass and
+// this pass agree on what "is glass". Used to keep glass out of the entity cap AND to drop a
+// captured entity that a pane (drawn after it) now hides.
+bool frontmostIsGlass(vec2 uv, float sceneDepth) {
+    if (HasGlassG != 1) return false;
+    float gd = texture(GlassDepth, uv).r;
+    if (gd >= 1.0) return false;
+    vec3 Pg = reconstruct(uv, gd);
+    vec3 Ps = reconstruct(uv, sceneDepth);
+    return distance(Pg, Ps) < 0.02 + 0.01 * length(Ps);
+}
+
 void main() {
     vec4 accumulated = texture(LightTex, texCoord);
     vec3 hdr = accumulated.rgb * Exposure;
@@ -67,12 +80,14 @@ void main() {
     vec3 sceneLinear = mix(low, high, step(vec3(0.04045), sceneSrgb));
 
     float sceneLuma = dot(sceneLinear, vec3(0.2126, 0.7152, 0.0722));
+    float sceneDepth = texture(SceneDepth, texCoord).r;
+    bool isGlass = frontmostIsGlass(texCoord, sceneDepth);
+
     float recoveredLuma;
     vec3 albedo;
     bool terrainMaterial = false;
     if (HasMaterial == 1) {
         float materialDepth = texture(MaterialDepth, texCoord).r;
-        float sceneDepth = texture(SceneDepth, texCoord).r;
         terrainMaterial = materialDepth < 1.0 && abs(materialDepth - sceneDepth) < 1e-5;
     }
     // A captured dynamic-material pixel (entity) carries its real albedo -- treat it exactly
@@ -82,19 +97,11 @@ void main() {
         float id = texture(GBufferId, texCoord).r * 255.0;
         gbufferEntity = id > 1.5 && id < 2.5;
     }
-    // A captured entity's id lingers in the buffer even when a glass pane, drawn after it,
-    // took over this pixel's depth (glass writes depth here -- that is what gives the pane its
-    // response). So if the frontmost visible surface IS a pane -- detected exactly as the glass
-    // path does, the pane reconstructs to the scene point -- the entity is behind it. Drop the
-    // entity flag and let the glass path own the pixel; the entity is no longer visible here.
-    if (gbufferEntity && HasGlassG == 1) {
-        float gd = texture(GlassDepth, texCoord).r;
-        if (gd < 1.0) {
-            vec3 Pg = reconstruct(texCoord, gd);
-            vec3 Ps = reconstruct(texCoord, texture(SceneDepth, texCoord).r);
-            if (distance(Pg, Ps) < 0.02 + 0.01 * length(Ps)) gbufferEntity = false;
-        }
-    }
+    // A captured entity's id lingers even when a glass pane, drawn after it, took over this
+    // pixel's depth (glass writes depth here). When the frontmost surface is that pane the entity
+    // is behind it, so drop the flag and let the glass path own the pixel.
+    if (gbufferEntity && isGlass) gbufferEntity = false;
+
     if (gbufferEntity) {
         albedo = texture(GBufferAlbedo, texCoord).rgb;
         recoveredLuma = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
@@ -134,24 +141,10 @@ void main() {
 
     vec3 illumination = vec3(1.0) - exp(-hdr * albedo);
 
-    // Cap the entity/particle overlay (see ENTITY_LIGHT_CAP) -- but NOT glass. Glass is also
-    // absent from the terrain buffer, yet the deferred pass gives its pane a real, purpose-
-    // built response (scatter/specular/transmission); clamping that here would undo it. So
-    // exclude any pixel whose frontmost surface is a pane, detected exactly as the deferred
-    // pass does -- the glass G-buffer point reconstructs to (almost) the same place as the
-    // scene point -- so the two passes always agree on what "is glass". What stays capped is
-    // genuine entities and particles: no captured albedo/normal, so full light floods them.
-    bool isGlass = false;
-    if (HasGlassG == 1) {
-        float gd = texture(GlassDepth, texCoord).r;
-        if (gd < 1.0) {
-            vec3 Pg = reconstruct(texCoord, gd);
-            vec3 Ps = reconstruct(texCoord, texture(SceneDepth, texCoord).r);
-            isGlass = distance(Pg, Ps) < 0.02 + 0.01 * length(Ps);
-        }
-    }
-    // Cap only the pixels we still have to guess -- NOT captured entities (real albedo, so no
-    // flood) and NOT glass (its own deferred response).
+    // Cap the entity/particle overlay (see ENTITY_LIGHT_CAP) -- but NOT glass, which the deferred
+    // pass gives a real, purpose-built response (scatter/specular/transmission) that clamping
+    // would undo, and NOT captured entities, which carry real albedo and so do not flood. What
+    // stays capped is genuine entities/particles with no captured albedo/normal.
     if (HasMaterial == 1 && !terrainMaterial && !isGlass && !gbufferEntity) {
         float mag = max(illumination.r, max(illumination.g, illumination.b));
         if (mag > ENTITY_LIGHT_CAP) illumination *= ENTITY_LIGHT_CAP / mag;
