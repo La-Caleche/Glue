@@ -75,7 +75,7 @@ Copy `srgbToLinear`, `packNormal` and `signNotZero` from that file unchanged —
 (`internal/light/deferred.fsh:unpackNormal`) depends on the exact packing.
 
 Also required: a **depth snapshot** taken at capture time. The consumers gate on
-`abs(materialDepth - sceneDepth) < 1e-7` to confirm opaque terrain is still the frontmost
+`abs(materialDepth - sceneDepth) < 1e-5` to confirm opaque terrain is still the frontmost
 surface at that pixel. See §7 — this tolerance is a trap.
 
 Consumers, for reference:
@@ -219,13 +219,14 @@ assume it was overlooked.
 
 ## 7. Pitfalls that will cost you a day each
 
-**The depth tolerance.** Consumers gate on `abs(materialDepth - sceneDepth) < 1e-7`. A 24-bit
-depth buffer has a quantum of ~6e-8, so that tolerance is under two ULP. If your material
-depth comes from a *different* framebuffer than the scene depth, or is blitted/copied with any
-format conversion, this test fails on **every pixel** and `terrainMaterial` is silently false
-everywhere — you will get the exact fallback behaviour you were trying to fix, with no error
-message. The MRT writes against the main depth attachment, then copies that exact opaque depth
-texture into the material target after each pass. No depth re-render or format conversion occurs.
+**The depth tolerance.** Consumers gate on `abs(materialDepth - sceneDepth) < 1e-5`. This was
+`1e-7` (under two ULP of a 24-bit buffer), which is correct only when the material depth is a
+*bit-identical* copy of the scene depth. In practice the blit into the material target quantises
+by a quantum or two, so `1e-7` made `terrainMaterial` flicker on and off per pixel — the normal
+kept switching between the clean packed value and the noisy depth-reconstructed fallback, which
+read as grain. `1e-5` tolerates the copy while staying far below the depth gap between distinct
+surfaces at the near/mid ranges where lights actually reach. The MRT writes against the main depth
+attachment, then copies that opaque depth into the material target after each pass.
 
 **Clear once.** The material color target is cleared once at frame start, not once per layer.
 Otherwise cutout passes erase solid terrain; without any clear, stale material can occasionally

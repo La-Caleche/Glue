@@ -359,7 +359,7 @@ void main() {
     vec4 material = vec4(0.0);
     if (HasMaterial == 1) {
         float materialDepth = texture(MaterialDepth, texCoord).r;
-        terrainMaterial = materialDepth < 1.0 && abs(materialDepth - depth) < 1e-7;
+        terrainMaterial = materialDepth < 1.0 && abs(materialDepth - depth) < 1e-5;
         if (terrainMaterial) material = texture(MaterialAlbedo, texCoord);
     }
 

@@ -35,7 +35,7 @@ void main() {
     if (HasMaterial == 1) {
         float materialDepth = texture(MaterialDepth, texCoord).r;
         float sceneDepth = texture(SceneDepth, texCoord).r;
-        terrainMaterial = materialDepth < 1.0 && abs(materialDepth - sceneDepth) < 1e-7;
+        terrainMaterial = materialDepth < 1.0 && abs(materialDepth - sceneDepth) < 1e-5;
     }
     if (terrainMaterial) {
         albedo = texture(MaterialAlbedo, texCoord).rgb;
