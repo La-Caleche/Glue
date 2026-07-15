@@ -21,6 +21,9 @@ void main() {
     vec3 lit = texture(LitTex, texCoord).rgb;
     vec3 bloom = texture(BloomTex, texCoord).rgb * BloomStrength;
     vec3 c = lit + bloom;
+    // Keep a stray NaN/Inf from the HDR light math out of the display buffer -- it would show
+    // as a black pixel here and, worse, get re-sampled into the glass by the reflection pass.
+    if (any(isnan(c)) || any(isinf(c))) c = vec3(0.0);
 
     vec3 over = max(c - KNEE, 0.0);
     c = c - over + over / (1.0 + over / (1.0 - KNEE));

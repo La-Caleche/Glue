@@ -112,6 +112,7 @@ void main() {
             for (int r = 0; r < REFINE_STEPS; r++) {
                 vec3 mid = 0.5 * (lo + hi);
                 vec4 c = ViewProj * vec4(mid, 1.0);
+                if (c.w <= 0.0) { lo = mid; continue; }   // behind camera: never divide by w <= 0
                 vec2 muv = (c.xy / c.w) * 0.5 + 0.5;
                 float msd = texture(SceneDepth, muv).r;
                 float md = msd >= 1.0 ? -1.0
@@ -126,6 +127,7 @@ void main() {
     }
 
     if (!hit) discard;
+    if (any(lessThan(hitUV, vec2(0.0))) || any(greaterThan(hitUV, vec2(1.0)))) discard;
 
     // Fade at the screen edges: a ray that resolves near the border is sampling colour that
     // is about to leave the frame, and popping it in hard looks worse than letting it go.
@@ -138,5 +140,8 @@ void main() {
     if (alpha <= 0.0) discard;
 
     vec3 reflected = texture(SceneColor, hitUV).rgb;
-    fragColor = vec4(reflected, alpha);
+    // A NaN/Inf sample renders as a solid black block and blends it straight onto the pane.
+    // Drop the fragment rather than leak it; a missing reflection is invisible, a black hole isn't.
+    if (any(isnan(reflected)) || any(isinf(reflected))) discard;
+    fragColor = vec4(max(reflected, vec3(0.0)), alpha);
 }
