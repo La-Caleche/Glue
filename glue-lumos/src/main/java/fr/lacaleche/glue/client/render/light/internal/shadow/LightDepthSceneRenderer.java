@@ -49,7 +49,7 @@ import java.util.List;
 public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
 
     /** A block this close to the light is drawn into every face -- too near to cull safely. */
-    private static final double NEAR_LIGHT = 2.0;
+    static final double NEAR_LIGHT = 2.0;
 
     private Matrix4f lightView = new Matrix4f();
     private Matrix4f lightProj = new Matrix4f();
@@ -419,7 +419,7 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
     }
 
     /** Cube face (+X -X +Y -Y +Z -Z) a direction points at. Matches the shader's cubeFace(). */
-    private static int dominantFace(double x, double y, double z) {
+    static int dominantFace(double x, double y, double z) {
         double ax = Math.abs(x), ay = Math.abs(y), az = Math.abs(z);
         if (ax >= ay && ax >= az) return x > 0 ? 0 : 1;
         if (ay >= az) return y > 0 ? 2 : 3;

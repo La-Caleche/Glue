@@ -180,6 +180,12 @@ float entityBlobShadow(vec3 P, vec3 lightPos) {
     return visibility;
 }
 
+float linearizeShadow(float d) {
+    float z = d * 2.0 - 1.0;
+    return (2.0 * ShadowNear * ShadowFar)
+         / (ShadowFar + ShadowNear - z * (ShadowFar - ShadowNear));
+}
+
 // Entity shadow map: a per-frame depth of nearby entities from the light's POV, sharing ShadowMap's
 // lightViewProj so it projects with the same biased position. A 3x3 PCF depth compare -- entities are
 // small and do not need the terrain PCSS. The compare is done in LINEAR (view) depth with a constant
@@ -195,16 +201,12 @@ float sampleEntityShadow(vec3 Pb) {
     vec2 uv = ndc.xy * 0.5 + 0.5;
     if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return 1.0;
 
-    float span = ShadowFar - ShadowNear;
-    float refLinear = (2.0 * ShadowNear * ShadowFar)
-            / max(ShadowFar + ShadowNear - (ndc.z) * span, 1e-4);
+    float refLinear = linearizeShadow(ndc.z * 0.5 + 0.5);
     float lit = 0.0;
     for (int x = -1; x <= 1; x++) {
         for (int y = -1; y <= 1; y++) {
             float occluder = texture(EntityShadowMap, uv + vec2(x, y) * ENTITY_TEXEL).r;
-            float occLinear = (2.0 * ShadowNear * ShadowFar)
-                    / max(ShadowFar + ShadowNear - (occluder * 2.0 - 1.0) * span, 1e-4);
-            lit += step(refLinear - ENTITY_BIAS, occLinear);
+            lit += step(refLinear - ENTITY_BIAS, linearizeShadow(occluder));
         }
     }
     return lit / 9.0;
@@ -225,12 +227,6 @@ vec2 vogel(int i, int n, float phi) {
 float rotationPhi() {
     float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
     return 6.2831853 * ign;
-}
-
-float linearizeShadow(float d) {
-    float z = d * 2.0 - 1.0;
-    return (2.0 * ShadowNear * ShadowFar)
-         / (ShadowFar + ShadowNear - z * (ShadowFar - ShadowNear));
 }
 
 // Which cube face a direction from the light falls on. The six faces are rendered
