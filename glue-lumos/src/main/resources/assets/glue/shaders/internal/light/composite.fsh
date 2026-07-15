@@ -100,12 +100,15 @@ void main() {
     if (HasGBuffer == 1) {
         vec4 dynamicMaterial = texture(GBufferId, texCoord);
         float id = dynamicMaterial.r * 255.0;
-        // The entity owns this pixel only if the depth it wrote still matches the scene depth --
-        // otherwise something opaque or translucent (a pane) took over in front and the id is
-        // stale. Match at the same tolerance the terrain path uses: SceneDepth is not bit-exact
-        // to the geometry's gl_FragCoord.z, so a 24-bit ULP window rejects every visible entity.
+        // The entity owns this pixel only if the depth it wrote still resolves to the scene
+        // surface -- otherwise something opaque or translucent (a pane) took over in front and
+        // the id is stale. Compare in world space with a distance-scaled tolerance (the same
+        // form the glass test uses): a fixed window-depth epsilon is nonlinear -- far too loose
+        // far from the camera, so it would match a distant surface behind the entity.
         float ownerDepth = unpackDepth24(dynamicMaterial.gba);
-        bool ownsPixel = abs(ownerDepth - sceneDepth) < 1e-5;
+        vec3 ownerP = reconstruct(texCoord, ownerDepth);
+        vec3 sceneP = reconstruct(texCoord, sceneDepth);
+        bool ownsPixel = distance(ownerP, sceneP) < 0.02 + 0.01 * length(sceneP);
         gbufferEntity = ownsPixel && id > 1.5 && id < 2.5;
     }
 

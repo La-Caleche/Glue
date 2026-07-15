@@ -445,8 +445,11 @@ void main() {
     if (HasGBuffer == 1) {
         vec4 dynamicMaterial = texture(GBufferId, texCoord);
         float id = dynamicMaterial.r * 255.0;
+        // World-space ownership with a distance-scaled tolerance (see composite.fsh): uniform
+        // with distance where a window-depth epsilon is not. P is the scene surface point.
         float ownerDepth = unpackDepth24(dynamicMaterial.gba);
-        gbufferEntity = abs(ownerDepth - depth) < 1e-5 && id > 1.5 && id < 2.5;
+        vec3 ownerP = reconstruct(texCoord, ownerDepth);
+        gbufferEntity = distance(ownerP, P) < 0.02 + 0.01 * length(P) && id > 1.5 && id < 2.5;
     }
 
     vec3 N;
