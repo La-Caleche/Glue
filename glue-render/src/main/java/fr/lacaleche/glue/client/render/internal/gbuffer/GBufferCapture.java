@@ -7,8 +7,6 @@ import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Drives the dynamic (entity) material capture into the {@link GBufferTargets} MRT.
@@ -29,8 +27,6 @@ import org.slf4j.LoggerFactory;
 @Environment(EnvType.CLIENT)
 public final class GBufferCapture {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("glue/gbuffer");
-
     private static final GBufferTargets TARGETS = new GBufferTargets();
 
     private static boolean frameReady;
@@ -41,20 +37,11 @@ public final class GBufferCapture {
     // own framebuffer management, so our bind is the one that sticks.
     private static int pendingFbo;
 
-    // TEMP diagnostics.
-    private static long frameCount;
-    private static int redirectCount;
-
     private GBufferCapture() {
     }
 
     /** Ensures + clears the G-buffer and opens the world phase. Call at world-render start. */
     public static void beginFrame() {
-        if (frameCount++ % 60 == 0) {
-            LOGGER.info("[gbuffer] ready={} redirects/frame={} fbo={} albedoTex={}",
-                    frameReady, redirectCount, TARGETS.framebufferId(), TARGETS.albedoNormalTextureId());
-        }
-        redirectCount = 0;
         frameReady = false;
         inWorldPhase = false;
         if (!TerrainMaterialBuffer.isActive()) return;
@@ -72,13 +59,6 @@ public final class GBufferCapture {
         inWorldPhase = false;
     }
 
-    /**
-     * The framebuffer to bind for a draw about to use {@code pipeline}, or 0 to leave it alone.
-     * Non-zero only for opaque/cutout entity geometry during the world phase.
-     */
-    // TEMP: distinct pipelines redirected, logged once each.
-    private static final java.util.Set<String> SEEN = new java.util.HashSet<>();
-
     /** Called at {@code setPipeline}: record whether the draw about to run should be redirected. */
     public static void armForPipeline(RenderPipeline pipeline) {
         pendingFbo = redirectFboFor(pipeline);
@@ -91,13 +71,13 @@ public final class GBufferCapture {
         return fbo;
     }
 
+    /**
+     * The framebuffer to bind for a draw about to use {@code pipeline}, or 0 to leave it alone.
+     * Non-zero only for opaque/cutout entity geometry during the world phase.
+     */
     private static int redirectFboFor(RenderPipeline pipeline) {
         if (!frameReady || !inWorldPhase || pipeline == null) return 0;
         if (pipeline.getVertexFormat() != DefaultVertexFormat.NEW_ENTITY) return 0;
-        redirectCount++;
-        if (SEEN.add(pipeline.getLocation().toString())) {
-            LOGGER.info("[gbuffer] redirecting pipeline {}", pipeline.getLocation());
-        }
         return TARGETS.framebufferId();
     }
 

@@ -54,12 +54,6 @@ public final class TerrainMaterialBuffer {
         active.beginFrame(frameSequence);
     }
 
-    /** Framebuffer for the active material capture this frame, or null. Used by the dynamic
-     *  (entity/particle) capture to draw into the same buffer terrain was captured into. */
-    public static com.mojang.blaze3d.pipeline.RenderTarget activeRenderTarget() {
-        return active == null ? null : active.renderTarget();
-    }
-
     public static int currentColorTextureId() {
         return active == null ? -1 : active.colorTextureId();
     }

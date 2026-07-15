@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.*;
+import java.util.function.IntSupplier;
 
 public class FboDebugHud {
 
@@ -31,13 +32,13 @@ public class FboDebugHud {
 
     /** Extra full-screen textures (G-buffer attachments, custom targets…) that other subsystems
      *  contribute to the vanilla-frame view. Each supplies its live GL id (<= 0 = skip). */
-    private static final List<ExtraTexture> EXTRA_TEXTURES = new java.util.ArrayList<>();
+    private static final List<ExtraTexture> EXTRA_TEXTURES = new ArrayList<>();
 
-    private record ExtraTexture(String name, java.util.function.IntSupplier id) {
+    private record ExtraTexture(String name, IntSupplier id) {
     }
 
     /** Registers a texture to appear in the FBO viewer alongside Main Color/Depth. */
-    public static void registerTexture(String name, java.util.function.IntSupplier id) {
+    public static void registerTexture(String name, IntSupplier id) {
         EXTRA_TEXTURES.add(new ExtraTexture(name, id));
     }
     private final List<CapturedTexture> irisCapturedTextures = new ArrayList<>();

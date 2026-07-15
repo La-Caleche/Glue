@@ -23,7 +23,8 @@ import java.nio.ByteBuffer;
  *   <li>{@code COLOR_ATTACHMENT0} = the vanilla main colour texture (so the ordinary lit scene
  *       is still produced by the same draw);</li>
  *   <li>{@code COLOR_ATTACHMENT1} = albedo (linear RGB) + packed normal (A), {@code RGBA16F};</li>
- *   <li>{@code COLOR_ATTACHMENT2} = material id + flags, {@code RGBA8} (see {@link MaterialClass});</li>
+ *   <li>{@code COLOR_ATTACHMENT2} = material id, {@code RGBA8} (red channel = id/255: entity 2,
+ *       particle 3; 0 where cleared);</li>
  *   <li>depth = the vanilla main depth texture (shared).</li>
  * </ul>
  * A geometry draw redirected here writes colour, material and depth together, so the material
@@ -110,17 +111,9 @@ public final class GBufferTargets {
         return albedoNormalTex;
     }
 
-    /** Material-id + flags attachment, or 0. */
+    /** Material-id attachment, or 0. */
     public int materialIdTextureId() {
         return materialIdTex;
-    }
-
-    public int width() {
-        return width;
-    }
-
-    public int height() {
-        return height;
     }
 
     /** Clears only the owned material attachments (1 and 2); the shared colour/depth are left

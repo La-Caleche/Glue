@@ -8,6 +8,7 @@ import fr.lacaleche.glue.client.events.ParticleManagerEvents;
 import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.BlockRenderer;
+import fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture;
 import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.shader.ShaderContext;
@@ -42,10 +43,8 @@ public class GlueClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         TerrainMaterialBuffer.init();
-        fr.lacaleche.glue.client.debug.FboDebugHud.registerTexture("GBuffer Albedo+N",
-                fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture::albedoNormalTextureId);
-        fr.lacaleche.glue.client.debug.FboDebugHud.registerTexture("GBuffer MaterialID",
-                fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture::materialIdTextureId);
+        FboDebugHud.registerTexture("GBuffer Albedo+N", GBufferCapture::albedoNormalTextureId);
+        FboDebugHud.registerTexture("GBuffer MaterialID", GBufferCapture::materialIdTextureId);
         GlueOutlineRenderers.registerOutlineRenderers();
 
         DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);
@@ -56,15 +55,14 @@ public class GlueClient implements ClientModInitializer {
         WorldRenderEvents.START.register(ctx -> {
             RenderCompat.resetFrameCache();
             TerrainMaterialBuffer.beginFrame();
-            fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture.beginFrame();
+            GBufferCapture.beginFrame();
         });
-        RenderEvents.POST_WORLD_RENDER.register(
-                fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture::endWorldPhase);
+        RenderEvents.POST_WORLD_RENDER.register(GBufferCapture::endWorldPhase);
         RaycastUtils.register();
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             TerrainMaterialBuffer.cleanup();
-            fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture.cleanup();
+            GBufferCapture.cleanup();
             ShaderContext.get().cleanup();
         });
 
