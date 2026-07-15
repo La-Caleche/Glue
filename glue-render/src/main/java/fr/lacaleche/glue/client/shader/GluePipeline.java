@@ -350,6 +350,8 @@ public class GluePipeline {
         private boolean colorWrite = true;
         private boolean depthWrite = true;
         private @Nullable DepthTestFunction depthTest = null;
+        private float depthBiasScaleFactor = 0.0f;
+        private float depthBiasConstant = 0.0f;
         private String irisProgram = "ENTITIES_TRANSLUCENT";
         private PipelineCategory category = PipelineCategory.ENTITY;
         private List<String> samplers = new ArrayList<>(List.of("Sampler0", "Sampler1", "Sampler2"));
@@ -413,6 +415,17 @@ public class GluePipeline {
         }
 
         /**
+         * Polygon depth bias (glPolygonOffset). Negative values pull fragments toward the camera,
+         * so a coplanar re-render passes a {@code LEQUAL} test against the existing depth without
+         * z-fighting -- the decal technique. Both default to 0 (no bias).
+         */
+        public Builder depthBias(float scaleFactor, float constant) {
+            this.depthBiasScaleFactor = scaleFactor;
+            this.depthBiasConstant = constant;
+            return this;
+        }
+
+        /**
          * Adds the {@code ALPHA_CUTOUT} shader define with the given threshold.
          */
         public Builder alphaCutout(float cutout) {
@@ -468,6 +481,10 @@ public class GluePipeline {
 
             if (depthTest != null) {
                 pb.withDepthTestFunction(depthTest);
+            }
+
+            if (depthBiasScaleFactor != 0.0f || depthBiasConstant != 0.0f) {
+                pb.withDepthBias(depthBiasScaleFactor, depthBiasConstant);
             }
 
             if (alphaCutoutEnabled) {

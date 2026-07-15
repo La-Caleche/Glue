@@ -65,9 +65,9 @@ public final class LightRenderCoordinator {
         if (visible.isEmpty()) return;
 
         context.shadows().bake(minecraft, deferredPass.tintBlur(), visible);
-        GlassBufferPass.Textures glass = glassPass.render(context, minecraft, frame, camera, all, visible);
+        glassPass.render(context, minecraft, frame, camera, all, visible);
         deferredPass.render(frame, viewProjection, inverseViewProjection, camera,
-                visible, context.shadows(), glass);
+                visible, context.shadows());
     }
 
     public void setShadowBudget(int spots, int points) {

@@ -36,8 +36,7 @@ final class DeferredLightPass {
     }
 
     void render(LumosFrame frame, Matrix4f viewProjection, Matrix4f inverseViewProjection,
-                Vector3d camera, List<Light> lights, ShadowBaker shadows,
-                GlassBufferPass.Textures glass) {
+                Vector3d camera, List<Light> lights, ShadowBaker shadows) {
         if (!accumulator.beginFrame(frame.width(), frame.height())) return;
         int lightFramebuffer = accumulator.getFramebufferId();
         if (lightFramebuffer <= 0) return;
@@ -54,13 +53,13 @@ final class DeferredLightPass {
             List<ShadowParams> maps = shadows.get(light);
             if (maps == null || maps.isEmpty()) {
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
-                        camera, light, bounds, null, glass, materialColor, materialDepth,
+                        camera, light, bounds, null, materialColor, materialDepth,
                         gbufferAlbedo, gbufferId);
                 continue;
             }
             for (ShadowParams map : maps) {
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
-                        camera, light, bounds, map, glass, materialColor, materialDepth,
+                        camera, light, bounds, map, materialColor, materialDepth,
                         gbufferAlbedo, gbufferId);
             }
         }
@@ -75,7 +74,7 @@ final class DeferredLightPass {
         int litTexture = accumulator.getLitTextureId();
         boolean composited = composite.render(denoised,
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
-                materialColor, materialDepth, glass.depthId(),
+                materialColor, materialDepth,
                 gbufferAlbedo, gbufferId, inverseViewProjection,
                 accumulator.getLitFramebufferId(),
                 frame.width(), frame.height());
@@ -85,11 +84,12 @@ final class DeferredLightPass {
                 frame.width(), frame.height());
 
         // Environment reflection on the panes. Re-capture AFTER the combine so the mirror
-        // shows the final lit scene, then blend it onto the glass pixels.
-        if (glass.depthId() > 0) {
+        // shows the final lit scene, then blend it onto the glass pixels (identified by the
+        // GLASS material id in the G-buffer).
+        if (gbufferId > 0) {
             accumulator.captureScene(frame.framebufferId());
             reflection.render(accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
-                    glass.depthId(), viewProjection, inverseViewProjection,
+                    gbufferId, viewProjection, inverseViewProjection,
                     frame.framebufferId(), frame.width(), frame.height());
         }
     }
@@ -105,11 +105,11 @@ final class DeferredLightPass {
     private void accumulate(int lightFramebuffer, LumosFrame frame,
                             Matrix4f viewProjection, Matrix4f inverseViewProjection,
                             Vector3d camera, Light light, int[] bounds, ShadowParams shadow,
-                            GlassBufferPass.Textures glass, int materialColor, int materialDepth,
+                            int materialColor, int materialDepth,
                             int gbufferAlbedo, int gbufferId) {
         deferred.render(lightFramebuffer, frame.sceneDepthTextureId(),
                 viewProjection, inverseViewProjection, camera, light,
-                frame.width(), frame.height(), bounds, shadow, glass.colorId(), glass.depthId(),
+                frame.width(), frame.height(), bounds, shadow,
                 materialColor, materialDepth, gbufferAlbedo, gbufferId);
     }
 

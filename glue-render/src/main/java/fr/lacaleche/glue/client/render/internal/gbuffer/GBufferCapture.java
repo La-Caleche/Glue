@@ -33,10 +33,16 @@ public final class GBufferCapture {
             ResourceLocation.withDefaultNamespace("core/entity");
     private static final ResourceLocation PARTICLE_SHADER =
             ResourceLocation.withDefaultNamespace("core/particle");
+    // The Lumos glass capture is a Glue pipeline; its fragment shader identifies it uniquely.
+    private static final ResourceLocation GLASS_SHADER =
+            ResourceLocation.fromNamespaceAndPath("glue", "internal/light/glass_gbuffer");
     private static final GBufferTargets TARGETS = new GBufferTargets();
 
     private static boolean frameReady;
     private static boolean inWorldPhase;
+    // Glass is captured by a post-world re-render, so it is armed explicitly around that draw
+    // rather than by the world phase (which is already closed by then).
+    private static boolean glassCaptureActive;
 
     // FBO to bind for the draw currently being set up. Armed at setPipeline (where the pipeline
     // is known), consumed at trySetup RETURN -- the last point before the draw, after Iris'
@@ -65,6 +71,32 @@ public final class GBufferCapture {
         inWorldPhase = false;
     }
 
+    /** True once the shared G-buffer is ensured and cleared for this frame. Glass capture, which
+     *  runs post-world (outside the world phase), must check this before it draws: with no target
+     *  ready its redirect would resolve to 0 and the pane re-render would corrupt the main scene. */
+    public static boolean isReady() {
+        return frameReady;
+    }
+
+    /**
+     * Opens the glass capture: restricts the shared FBO to its material attachments (1,2) and arms
+     * the redirect for glass draws. Returns false (drawing nothing) if the target is not ready.
+     * Pair every {@code true} return with {@link #endGlassCapture()}.
+     */
+    public static boolean beginGlassCapture() {
+        if (!frameReady) return false;
+        TARGETS.beginGlassPass();
+        glassCaptureActive = true;
+        return true;
+    }
+
+    /** Closes the glass capture and restores the full three-attachment draw-buffer set. */
+    public static void endGlassCapture() {
+        if (!glassCaptureActive) return;
+        glassCaptureActive = false;
+        TARGETS.endGlassPass();
+    }
+
     /** Called at {@code setPipeline}: record whether the draw about to run should be redirected. */
     public static void armForPipeline(RenderPipeline pipeline) {
         pendingFbo = redirectFboFor(pipeline);
@@ -86,7 +118,16 @@ public final class GBufferCapture {
      * target) and rejects the translucent particle sheet, entity shadows, and outline passes.
      */
     private static int redirectFboFor(RenderPipeline pipeline) {
-        if (!frameReady || !inWorldPhase || pipeline == null) return 0;
+        if (pipeline == null) return 0;
+        // Glass: a post-world re-render of nearby panes, armed explicitly (not by the world phase).
+        // It writes only attachments 1/2 -- attachment 0 keeps the pane colour vanilla already
+        // blended -- and never writes main depth (the pipeline masks it), so it is safe to redirect
+        // this one Glue pipeline outside the entity/particle gate below.
+        if (glassCaptureActive && frameReady
+                && GLASS_SHADER.equals(pipeline.getFragmentShader())) {
+            return TARGETS.framebufferId();
+        }
+        if (!frameReady || !inWorldPhase) return 0;
         if (pipeline.getBlendFunction().isPresent()
                 || !pipeline.isWriteColor()
                 || !pipeline.isWriteDepth()
