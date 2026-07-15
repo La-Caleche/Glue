@@ -598,11 +598,16 @@ void main() {
         // Blinn-Phong glint, Schlick-Fresnel weighted (glass grazes bright) but with a
         // raised floor so it still reads face-on. Front-lit only: a backlit pane transmits
         // rather than reflects, so gate on ndotl > 0.
-        vec3 halfVec = normalize(L + viewDir);
+        // Guard the half-vector: L + viewDir is the zero vector when the light sits exactly
+        // opposite the view ray (a backlit pane seen edge-on), and normalize(0) is a NaN. Fall
+        // back to N and drop the specular there -- an undefined half-vector has no highlight.
+        vec3 halfSum = L + viewDir;
+        float halfLen = length(halfSum);
+        vec3 halfVec = halfLen > 1e-6 ? halfSum / halfLen : N;
         float fresnel = GLASS_FRESNEL_FLOOR
                       + (1.0 - GLASS_FRESNEL_FLOOR) * pow(1.0 - max(dot(N, viewDir), 0.0), 5.0);
         specular = pow(max(dot(N, halfVec), 0.0), GLASS_SHININESS)
-                 * fresnel * GLASS_SPECULAR * step(0.0, ndotl);
+                 * fresnel * GLASS_SPECULAR * step(0.0, ndotl) * step(1e-6, halfLen);
 
         // Light that crossed ANOTHER pane before reaching this one arrives pre-tinted.
         // Only the colour is wanted, not that pane's texture pattern -- normalising by
@@ -658,5 +663,12 @@ void main() {
     // slab. Unflagged, the pane keeps the ~0.16 floor, vanilla's texture and transparency
     // survive underneath, and Lumos lifts that render instead of repainting over it.
     float transmitted = behindPane;
-    fragColor = vec4(result, transmitted * (direct + bounced) * atten * shape);
+    // The per-light glass math (half-vector normalize, tint normalisation) can produce a NaN at
+    // degenerate geometry -- notably the edge-on seam between two panes where a light sits nearly
+    // opposite the view ray. A NaN added into the additive HDR light buffer poisons the pixel, and
+    // the combine pass turns any NaN into a black block. Drop the contribution instead: the pixel
+    // keeps the light from every other source and its scene colour rather than going black.
+    vec4 outColor = vec4(result, transmitted * (direct + bounced) * atten * shape);
+    if (any(isnan(outColor)) || any(isinf(outColor))) discard;
+    fragColor = outColor;
 }
