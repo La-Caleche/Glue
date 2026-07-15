@@ -70,7 +70,8 @@ final class DeferredLightPass {
         int litTexture = accumulator.getLitTextureId();
         composite.render(denoised,
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
-                materialColor, materialDepth, accumulator.getLitFramebufferId(),
+                materialColor, materialDepth, glass.depthId(), inverseViewProjection,
+                accumulator.getLitFramebufferId(),
                 frame.width(), frame.height());
         int bloomTexture = bloom.apply(litTexture, frame.width(), frame.height());
         combine.render(litTexture, bloomTexture, frame.framebufferId(),

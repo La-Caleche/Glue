@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.client.render.light.internal.gl;
 
 import fr.lacaleche.glue.client.render.internal.gl.SavedGlState;
+import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL20;
@@ -17,7 +18,8 @@ public final class GlLightCompositePass {
     }
 
     public void render(int lightTexture, int sceneColor, int sceneDepth,
-                       int materialColor, int materialDepth,
+                       int materialColor, int materialDepth, int glassDepth,
+                       Matrix4f inverseViewProjection,
                        int destinationFramebuffer, int width, int height) {
         int program = resources.program("glue_light_composite",
                 "light/deferred.vsh", "light/composite.fsh");
@@ -49,6 +51,14 @@ public final class GlLightCompositePass {
             resources.uniform1i(program, "MaterialDepth", 3);
             resources.uniform1i(program, "SceneDepth", 4);
             resources.uniform1i(program, "HasMaterial", hasMaterial ? 1 : 0);
+
+            boolean hasGlass = glassDepth > 0;
+            GL13.glActiveTexture(GL13.GL_TEXTURE5);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, hasGlass ? glassDepth : 0);
+            resources.uniform1i(program, "GlassDepth", 5);
+            resources.uniform1i(program, "HasGlassG", hasGlass ? 1 : 0);
+            resources.uniformMatrix(program, "InvViewProj", inverseViewProjection);
+
             resources.uniform1f(program, "Exposure", EXPOSURE);
             resources.drawFullscreen(program);
         } finally {
