@@ -437,24 +437,32 @@ void main() {
         if (terrainMaterial) material = texture(MaterialAlbedo, texCoord);
     }
 
-    // A captured entity that still owns this pixel carries a real surface normal in the
-    // dynamic G-buffer. Prefer it over the depth-derivative fallback, which reads an entity's
-    // silhouette as geometry. Ownership: the depth the entity wrote still matches the scene
-    // depth -- otherwise something drew in front and the id is stale.
-    bool gbufferEntity = false;
+    // A captured dynamic surface (entity id 2, particle id 3) that still owns this pixel gets a
+    // real normal instead of the depth-derivative fallback, which reads an entity's silhouette as
+    // geometry. Ownership: the depth it wrote still resolves to the scene surface (world-space,
+    // distance-scaled tolerance -- see composite.fsh) -- otherwise the id is stale.
+    bool gbufferOwned = false;
+    float gbufferId = 0.0;
     if (HasGBuffer == 1) {
         vec4 dynamicMaterial = texture(GBufferId, texCoord);
-        float id = dynamicMaterial.r * 255.0;
-        // World-space ownership with a distance-scaled tolerance (see composite.fsh): uniform
-        // with distance where a window-depth epsilon is not. P is the scene surface point.
+        gbufferId = dynamicMaterial.r * 255.0;
         float ownerDepth = unpackDepth24(dynamicMaterial.gba);
         vec3 ownerP = reconstruct(texCoord, ownerDepth);
-        gbufferEntity = distance(ownerP, P) < 0.02 + 0.01 * length(P) && id > 1.5 && id < 2.5;
+        gbufferOwned = distance(ownerP, P) < 0.02 + 0.01 * length(P)
+                && gbufferId > 1.5 && gbufferId < 3.5;
     }
+    bool gbufferEntity = gbufferOwned && gbufferId < 2.5;
+    bool gbufferParticle = gbufferOwned && gbufferId > 2.5;
 
     vec3 N;
     if (gbufferEntity) {
         N = unpackNormal(texture(GBufferAlbedo, texCoord).a);
+    } else if (gbufferParticle) {
+        // Billboards have no real surface normal; face the light so a mote simply catches any
+        // nearby coloured light by proximity, rather than showing a bogus fixed-normal response.
+        vec3 toLight = LightPos - P;
+        float toLightLen = length(toLight);
+        N = toLightLen > 1e-4 ? toLight / toLightLen : vec3(0.0, 1.0, 0.0);
     } else if (terrainMaterial) {
         N = unpackNormal(material.a);
     } else {

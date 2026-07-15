@@ -94,25 +94,26 @@ void main() {
         float materialDepth = texture(MaterialDepth, texCoord).r;
         terrainMaterial = materialDepth < 1.0 && abs(materialDepth - sceneDepth) < 1e-5;
     }
-    // A captured dynamic-material pixel (entity) carries its real albedo -- treat it exactly
-    // like terrain: use the albedo directly and never fall to the guess-or-cap path.
-    bool gbufferEntity = false;
+    // A captured dynamic-material pixel (entity id 2, particle id 3) carries its real albedo --
+    // treat it exactly like terrain: use the albedo directly and never fall to the guess-or-cap
+    // path.
+    bool gbufferDynamic = false;
     if (HasGBuffer == 1) {
         vec4 dynamicMaterial = texture(GBufferId, texCoord);
         float id = dynamicMaterial.r * 255.0;
-        // The entity owns this pixel only if the depth it wrote still resolves to the scene
-        // surface -- otherwise something opaque or translucent (a pane) took over in front and
-        // the id is stale. Compare in world space with a distance-scaled tolerance (the same
-        // form the glass test uses): a fixed window-depth epsilon is nonlinear -- far too loose
-        // far from the camera, so it would match a distant surface behind the entity.
+        // It owns this pixel only if the depth it wrote still resolves to the scene surface --
+        // otherwise something opaque or translucent (a pane) took over in front and the id is
+        // stale. Compare in world space with a distance-scaled tolerance (the same form the glass
+        // test uses): a fixed window-depth epsilon is nonlinear -- far too loose far from the
+        // camera, so it would match a distant surface behind the entity.
         float ownerDepth = unpackDepth24(dynamicMaterial.gba);
         vec3 ownerP = reconstruct(texCoord, ownerDepth);
         vec3 sceneP = reconstruct(texCoord, sceneDepth);
         bool ownsPixel = distance(ownerP, sceneP) < 0.02 + 0.01 * length(sceneP);
-        gbufferEntity = ownsPixel && id > 1.5 && id < 2.5;
+        gbufferDynamic = ownsPixel && id > 1.5 && id < 3.5;
     }
 
-    if (gbufferEntity) {
+    if (gbufferDynamic) {
         albedo = texture(GBufferAlbedo, texCoord).rgb;
         recoveredLuma = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
     } else if (terrainMaterial) {
@@ -155,7 +156,7 @@ void main() {
     // pass gives a real, purpose-built response (scatter/specular/transmission) that clamping
     // would undo, and NOT captured entities, which carry real albedo and so do not flood. What
     // stays capped is genuine entities/particles with no captured albedo/normal.
-    if (HasMaterial == 1 && !terrainMaterial && !isGlass && !gbufferEntity) {
+    if (HasMaterial == 1 && !terrainMaterial && !isGlass && !gbufferDynamic) {
         float mag = max(illumination.r, max(illumination.g, illumination.b));
         if (mag > ENTITY_LIGHT_CAP) illumination *= ENTITY_LIGHT_CAP / mag;
     }
