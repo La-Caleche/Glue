@@ -120,13 +120,24 @@ public final class GBufferTargets {
         return materialIdTex;
     }
 
-    /** Clears only the owned material attachments (1 and 2); the shared colour/depth are left
-     *  to vanilla's own frame clear. Call at the start of a captured frame. */
+    /** Re-points the borrowed colour/depth at their current textures and clears only the owned
+     *  material attachments (1 and 2); the shared colour/depth are left to vanilla's own frame
+     *  clear. Call at the start of a captured frame. */
     public void clearMaterialAttachments() {
         if (fbo == 0) return;
         SavedGlState state = SavedGlState.save();
         try {
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
+            // Re-attach the borrowed main colour/depth every frame. They belong to vanilla (or to
+            // Iris while a shaderpack was active) and can be deleted and recreated across a
+            // shaderpack toggle or resize -- often reusing the same GL id, which defeats the
+            // id-based cache in ensure(). Deleting a texture silently detaches it from this FBO,
+            // leaving a dead attachment 0 that drops every redirected entity draw. Re-pointing at
+            // the live ids here keeps the target valid regardless of what happened to them.
+            GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0,
+                    GL11.GL_TEXTURE_2D, borrowedColor, 0);
+            GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
+                    GL11.GL_TEXTURE_2D, borrowedDepth, 0);
             GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
             GL11.glDisable(GL11.GL_SCISSOR_TEST);
             GL11.glColorMask(true, true, true, true);
