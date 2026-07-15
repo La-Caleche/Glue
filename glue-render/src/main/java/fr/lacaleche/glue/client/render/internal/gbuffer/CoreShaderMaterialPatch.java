@@ -122,8 +122,11 @@ public final class CoreShaderMaterialPatch {
     }
 
     // core/entity: pass the raw model colour + a camera-relative-world normal to the fragment
-    // stage. ModelViewMat carries the model rotation (the view rotation lives in ProjMat), so
-    // its 3x3 takes the model normal to the same space Lumos reconstructs positions in.
+    // stage. Minecraft bakes the entity/part pose -- including its normal matrix -- into the
+    // Normal attribute CPU-side, so Normal is ALREADY in camera-relative world space (the space
+    // Lumos reconstructs positions in). ModelViewMat carries only the camera view rotation, so
+    // multiplying by it here would wrongly rotate the normal into view space and make entity
+    // shading swim with the camera. Pass Normal straight through.
     private static String patchEntityVertex(String source) {
         String patched = insertAfter(source, "out vec2 texCoord0;", """
 
@@ -134,7 +137,7 @@ public final class CoreShaderMaterialPatch {
 
 
                     glue_RawColor = Color;
-                    glue_Normal = mat3(ModelViewMat) * Normal;""");
+                    glue_Normal = Normal;""");
         return patched;
     }
 

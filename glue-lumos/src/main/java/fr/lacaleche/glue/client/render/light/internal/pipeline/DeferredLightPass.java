@@ -44,6 +44,8 @@ final class DeferredLightPass {
 
         int materialColor = frame.materialColorTextureId();
         int materialDepth = frame.materialDepthTextureId();
+        int gbufferAlbedo = GBufferCapture.albedoNormalTextureId();
+        int gbufferId = GBufferCapture.materialIdTextureId();
 
         for (Light light : lights) {
             int[] bounds = LightInfluence.of(light, camera)
@@ -52,12 +54,14 @@ final class DeferredLightPass {
             List<ShadowParams> maps = shadows.get(light);
             if (maps == null || maps.isEmpty()) {
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
-                        camera, light, bounds, null, glass, materialColor, materialDepth);
+                        camera, light, bounds, null, glass, materialColor, materialDepth,
+                        gbufferAlbedo, gbufferId);
                 continue;
             }
             for (ShadowParams map : maps) {
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
-                        camera, light, bounds, map, glass, materialColor, materialDepth);
+                        camera, light, bounds, map, glass, materialColor, materialDepth,
+                        gbufferAlbedo, gbufferId);
             }
         }
 
@@ -69,8 +73,6 @@ final class DeferredLightPass {
         // then combine (add bloom + tonemap) to the main target. Blooming the lit buffer --
         // the actual on-screen brightness -- is what keeps the glow on genuine highlights.
         int litTexture = accumulator.getLitTextureId();
-        int gbufferAlbedo = GBufferCapture.albedoNormalTextureId();
-        int gbufferId = GBufferCapture.materialIdTextureId();
         boolean composited = composite.render(denoised,
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
                 materialColor, materialDepth, glass.depthId(),
@@ -103,11 +105,12 @@ final class DeferredLightPass {
     private void accumulate(int lightFramebuffer, LumosFrame frame,
                             Matrix4f viewProjection, Matrix4f inverseViewProjection,
                             Vector3d camera, Light light, int[] bounds, ShadowParams shadow,
-                            GlassBufferPass.Textures glass, int materialColor, int materialDepth) {
+                            GlassBufferPass.Textures glass, int materialColor, int materialDepth,
+                            int gbufferAlbedo, int gbufferId) {
         deferred.render(lightFramebuffer, frame.sceneDepthTextureId(),
                 viewProjection, inverseViewProjection, camera, light,
                 frame.width(), frame.height(), bounds, shadow, glass.colorId(), glass.depthId(),
-                materialColor, materialDepth);
+                materialColor, materialDepth, gbufferAlbedo, gbufferId);
     }
 
 }
