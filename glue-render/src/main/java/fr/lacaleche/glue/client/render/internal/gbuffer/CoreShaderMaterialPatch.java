@@ -70,48 +70,54 @@ public final class CoreShaderMaterialPatch {
     private static boolean rejectionLogged;
     private static boolean entityVertexPatched;
     private static boolean entityFragmentPatched;
+    private static boolean particleVertexPatched;
+    private static boolean particleFragmentPatched;
 
     private CoreShaderMaterialPatch() {
     }
 
+    /** True once both stages of {@code core/entity} carry our G-buffer outputs. */
     public static boolean isEntityReady() {
         return entityVertexPatched && entityFragmentPatched;
+    }
+
+    /** True once both stages of {@code core/particle} carry our G-buffer outputs. */
+    public static boolean isParticleReady() {
+        return particleVertexPatched && particleFragmentPatched;
     }
 
     public static String patch(ResourceLocation location, ShaderType type, String source) {
         boolean entity = ENTITY.equals(location);
         boolean particle = PARTICLE.equals(location);
+        if (!entity && !particle) return source;
         if (source == null) {
-            if (entity && type == ShaderType.VERTEX) entityVertexPatched = false;
-            if (entity && type == ShaderType.FRAGMENT) entityFragmentPatched = false;
+            markPatched(entity, type, false);
             return null;
         }
-        if (!entity && !particle) return source;
 
         try {
             if (type == ShaderType.VERTEX) {
                 if (source.contains(VERTEX_MARKER)) {
-                    if (entity) entityVertexPatched = true;
+                    markPatched(entity, type, true);
                     return source;
                 }
-                if (entity) entityVertexPatched = false;
+                markPatched(entity, type, false);
                 String patched = entity ? patchEntityVertex(source) : patchParticleVertex(source);
-                if (entity) entityVertexPatched = true;
+                markPatched(entity, type, true);
                 return patched;
             }
             if (type == ShaderType.FRAGMENT) {
                 if (source.contains(FRAGMENT_MARKER)) {
-                    if (entity) entityFragmentPatched = true;
+                    markPatched(entity, type, true);
                     return source;
                 }
-                if (entity) entityFragmentPatched = false;
+                markPatched(entity, type, false);
                 String patched = entity ? patchEntityFragment(source) : patchParticleFragment(source);
-                if (entity) entityFragmentPatched = true;
+                markPatched(entity, type, true);
                 return patched;
             }
         } catch (RuntimeException exception) {
-            if (entity && type == ShaderType.VERTEX) entityVertexPatched = false;
-            if (entity && type == ShaderType.FRAGMENT) entityFragmentPatched = false;
+            markPatched(entity, type, false);
             if (!rejectionLogged) {
                 rejectionLogged = true;
                 LOGGER.error("[Glue] Could not patch {} {} for the material G-buffer; entities/particles "
@@ -119,6 +125,14 @@ public final class CoreShaderMaterialPatch {
             }
         }
         return source;
+    }
+
+    private static void markPatched(boolean entity, ShaderType type, boolean value) {
+        if (type == ShaderType.VERTEX) {
+            if (entity) entityVertexPatched = value; else particleVertexPatched = value;
+        } else if (type == ShaderType.FRAGMENT) {
+            if (entity) entityFragmentPatched = value; else particleFragmentPatched = value;
+        }
     }
 
     // core/entity: pass the raw model colour + a camera-relative-world normal to the fragment

@@ -69,6 +69,23 @@ class CoreShaderMaterialPatchTest {
     }
 
     @Test
+    void particleReadyWhenBothStagesPatched() {
+        String vertex = """
+                #version 150
+                out vec4 vertexColor;
+                out vec2 texCoord0;
+                void main() {
+                    texCoord0 = UV0;
+                }
+                """;
+
+        CoreShaderMaterialPatch.patch(PARTICLE, ShaderType.VERTEX, vertex);
+        CoreShaderMaterialPatch.patch(PARTICLE, ShaderType.FRAGMENT, PARTICLE_FRAGMENT);
+
+        assertTrue(CoreShaderMaterialPatch.isParticleReady());
+    }
+
+    @Test
     void patchingAnAlreadyPatchedSourceIsIdempotent() {
         String once = CoreShaderMaterialPatch.patch(ENTITY, ShaderType.FRAGMENT, ENTITY_FRAGMENT);
         String twice = CoreShaderMaterialPatch.patch(ENTITY, ShaderType.FRAGMENT, once);

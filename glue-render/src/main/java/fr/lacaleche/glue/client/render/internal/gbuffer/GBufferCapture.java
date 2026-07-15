@@ -31,6 +31,8 @@ public final class GBufferCapture {
 
     private static final ResourceLocation ENTITY_SHADER =
             ResourceLocation.withDefaultNamespace("core/entity");
+    private static final ResourceLocation PARTICLE_SHADER =
+            ResourceLocation.withDefaultNamespace("core/particle");
     private static final GBufferTargets TARGETS = new GBufferTargets();
 
     private static boolean frameReady;
@@ -77,22 +79,30 @@ public final class GBufferCapture {
 
     /**
      * The framebuffer to bind for a draw about to use {@code pipeline}, or 0 to leave it alone.
-     * Non-zero only for opaque/cutout entity geometry during the world phase.
+     * Non-zero only for opaque, depth-writing entity or particle geometry during the world phase.
+     *
+     * <p>The unblended + write-depth + LEQUAL gate is what makes this safe: it captures the opaque
+     * entity and the opaque/lit particle sheets (which on the Fancy path both draw into the main
+     * target) and rejects the translucent particle sheet, entity shadows, and outline passes.
      */
     private static int redirectFboFor(RenderPipeline pipeline) {
         if (!frameReady || !inWorldPhase || pipeline == null) return 0;
-        if (!CoreShaderMaterialPatch.isEntityReady()
-                || !ENTITY_SHADER.equals(pipeline.getVertexShader())
-                || !ENTITY_SHADER.equals(pipeline.getFragmentShader())
-                || pipeline.getVertexFormat() != DefaultVertexFormat.NEW_ENTITY
-                || pipeline.getBlendFunction().isPresent()
+        if (pipeline.getBlendFunction().isPresent()
                 || !pipeline.isWriteColor()
-                || !pipeline.isWriteAlpha()
                 || !pipeline.isWriteDepth()
                 || pipeline.getDepthTestFunction() != DepthTestFunction.LEQUAL_DEPTH_TEST) {
             return 0;
         }
-        return TARGETS.framebufferId();
+        boolean entity = CoreShaderMaterialPatch.isEntityReady()
+                && pipeline.isWriteAlpha()
+                && ENTITY_SHADER.equals(pipeline.getVertexShader())
+                && ENTITY_SHADER.equals(pipeline.getFragmentShader())
+                && pipeline.getVertexFormat() == DefaultVertexFormat.NEW_ENTITY;
+        boolean particle = CoreShaderMaterialPatch.isParticleReady()
+                && PARTICLE_SHADER.equals(pipeline.getVertexShader())
+                && PARTICLE_SHADER.equals(pipeline.getFragmentShader())
+                && pipeline.getVertexFormat() == DefaultVertexFormat.PARTICLE;
+        return (entity || particle) ? TARGETS.framebufferId() : 0;
     }
 
     /** Albedo (RGB) + packed normal (A), or -1 if not captured this frame. */
