@@ -46,8 +46,10 @@ public final class GlLightCompositePass {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, hasMaterial ? materialColor : 0);
             GL13.glActiveTexture(GL13.GL_TEXTURE3);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, hasMaterial ? materialDepth : 0);
+            // SceneDepth is also sampled by the glass and entity-ownership paths, not just
+            // terrain material, so bind it whenever it exists -- independent of HasMaterial.
             GL13.glActiveTexture(GL13.GL_TEXTURE4);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, hasMaterial ? sceneDepth : 0);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, sceneDepth > 0 ? sceneDepth : 0);
             resources.uniform1i(program, "MaterialAlbedo", 2);
             resources.uniform1i(program, "MaterialDepth", 3);
             resources.uniform1i(program, "SceneDepth", 4);

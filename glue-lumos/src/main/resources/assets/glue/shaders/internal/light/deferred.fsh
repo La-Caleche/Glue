@@ -16,6 +16,9 @@ uniform int HasGlassG;          // 1 if the glass G-buffer is bound
 uniform sampler2D MaterialAlbedo; // unit 7: linear terrain albedo + packed normal
 uniform sampler2D MaterialDepth;  // unit 8: opaque terrain depth at capture time
 uniform int HasMaterial;
+uniform sampler2D GBufferAlbedo;  // unit 9: dynamic (entity) albedo + packed normal (A)
+uniform sampler2D GBufferId;      // unit 10: dynamic material id (R) + owning depth24 (GBA)
+uniform int HasGBuffer;           // 1 if the dynamic material G-buffer is bound
 
 uniform mat4 InvViewProj;       // clip -> camera-relative world position
 uniform mat4 ViewProj;          // camera-relative world -> clip (screen-space shadows)
@@ -108,6 +111,11 @@ vec3 unpackNormal(float packedNormal) {
         normal.xy = (vec2(1.0) - abs(normal.yx)) * signNotZero(normal.xy);
     }
     return normalize(normal);
+}
+
+float unpackDepth24(vec3 encodedDepth) {
+    vec3 depthBytes = floor(encodedDepth * 255.0 + 0.5);
+    return dot(depthBytes, vec3(65536.0, 256.0, 1.0)) / 16777215.0;
 }
 
 // Golden-angle spiral: even areal coverage from few taps, which is what lets 18
@@ -429,8 +437,22 @@ void main() {
         if (terrainMaterial) material = texture(MaterialAlbedo, texCoord);
     }
 
+    // A captured entity that still owns this pixel carries a real surface normal in the
+    // dynamic G-buffer. Prefer it over the depth-derivative fallback, which reads an entity's
+    // silhouette as geometry. Ownership: the depth the entity wrote still matches the scene
+    // depth -- otherwise something drew in front and the id is stale.
+    bool gbufferEntity = false;
+    if (HasGBuffer == 1) {
+        vec4 dynamicMaterial = texture(GBufferId, texCoord);
+        float id = dynamicMaterial.r * 255.0;
+        float ownerDepth = unpackDepth24(dynamicMaterial.gba);
+        gbufferEntity = abs(ownerDepth - depth) < 1e-5 && id > 1.5 && id < 2.5;
+    }
+
     vec3 N;
-    if (terrainMaterial) {
+    if (gbufferEntity) {
+        N = unpackNormal(texture(GBufferAlbedo, texCoord).a);
+    } else if (terrainMaterial) {
         N = unpackNormal(material.a);
     } else {
         // Fallback for entities and translucent surfaces: reconstruct an edge-aware

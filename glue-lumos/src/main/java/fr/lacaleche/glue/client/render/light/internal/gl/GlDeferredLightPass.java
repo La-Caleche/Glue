@@ -27,7 +27,8 @@ public final class GlDeferredLightPass {
     public void render(int lightFramebuffer, int sceneDepth, Matrix4f viewProjection,
                        Matrix4f inverseViewProjection, Vector3d camera, Light light,
                        int width, int height, int[] bounds, @Nullable ShadowParams shadow,
-                       int glassColor, int glassDepth, int materialColor, int materialDepth) {
+                       int glassColor, int glassDepth, int materialColor, int materialDepth,
+                       int gbufferAlbedo, int gbufferId) {
         int program = resources.program("glue_light_deferred",
                 "light/deferred.vsh", "light/deferred.fsh");
         if (program == 0 || lightFramebuffer <= 0 || sceneDepth <= 0) return;
@@ -92,6 +93,11 @@ public final class GlDeferredLightPass {
             bindTexture(program, "MaterialAlbedo", 7, hasMaterial ? materialColor : 0);
             bindTexture(program, "MaterialDepth", 8, hasMaterial ? materialDepth : 0);
             resources.uniform1i(program, "HasMaterial", hasMaterial ? 1 : 0);
+
+            boolean hasGBuffer = gbufferAlbedo > 0 && gbufferId > 0;
+            bindTexture(program, "GBufferAlbedo", 9, hasGBuffer ? gbufferAlbedo : 0);
+            bindTexture(program, "GBufferId", 10, hasGBuffer ? gbufferId : 0);
+            resources.uniform1i(program, "HasGBuffer", hasGBuffer ? 1 : 0);
             resources.drawFullscreen(program);
         } finally {
             state.restore();
