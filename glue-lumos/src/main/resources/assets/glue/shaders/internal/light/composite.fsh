@@ -94,9 +94,8 @@ void main() {
         float materialDepth = texture(MaterialDepth, texCoord).r;
         terrainMaterial = materialDepth < 1.0 && abs(materialDepth - sceneDepth) < 1e-5;
     }
-    // A captured dynamic-material pixel (entity id 2, particle id 3) carries its real albedo --
-    // treat it exactly like terrain: use the albedo directly and never fall to the guess-or-cap
-    // path.
+    // A captured material pixel (terrain id 1, entity id 2, particle id 3) carries its real
+    // albedo -- use it directly and never fall to the guess-or-cap path.
     bool gbufferDynamic = false;
     if (HasGBuffer == 1) {
         vec4 dynamicMaterial = texture(GBufferId, texCoord);
@@ -110,7 +109,7 @@ void main() {
         vec3 ownerP = reconstruct(texCoord, ownerDepth);
         vec3 sceneP = reconstruct(texCoord, sceneDepth);
         bool ownsPixel = distance(ownerP, sceneP) < 0.02 + 0.01 * length(sceneP);
-        gbufferDynamic = ownsPixel && id > 1.5 && id < 3.5;
+        gbufferDynamic = ownsPixel && id > 0.5 && id < 3.5;
     }
 
     if (gbufferDynamic) {
@@ -152,11 +151,12 @@ void main() {
 
     vec3 illumination = vec3(1.0) - exp(-hdr * albedo);
 
-    // Cap the entity/particle overlay (see ENTITY_LIGHT_CAP) -- but NOT glass, which the deferred
-    // pass gives a real, purpose-built response (scatter/specular/transmission) that clamping
-    // would undo, and NOT captured entities, which carry real albedo and so do not flood. What
-    // stays capped is genuine entities/particles with no captured albedo/normal.
-    if (HasMaterial == 1 && !terrainMaterial && !isGlass && !gbufferDynamic) {
+    // Cap the uncaptured overlay (see ENTITY_LIGHT_CAP) -- but NOT glass, which the deferred pass
+    // gives a real, purpose-built response (scatter/specular/transmission) that clamping would
+    // undo, and NOT captured surfaces, which carry real albedo and so do not flood. What stays
+    // capped is genuinely uncaptured geometry (translucents with no material data). The guard is
+    // "we have material capability at all" -- terrain buffer (vanilla) OR the G-buffer (Sodium).
+    if ((HasMaterial == 1 || HasGBuffer == 1) && !terrainMaterial && !isGlass && !gbufferDynamic) {
         float mag = max(illumination.r, max(illumination.g, illumination.b));
         if (mag > ENTITY_LIGHT_CAP) illumination *= ENTITY_LIGHT_CAP / mag;
     }

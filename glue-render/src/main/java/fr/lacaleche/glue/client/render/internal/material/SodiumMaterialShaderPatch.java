@@ -87,6 +87,7 @@ public final class SodiumMaterialShaderPatch {
         patched = insertAfter(patched, FRAGMENT_OUTPUT_ANCHOR, """
 
                 layout(location = 1) out vec4 glue_Material;
+                layout(location = 2) out vec4 glue_MaterialId;
 
                 vec3 glueSrgbToLinear(vec3 color) {
                     vec3 low = color / 12.92;
@@ -108,6 +109,15 @@ public final class SodiumMaterialShaderPatch {
                     }
                     vec2 encoded = floor((octahedral * 0.5 + 0.5) * 15.0 + 0.5);
                     return (encoded.x + encoded.y * 16.0) / 255.0;
+                }
+
+                vec3 gluePackDepth24(float depth) {
+                    float value = floor(clamp(depth, 0.0, 1.0) * 16777215.0 + 0.5);
+                    float high = floor(value / 65536.0);
+                    value -= high * 65536.0;
+                    float middle = floor(value / 256.0);
+                    float low = value - middle * 256.0;
+                    return vec3(high, middle, low) / 255.0;
                 }""");
         patched = patched.replace(FRAGMENT_SAMPLE_ANCHOR, """
                 vec4 glue_Texel = texture(u_BlockTex, v_TexCoord, lodBias);
@@ -137,6 +147,7 @@ public final class SodiumMaterialShaderPatch {
                     glue_Material = vec4(
                             glueSrgbToLinear(glue_Texel.rgb * glueTint),
                             gluePackNormal(glueNormal));
+                    glue_MaterialId = vec4(1.0 / 255.0, gluePackDepth24(gl_FragCoord.z));
 
                 """);
         acceptFragment();
