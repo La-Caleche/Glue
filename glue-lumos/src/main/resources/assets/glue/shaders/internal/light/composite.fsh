@@ -162,6 +162,10 @@ void main() {
     }
 
     vec3 finalLinear = sceneLinear + illumination * (vec3(1.0) - sceneLinear);
+    // Catch-all: a NaN/Inf from anywhere in the light math would reach the combine pass, which
+    // turns any NaN into a black block. Fall back to the unlit scene colour so a bad pixel shows
+    // vanilla, never a black square.
+    if (any(isnan(finalLinear)) || any(isinf(finalLinear))) finalLinear = sceneLinear;
 
     // Linear HDR out. The combine pass adds bloom and tonemaps this to the display.
     fragColor = vec4(finalLinear, 1.0);
