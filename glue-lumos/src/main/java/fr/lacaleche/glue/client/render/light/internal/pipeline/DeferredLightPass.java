@@ -68,9 +68,12 @@ final class DeferredLightPass {
         // then combine (add bloom + tonemap) to the main target. Blooming the lit buffer --
         // the actual on-screen brightness -- is what keeps the glow on genuine highlights.
         int litTexture = accumulator.getLitTextureId();
+        int gbufferAlbedo = fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture.albedoNormalTextureId();
+        int gbufferId = fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture.materialIdTextureId();
         composite.render(denoised,
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
-                materialColor, materialDepth, glass.depthId(), inverseViewProjection,
+                materialColor, materialDepth, glass.depthId(),
+                gbufferAlbedo, gbufferId, inverseViewProjection,
                 accumulator.getLitFramebufferId(),
                 frame.width(), frame.height());
         int bloomTexture = bloom.apply(litTexture, frame.width(), frame.height());

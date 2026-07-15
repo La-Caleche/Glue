@@ -67,6 +67,22 @@ Three source sets:
 4. **Depth-buffer reconstruction uses `FrameMatrices`.** Never rebuild a view matrix from `camera.rotation()` — it misses view bobbing and the reconstruction slides against the world.
 5. **Mixins are a last resort.** They exist to capture vanilla state or inject events, not to implement features. Keep them thin; put logic in plain classes.
 6. **Iris is optional.** Anything touching Iris goes through the `compat` reflection layer and must degrade gracefully when Iris is absent.
+7. **Material G-buffer, not depth-matching.** Lumos identifies what a pixel *is* (terrain / entity / particle / glass / water / metal) through a **material G-buffer** — real per-pixel material data written by the geometry pass — never by comparing a captured depth to the scene depth. Depth-matching cannot distinguish a pane from a mob and is being retired. New surface types (water, reflective metals, …) are added as material classes in this buffer, through the shared capture API — not as bespoke depth hacks. See `client.render.internal.material` and the G-buffer notes below.
+
+---
+
+## Lumos & the Material G-buffer (strategic direction)
+
+Lumos is meant to be a **top-tier lighting engine** — proper static point lights with shadows and color that light *everything*, including entities and particles, and extend to water and reflective materials. Difficulty is not a reason to skip a feature; the maintainer has explicitly chosen to own the hard parts.
+
+The foundation is a **G-buffer / material-capture subsystem** with a **clean, reusable API for creating render targets that do not conflict with Sodium or Iris**. Principles:
+
+- **Reuse the host's buffers when offered, own them when not.** If Sodium/Iris expose usable targets, adapt to them (as `SodiumTerrainMaterialCapture` already does); otherwise build our own with raw GL.
+- **The capture pass writes material data in the SAME draw as the geometry** (MRT), so material depth is inherently consistent with the scene — this is why the earlier separate-draw attempt failed. On MC 1.21.8 this requires bypassing Blaze3D's single-attachment `RenderPass` at the `com.mojang.blaze3d.opengl.GlCommandEncoder` level (the technique Iris uses; Iris source is available at `../../Iris` for reference — replicate only what's needed, not the whole shaderpack loader).
+- **Vanilla core shaders are patched at the source seam** (`ShaderManager$CompilationCache.getShaderSource`), mirroring the existing `SodiumMaterialShaderPatch`. Note `#version 150` core shaders need `GL_ARB_explicit_attrib_location` for a second `layout(location=1)` output.
+- **One material buffer, many consumers.** Entities/particles today; water and metals later — all as material classes, so shadow/glass/reflection passes read one coherent buffer.
+
+Build it incrementally and verify each stage in-game (GLSL and MRT wiring have no compile-time safety net).
 
 ---
 

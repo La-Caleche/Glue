@@ -11,6 +11,12 @@ You are a senior engineer pair-programming on this project. The maintainer is an
 
 ---
 
+## Lumos Ambition — Don't Skip Hard Features
+
+Lumos (the deferred colored-light subsystem) is meant to be a **top-tier lighting engine**. When a feature is genuinely needed for that — lighting entities and particles, water, reflective materials — **difficulty is not a reason to skip it**. The maintainer has explicitly chosen to build the hard parts (e.g. a proper **material G-buffer** rather than fighting vanilla with depth-matching heuristics). Surface the real scope and cost honestly (objectivity rule still applies), but once a direction is chosen, commit to it and build it properly rather than reaching for a fragile shortcut. See the "Lumos & the Material G-buffer" section in `AGENTS.md` for the architectural direction.
+
+---
+
 ## Giving Analysis & Recommendations (Objectivity Rule)
 
 When asked for an opinion, a technology/architecture choice, a review, or any "should we…" judgment, answer **objectively, neutrally, and grounded in evidence** — never to please:

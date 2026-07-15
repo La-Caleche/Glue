@@ -4,6 +4,7 @@ import fr.lacaleche.glue.client.render.light.Light;
 import fr.lacaleche.glue.client.render.light.LightAttachments;
 import fr.lacaleche.glue.client.render.light.LightHandle;
 import fr.lacaleche.glue.client.render.light.LightManager;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
@@ -24,8 +25,6 @@ public final class TestLighting {
 
     private static boolean enabled = false;
     private static final List<Light> STATIC_LIGHTS = new ArrayList<>();
-    private static LightHandle flashlight;
-    private static LightHandle blockLight;
 
     private TestLighting() {
     }
@@ -38,6 +37,20 @@ public final class TestLighting {
         } else {
             removeAll();
         }
+    }
+
+    public static void addStaticSpot() {
+        LightManager manager = LightManager.getInstance();
+        LocalPlayer player = Minecraft.getInstance().player;
+        Vec3 position = player.getEyePosition();
+        Vec3 direction = player.getViewVector(.0f);
+
+        Light definition = Light.spot(
+                position.x, position.y, position.z,
+                (float) direction.x, (float) direction.y, (float) direction.z,
+                0.95f, 0.921f, 0.77f,
+                3.0f, 22.0f, 20.0f, 32.0f);
+        manager.add(definition);
     }
 
     private static void placeStaticLights(LocalPlayer player) {
@@ -54,8 +67,6 @@ public final class TestLighting {
         STATIC_LIGHTS.add(manager.add(Light.point(p.x, y, p.z + 3.0,
                 0.15f, 0.3f, 1.0f, intensity, range)));
 
-        // A 24-light no-shadow ring exercises the intended 10-50 visible-light range
-        // without consuming shadow slots or forcing shadow-map updates.
         for (int i = 0; i < 24; i++) {
             double angle = Math.PI * 2.0 * i / 24.0;
             float r = (float) (0.25 + 0.75 * Math.max(0.0, Math.cos(angle)));
@@ -65,20 +76,6 @@ public final class TestLighting {
                     p.x + Math.cos(angle) * 10.0, y, p.z + Math.sin(angle) * 10.0,
                     r, g, b, 1.25f, 5.0f).withShadow(false)));
         }
-
-        Light blockDefinition = Light.point(0, 0, 0,
-                1.0f, 0.45f, 0.12f, 2.0f, 7.0f).withShadow(false);
-        blockLight = manager.attach(blockDefinition,
-                LightAttachments.block(BlockPos.containing(p).above(2)));
-
-        // Shadow-casting flashlight sampled from the player's interpolated eye
-        // position and view direction every rendered frame.
-        Light definition = Light.spot(
-                0, 0, 0,
-                0, -1, 0,
-                0.95f, 0.921f, 0.77f,
-                3.0f, 22.0f, 20.0f, 32.0f);
-        flashlight = manager.attach(definition, LightAttachments.entityEyes(player));
     }
 
     /**
@@ -115,13 +112,5 @@ public final class TestLighting {
             manager.remove(light);
         }
         STATIC_LIGHTS.clear();
-        if (flashlight != null) {
-            flashlight.remove();
-            flashlight = null;
-        }
-        if (blockLight != null) {
-            blockLight.remove();
-            blockLight = null;
-        }
     }
 }

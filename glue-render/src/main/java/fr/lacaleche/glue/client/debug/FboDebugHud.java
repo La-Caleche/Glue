@@ -28,6 +28,18 @@ public class FboDebugHud {
     public static final FboDebugHud INSTANCE = new FboDebugHud();
     private static final Logger LOGGER = LoggerFactory.getLogger("glue/debug");
     private static final int THUMB_SIZE = 256;
+
+    /** Extra full-screen textures (G-buffer attachments, custom targets…) that other subsystems
+     *  contribute to the vanilla-frame view. Each supplies its live GL id (<= 0 = skip). */
+    private static final List<ExtraTexture> EXTRA_TEXTURES = new java.util.ArrayList<>();
+
+    private record ExtraTexture(String name, java.util.function.IntSupplier id) {
+    }
+
+    /** Registers a texture to appear in the FBO viewer alongside Main Color/Depth. */
+    public static void registerTexture(String name, java.util.function.IntSupplier id) {
+        EXTRA_TEXTURES.add(new ExtraTexture(name, id));
+    }
     private final List<CapturedTexture> irisCapturedTextures = new ArrayList<>();
     private final DepthLinearizer depthLinearizer = new DepthLinearizer();
     private final Set<String> hiddenBuffers = new LinkedHashSet<>();
@@ -312,6 +324,11 @@ public class FboDebugHud {
         int depthId = depthLinearizer.getResult();
         if (depthId != -1) {
             out.add(new CapturedTexture(depthId, "Main Depth (Linear)", THUMB_SIZE, THUMB_SIZE, false, true));
+        }
+
+        for (ExtraTexture extra : EXTRA_TEXTURES) {
+            int id = extra.id().getAsInt();
+            if (id > 0) out.add(new CapturedTexture(id, extra.name(), w, h, false, false));
         }
         return out;
     }

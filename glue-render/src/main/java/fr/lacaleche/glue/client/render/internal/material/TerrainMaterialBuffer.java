@@ -25,6 +25,13 @@ public final class TerrainMaterialBuffer {
         VANILLA.init();
     }
 
+    /** True once {@link #beginFrame()} has opened a coherent material frame this frame (Lumos
+     *  wants material, and we are on the vanilla Fancy path, not Iris/Fabulous). Gates the
+     *  dynamic G-buffer capture to the same conditions as terrain material. */
+    public static boolean isActive() {
+        return active != null;
+    }
+
     /** Declares that a consumer needs material data whenever the supplier returns true. */
     public static void requestWhen(BooleanSupplier interest) {
         if (interest == null) throw new NullPointerException("interest");
@@ -45,6 +52,12 @@ public final class TerrainMaterialBuffer {
                 || fr.lacaleche.glue.compat.RenderCompat.isIrisShaderEnabled()) return;
         active = FabricLoader.getInstance().isModLoaded("sodium") ? SODIUM : VANILLA;
         active.beginFrame(frameSequence);
+    }
+
+    /** Framebuffer for the active material capture this frame, or null. Used by the dynamic
+     *  (entity/particle) capture to draw into the same buffer terrain was captured into. */
+    public static com.mojang.blaze3d.pipeline.RenderTarget activeRenderTarget() {
+        return active == null ? null : active.renderTarget();
     }
 
     public static int currentColorTextureId() {
