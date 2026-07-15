@@ -13,6 +13,7 @@ import fr.lacaleche.glue.client.render.light.internal.gl.GlTintBlurPass;
 import fr.lacaleche.glue.client.render.light.internal.gl.LightAccumulator;
 import fr.lacaleche.glue.client.render.light.internal.shadow.ShadowBaker;
 import fr.lacaleche.glue.client.render.light.internal.shadow.ShadowParams;
+import net.minecraft.client.Minecraft;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 
@@ -30,13 +31,15 @@ final class DeferredLightPass {
     private final GlLightBloomPass bloom = new GlLightBloomPass(resources);
     private final GlTintBlurPass tintBlur = new GlTintBlurPass(resources);
     private final LightAccumulator accumulator = new LightAccumulator();
+    private final float[] blobData = new float[EntityShadowBlobs.FLOATS];
 
     GlTintBlurPass tintBlur() {
         return tintBlur;
     }
 
     void render(LumosFrame frame, Matrix4f viewProjection, Matrix4f inverseViewProjection,
-                Vector3d camera, List<Light> lights, ShadowBaker shadows) {
+                Vector3d camera, List<Light> lights, ShadowBaker shadows,
+                Minecraft minecraft, float partialTick) {
         if (!accumulator.beginFrame(frame.width(), frame.height())) return;
         int lightFramebuffer = accumulator.getFramebufferId();
         if (lightFramebuffer <= 0) return;
@@ -50,17 +53,18 @@ final class DeferredLightPass {
             int[] bounds = LightInfluence.of(light, camera)
                     .screenBounds(viewProjection, frame.width(), frame.height());
             if (bounds == null) continue;
+            int blobCount = EntityShadowBlobs.collect(minecraft, light, camera, partialTick, blobData);
             List<ShadowParams> maps = shadows.get(light);
             if (maps == null || maps.isEmpty()) {
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
                         camera, light, bounds, null, materialColor, materialDepth,
-                        gbufferAlbedo, gbufferId);
+                        gbufferAlbedo, gbufferId, blobCount);
                 continue;
             }
             for (ShadowParams map : maps) {
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
                         camera, light, bounds, map, materialColor, materialDepth,
-                        gbufferAlbedo, gbufferId);
+                        gbufferAlbedo, gbufferId, blobCount);
             }
         }
 
@@ -106,11 +110,11 @@ final class DeferredLightPass {
                             Matrix4f viewProjection, Matrix4f inverseViewProjection,
                             Vector3d camera, Light light, int[] bounds, ShadowParams shadow,
                             int materialColor, int materialDepth,
-                            int gbufferAlbedo, int gbufferId) {
+                            int gbufferAlbedo, int gbufferId, int blobCount) {
         deferred.render(lightFramebuffer, frame.sceneDepthTextureId(),
                 viewProjection, inverseViewProjection, camera, light,
                 frame.width(), frame.height(), bounds, shadow,
-                materialColor, materialDepth, gbufferAlbedo, gbufferId);
+                materialColor, materialDepth, gbufferAlbedo, gbufferId, blobData, blobCount);
     }
 
 }

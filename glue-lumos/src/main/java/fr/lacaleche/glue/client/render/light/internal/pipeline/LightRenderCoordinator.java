@@ -64,10 +64,10 @@ public final class LightRenderCoordinator {
         List<Light> visible = cull(minecraft, all, viewProjection, camera);
         if (visible.isEmpty()) return;
 
-        context.shadows().bake(minecraft, deferredPass.tintBlur(), visible);
+        context.shadows().bake(minecraft, deferredPass.tintBlur(), visible, partialTick);
         glassPass.render(context, minecraft, frame, camera, all, visible);
         deferredPass.render(frame, viewProjection, inverseViewProjection, camera,
-                visible, context.shadows());
+                visible, context.shadows(), minecraft, partialTick);
     }
 
     public void setShadowBudget(int spots, int points) {

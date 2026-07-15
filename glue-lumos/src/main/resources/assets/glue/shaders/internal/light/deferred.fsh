@@ -10,12 +10,22 @@ uniform sampler2D ShadowMap;    // unit 2: light-POV depth, OPAQUE casters only
 uniform sampler2D ShadowTint;   // unit 3: light-POV transmittance (glass colour)
 uniform int HasShadowTint;      // 1 if the transmittance + tint depth maps are bound
 uniform sampler2D TintDepth;    // unit 6: light-POV depth, opaque PLUS translucent
+uniform sampler2D EntityShadowMap; // unit 11: per-frame entity depth from the light POV (shares LightViewProj)
+uniform int HasEntityShadow;    // 1 if an entity shadow map is bound for this light
 uniform sampler2D MaterialAlbedo; // unit 7: linear terrain albedo + packed normal
 uniform sampler2D MaterialDepth;  // unit 8: opaque terrain depth at capture time
 uniform int HasMaterial;
 uniform sampler2D GBufferAlbedo;  // unit 9: dynamic (entity) albedo + packed normal (A)
 uniform sampler2D GBufferId;      // unit 10: dynamic material id (R) + owning depth24 (GBA)
 uniform int HasGBuffer;           // 1 if the dynamic material G-buffer is bound
+
+// Entity blob shadows: nearby entities approximated as vertical capsules that occlude this light.
+// Entities are not in the (cached) shadow maps -- they move every frame -- so their shadow is added
+// analytically here. Packed two vec4 per capsule: [2i] = (lower axis point, radius),
+// [2i+1] = (upper axis point, unused). Camera-relative, like LightPos.
+const int MAX_SHADOW_BLOBS = 8;
+uniform vec4 ShadowBlobs[MAX_SHADOW_BLOBS * 2];
+uniform int ShadowBlobCount;
 
 uniform mat4 InvViewProj;       // clip -> camera-relative world position
 uniform mat4 ViewProj;          // camera-relative world -> clip (screen-space shadows)
@@ -113,6 +123,91 @@ vec3 unpackNormal(float packedNormal) {
 float unpackDepth24(vec3 encodedDepth) {
     vec3 depthBytes = floor(encodedDepth * 255.0 + 0.5);
     return dot(depthBytes, vec3(65536.0, 256.0, 1.0)) / 16777215.0;
+}
+
+// Closest distance between two segments p1->q1 and p2->q2 (Ericson, Real-Time Collision Detection).
+// Used to measure the light ray against an entity capsule's axis; distances below the capsule radius
+// mean the entity blocks the light.
+float segmentDistance(vec3 p1, vec3 q1, vec3 p2, vec3 q2) {
+    vec3 d1 = q1 - p1;
+    vec3 d2 = q2 - p2;
+    vec3 r = p1 - p2;
+    float a = dot(d1, d1);
+    float e = dot(d2, d2);
+    float f = dot(d2, r);
+    float s, t;
+    if (a <= 1e-6 && e <= 1e-6) return length(r);
+    if (a <= 1e-6) {
+        s = 0.0;
+        t = clamp(f / e, 0.0, 1.0);
+    } else {
+        float c = dot(d1, r);
+        if (e <= 1e-6) {
+            t = 0.0;
+            s = clamp(-c / a, 0.0, 1.0);
+        } else {
+            float b = dot(d1, d2);
+            float denom = a * e - b * b;
+            s = denom > 1e-6 ? clamp((b * f - c * e) / denom, 0.0, 1.0) : 0.0;
+            t = (b * s + f) / e;
+            if (t < 0.0) {
+                t = 0.0;
+                s = clamp(-c / a, 0.0, 1.0);
+            } else if (t > 1.0) {
+                t = 1.0;
+                s = clamp((b - c) / a, 0.0, 1.0);
+            }
+        }
+    }
+    return length((p1 + d1 * s) - (p2 + d2 * t));
+}
+
+// Soft visibility of the ray P->lightPos against the entity capsules: 1 = unshadowed, toward 0 as a
+// capsule crosses the ray. The soft edge (radius..radius*1.8) keeps the blob from reading as a hard
+// disc; BLOB_STRENGTH leaves a hair of light so it never goes pure black.
+float entityBlobShadow(vec3 P, vec3 lightPos) {
+    const float BLOB_STRENGTH = 0.85;
+    float visibility = 1.0;
+    for (int i = 0; i < ShadowBlobCount; i++) {
+        vec4 lower = ShadowBlobs[i * 2];
+        vec3 axisA = lower.xyz;
+        float radius = lower.w;
+        vec3 axisB = ShadowBlobs[i * 2 + 1].xyz;
+        float d = segmentDistance(P, lightPos, axisA, axisB);
+        float occlusion = 1.0 - smoothstep(radius, radius * 1.8 + 0.06, d);
+        visibility *= 1.0 - occlusion * BLOB_STRENGTH;
+    }
+    return visibility;
+}
+
+// Entity shadow map: a per-frame depth of nearby entities from the light's POV, sharing ShadowMap's
+// lightViewProj so it projects with the same biased position. A 3x3 PCF depth compare -- entities are
+// small and do not need the terrain PCSS. The compare is done in LINEAR (view) depth with a constant
+// world-space bias: the maps are perspective, so a flat NDC-depth bias would swallow the tiny
+// entity-to-floor gap far from the light (no shadow at distance) yet allow acne up close. The linear
+// bias also self-shadows the entity's own far side, so no id gating is needed. Returns 1 = unshadowed.
+float sampleEntityShadow(vec3 Pb) {
+    const float ENTITY_TEXEL = 1.0 / 512.0;
+    const float ENTITY_BIAS = 0.05;   // blocks
+    vec4 clip = LightViewProj * vec4(Pb, 1.0);
+    if (clip.w <= 0.0) return 1.0;
+    vec3 ndc = clip.xyz / clip.w;
+    vec2 uv = ndc.xy * 0.5 + 0.5;
+    if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return 1.0;
+
+    float span = ShadowFar - ShadowNear;
+    float refLinear = (2.0 * ShadowNear * ShadowFar)
+            / max(ShadowFar + ShadowNear - (ndc.z) * span, 1e-4);
+    float lit = 0.0;
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            float occluder = texture(EntityShadowMap, uv + vec2(x, y) * ENTITY_TEXEL).r;
+            float occLinear = (2.0 * ShadowNear * ShadowFar)
+                    / max(ShadowFar + ShadowNear - (occluder * 2.0 - 1.0) * span, 1e-4);
+            lit += step(refLinear - ENTITY_BIAS, occLinear);
+        }
+    }
+    return lit / 9.0;
 }
 
 // Golden-angle spiral: even areal coverage from few taps, which is what lets 18
@@ -554,8 +649,19 @@ void main() {
         if (ShadowFace >= 0 && cubeFace(Pb) != ShadowFace) discard;
 
         shadow = sampleShadowMap(Pb, dist, tintRaw, behindPane, paneAhead);
+        // Real model-shaped entity shadow: intersect with the per-frame entity depth map (same
+        // light transform). min, not multiply -- either occluder blocking the light shadows the pixel.
+        if (HasEntityShadow == 1) shadow = min(shadow, sampleEntityShadow(Pb));
     } else if (ShadowFace >= 0) {
         discard;   // a face pass with no map would double-count this fragment
+    }
+
+    // Capsule blob shadow -- ONLY a fallback for lights with no shadow map (over budget). Lights with
+    // a map get the real entity shadow above. Not applied to entity surfaces themselves (id 2): a
+    // capsule sits on its own entity and would shadow it to black.
+    bool entityPixel = gbufferOwned && gbufferId > 1.5 && gbufferId < 2.5;
+    if (HasShadowMap == 0 && ShadowBlobCount > 0 && !entityPixel) {
+        shadow *= entityBlobShadow(P, LightPos);
     }
 
     // Is the visible surface at this pixel glass? Answered by MATERIAL ID: the panes were

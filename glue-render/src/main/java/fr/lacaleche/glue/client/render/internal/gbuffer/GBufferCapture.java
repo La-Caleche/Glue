@@ -44,6 +44,12 @@ public final class GBufferCapture {
     // rather than by the world phase (which is already closed by then).
     private static boolean glassCaptureActive;
 
+    // Entity shadow maps re-render entities from a light's POV, post-world. Vanilla entity draws only
+    // honour the framebuffer bound at the trySetup seam (not RenderSystem's output override), so the
+    // shadow renderer arms this to redirect its entity draws into the shadow depth FBO.
+    private static boolean entityShadowCaptureActive;
+    private static int entityShadowFbo;
+
     // FBO to bind for the draw currently being set up. Armed at setPipeline (where the pipeline
     // is known), consumed at trySetup RETURN -- the last point before the draw, after Iris'
     // own framebuffer management, so our bind is the one that sticks.
@@ -90,6 +96,22 @@ public final class GBufferCapture {
         return true;
     }
 
+    /**
+     * Redirect entity draws into {@code fbo} (a light-POV shadow depth target) until
+     * {@link #endEntityShadowCapture()}. This is the ONLY reliable way to contain a re-rendered
+     * entity mid-frame: vanilla entity render types target the bound framebuffer at the trySetup
+     * seam, ignoring both a raw pre-bind and RenderSystem's output-texture override.
+     */
+    public static void beginEntityShadowCapture(int fbo) {
+        entityShadowFbo = fbo;
+        entityShadowCaptureActive = fbo != 0;
+    }
+
+    public static void endEntityShadowCapture() {
+        entityShadowCaptureActive = false;
+        entityShadowFbo = 0;
+    }
+
     /** Closes the glass capture and restores the full three-attachment draw-buffer set. */
     public static void endGlassCapture() {
         if (!glassCaptureActive) return;
@@ -119,6 +141,14 @@ public final class GBufferCapture {
      */
     private static int redirectFboFor(RenderPipeline pipeline) {
         if (pipeline == null) return 0;
+        // Entity shadow: a post-world re-render of entities from a light's POV. Independent of the
+        // material G-buffer -- redirect any entity-format draw into the armed shadow depth FBO. Only
+        // the shadow renderer's own entity re-render happens while this is active, so a broad
+        // vertex-format match is safe and catches every entity part (armour, held items, effects).
+        if (entityShadowCaptureActive
+                && pipeline.getVertexFormat() == DefaultVertexFormat.NEW_ENTITY) {
+            return entityShadowFbo;
+        }
         // Glass: a post-world re-render of nearby panes, armed explicitly (not by the world phase).
         // It writes only attachments 1/2 -- attachment 0 keeps the pane colour vanilla already
         // blended -- and never writes main depth (the pipeline masks it), so it is safe to redirect

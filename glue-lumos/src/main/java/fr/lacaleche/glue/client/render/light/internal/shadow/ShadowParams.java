@@ -37,6 +37,10 @@ import org.joml.Matrix4f;
  * @param faceAxis      cube face index 0..5 (+X, -X, +Y, -Y, +Z, -Z), or -1 for a spot.
  *                      The shader discards fragments whose dominant axis from the light
  *                      is not this face, so the six passes tile the sphere without overlap.
+ * @param entityDepthId GL depth texture of the <strong>per-frame</strong> entity shadow map for this
+ *                      face &mdash; nearby entities rendered from the light's POV with the same
+ *                      {@code lightViewProj}. Unlike the (cached) terrain maps this is re-rendered
+ *                      every frame because entities move. {@code -1} when no entity is near this light.
  */
 @Environment(EnvType.CLIENT)
 public record ShadowParams(
@@ -49,6 +53,12 @@ public record ShadowParams(
         float far,
         float focalY,
         float lightSize,
-        int faceAxis
+        int faceAxis,
+        int entityDepthId
 ) {
+    /** Copy carrying the per-frame entity shadow map id (the terrain fields are cached, this is not). */
+    public ShadowParams withEntityDepth(int entityDepthId) {
+        return new ShadowParams(textureId, tintTextureId, tintDepthId, lightViewProj, mapSize,
+                near, far, focalY, lightSize, faceAxis, entityDepthId);
+    }
 }

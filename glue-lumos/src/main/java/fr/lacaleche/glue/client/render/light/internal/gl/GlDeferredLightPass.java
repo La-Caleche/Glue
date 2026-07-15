@@ -13,6 +13,9 @@ import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.system.MemoryStack;
+
+import java.nio.FloatBuffer;
 
 /** Raw GL pass that adds one light, or one point-light face, to the HDR buffer. */
 public final class GlDeferredLightPass {
@@ -28,7 +31,7 @@ public final class GlDeferredLightPass {
                        Matrix4f inverseViewProjection, Vector3d camera, Light light,
                        int width, int height, int[] bounds, @Nullable ShadowParams shadow,
                        int materialColor, int materialDepth,
-                       int gbufferAlbedo, int gbufferId) {
+                       int gbufferAlbedo, int gbufferId, float[] blobData, int blobCount) {
         int program = resources.program("glue_light_deferred",
                 "light/deferred.vsh", "light/deferred.fsh");
         if (program == 0 || lightFramebuffer <= 0 || sceneDepth <= 0) return;
@@ -84,6 +87,10 @@ public final class GlDeferredLightPass {
             bindTexture(program, "TintDepth", 6, hasTint ? shadow.tintDepthId() : 0);
             resources.uniform1i(program, "HasShadowTint", hasTint ? 1 : 0);
 
+            boolean hasEntityShadow = hasShadow && shadow.entityDepthId() > 0;
+            bindTexture(program, "EntityShadowMap", 11, hasEntityShadow ? shadow.entityDepthId() : 0);
+            resources.uniform1i(program, "HasEntityShadow", hasEntityShadow ? 1 : 0);
+
             boolean hasMaterial = materialColor > 0 && materialDepth > 0;
             bindTexture(program, "MaterialAlbedo", 7, hasMaterial ? materialColor : 0);
             bindTexture(program, "MaterialDepth", 8, hasMaterial ? materialDepth : 0);
@@ -93,6 +100,16 @@ public final class GlDeferredLightPass {
             bindTexture(program, "GBufferAlbedo", 9, hasGBuffer ? gbufferAlbedo : 0);
             bindTexture(program, "GBufferId", 10, hasGBuffer ? gbufferId : 0);
             resources.uniform1i(program, "HasGBuffer", hasGBuffer ? 1 : 0);
+
+            // Entity blob shadows: two vec4 per capsule (lower axis + radius, upper axis).
+            if (blobCount > 0) {
+                try (MemoryStack stack = MemoryStack.stackPush()) {
+                    FloatBuffer buffer = stack.mallocFloat(blobCount * 8);
+                    buffer.put(blobData, 0, blobCount * 8).flip();
+                    resources.uniform4fv(program, "ShadowBlobs", buffer);
+                }
+            }
+            resources.uniform1i(program, "ShadowBlobCount", blobCount);
             resources.drawFullscreen(program);
         } finally {
             state.restore();
