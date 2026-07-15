@@ -30,11 +30,8 @@ import java.util.List;
 @Environment(EnvType.CLIENT)
 public final class EntityShadowRenderer extends AbstractSceneRenderer {
 
-    /** An entity this close to the light straddles several faces; render it into all of them. */
-    private static final double NEAR_LIGHT = 2.0;
-
-    private Matrix4f lightView = new Matrix4f();
-    private Matrix4f lightProj = new Matrix4f();
+    private Matrix4f lightView;
+    private Matrix4f lightProj;
     private double lightX, lightY, lightZ;
     private int faceAxis = -1;
     private List<Entity> entities = List.of();
@@ -128,17 +125,11 @@ public final class EntityShadowRenderer extends AbstractSceneRenderer {
         double dx = ex - lightX;
         double dy = ey - lightY;
         double dz = ez - lightZ;
-        if (dx * dx + dy * dy + dz * dz < NEAR_LIGHT * NEAR_LIGHT) return true;
-        return dominantFace(dx, dy, dz) == faceAxis
-                || dominantFace(dx, dy + height * 0.5, dz) == faceAxis
-                || dominantFace(dx, dy + height, dz) == faceAxis;
-    }
-
-    /** Cube face (+X -X +Y -Y +Z -Z) a direction points at. Matches the shader's cubeFace(). */
-    private static int dominantFace(double x, double y, double z) {
-        double ax = Math.abs(x), ay = Math.abs(y), az = Math.abs(z);
-        if (ax >= ay && ax >= az) return x > 0 ? 0 : 1;
-        if (ay >= az) return y > 0 ? 2 : 3;
-        return z > 0 ? 4 : 5;
+        if (dx * dx + dy * dy + dz * dz < LightDepthSceneRenderer.NEAR_LIGHT * LightDepthSceneRenderer.NEAR_LIGHT) {
+            return true;
+        }
+        return LightDepthSceneRenderer.dominantFace(dx, dy, dz) == faceAxis
+                || LightDepthSceneRenderer.dominantFace(dx, dy + height * 0.5, dz) == faceAxis
+                || LightDepthSceneRenderer.dominantFace(dx, dy + height, dz) == faceAxis;
     }
 }

@@ -53,9 +53,11 @@ final class DeferredLightPass {
             int[] bounds = LightInfluence.of(light, camera)
                     .screenBounds(viewProjection, frame.width(), frame.height());
             if (bounds == null) continue;
-            int blobCount = EntityShadowBlobs.collect(minecraft, light, camera, partialTick, blobData);
             List<ShadowParams> maps = shadows.get(light);
             if (maps == null || maps.isEmpty()) {
+                // Only lights with no shadow map fall back to capsule blobs; a mapped light casts a
+                // real per-frame entity depth map, so collecting (and uploading) blobs for it is waste.
+                int blobCount = EntityShadowBlobs.collect(minecraft, light, camera, partialTick, blobData);
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
                         camera, light, bounds, null, materialColor, materialDepth,
                         gbufferAlbedo, gbufferId, blobCount);
@@ -64,7 +66,7 @@ final class DeferredLightPass {
             for (ShadowParams map : maps) {
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
                         camera, light, bounds, map, materialColor, materialDepth,
-                        gbufferAlbedo, gbufferId, blobCount);
+                        gbufferAlbedo, gbufferId, 0);
             }
         }
 
