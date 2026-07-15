@@ -23,10 +23,10 @@ public final class LightRenderCoordinator {
     private final GlassBufferPass glassPass = new GlassBufferPass();
     private final DeferredLightPass deferredPass = new DeferredLightPass();
 
-    private int maxSpotShadows = 6;
-    private int maxPointShadows = 4;
-    private int maxSpotBakesPerFrame = 2;
-    private int maxPointBakesPerFrame = 1;
+    private int maxSpotShadows = 15;
+    private int maxPointShadows = 15;
+    private int maxSpotBakesPerFrame = 5;
+    private int maxPointBakesPerFrame = 5;
     private double maxLightDistance;
 
     public void render() {

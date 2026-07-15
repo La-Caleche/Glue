@@ -43,10 +43,11 @@ public final class ShadowBaker {
     /** Point lights need six of these, so they are kept smaller. */
     private static final int POINT_FACE_SIZE = 512;
 
-    private int maxSpotShadows = 6;
-    private int maxPointShadows = 4;
-    private int maxSpotBakesPerFrame = 2;
-    private int maxPointBakesPerFrame = 1;
+    /** Defined by @{@link fr.lacaleche.glue.client.render.light.internal.pipeline.LightRenderCoordinator} */
+    private int maxSpotShadows = 0;
+    private int maxPointShadows = 0;
+    private int maxSpotBakesPerFrame = 0;
+    private int maxPointBakesPerFrame = 0;
 
     private static final float NEAR = 0.05f;
     /**
@@ -225,7 +226,7 @@ public final class ShadowBaker {
     private boolean bakeSpot(Minecraft mc, Slot slot, Light light) {
         Vector3f dir = new Vector3f(light.directionX, light.directionY, light.directionZ);
         // Frustum a little wider than the outer cone so edge shadows aren't clipped.
-        float outerHalf = (float) Math.acos(Math.max(-1f, Math.min(1f, light.cosOuter)));
+        float outerHalf = (float) Math.acos(Math.clamp(light.cosOuter, -1f, 1f));
         float fov = Math.min((float) Math.toRadians(170.0), outerHalf * 2f * 1.15f);
 
         Matrix4f proj = new Matrix4f().perspective(fov, 1f, NEAR, light.range);
@@ -367,7 +368,7 @@ public final class ShadowBaker {
 
     private static void trim(List<Slot> slots, int budget) {
         while (slots.size() > budget) {
-            slots.remove(slots.size() - 1).cleanup();
+            slots.removeLast().cleanup();
         }
     }
 

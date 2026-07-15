@@ -21,6 +21,14 @@ uniform sampler2D GlassDepth;
 uniform int HasGlassG;
 uniform mat4 InvViewProj;
 
+// Dynamic material G-buffer: entities (and later particles) captured in the same draw as the
+// scene, so their albedo+normal are REAL, not guessed. GBufferId carries the material class
+// (2 = entity); GBufferAlbedo is linear albedo (RGB) + packed normal (A). Reading a captured
+// albedo here is what finally kills the entity flood -- a grey wither stays grey.
+uniform sampler2D GBufferAlbedo;
+uniform sampler2D GBufferId;
+uniform int HasGBuffer;
+
 // Assumed reflectance when no material buffer covers this pixel. Mid-grey: the value a
 // surface of unknown albedo is least wrong at. Keeps the fallback in the same range as a
 // real MaterialAlbedo sample, so one Exposure serves both paths.
@@ -67,7 +75,30 @@ void main() {
         float sceneDepth = texture(SceneDepth, texCoord).r;
         terrainMaterial = materialDepth < 1.0 && abs(materialDepth - sceneDepth) < 1e-5;
     }
-    if (terrainMaterial) {
+    // A captured dynamic-material pixel (entity) carries its real albedo -- treat it exactly
+    // like terrain: use the albedo directly and never fall to the guess-or-cap path.
+    bool gbufferEntity = false;
+    if (HasGBuffer == 1) {
+        float id = texture(GBufferId, texCoord).r * 255.0;
+        gbufferEntity = id > 1.5 && id < 2.5;
+    }
+    // A captured entity's id lingers in the buffer even when a glass pane, drawn after it,
+    // took over this pixel's depth (glass writes depth here -- that is what gives the pane its
+    // response). So if the frontmost visible surface IS a pane -- detected exactly as the glass
+    // path does, the pane reconstructs to the scene point -- the entity is behind it. Drop the
+    // entity flag and let the glass path own the pixel; the entity is no longer visible here.
+    if (gbufferEntity && HasGlassG == 1) {
+        float gd = texture(GlassDepth, texCoord).r;
+        if (gd < 1.0) {
+            vec3 Pg = reconstruct(texCoord, gd);
+            vec3 Ps = reconstruct(texCoord, texture(SceneDepth, texCoord).r);
+            if (distance(Pg, Ps) < 0.02 + 0.01 * length(Ps)) gbufferEntity = false;
+        }
+    }
+    if (gbufferEntity) {
+        albedo = texture(GBufferAlbedo, texCoord).rgb;
+        recoveredLuma = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
+    } else if (terrainMaterial) {
         albedo = texture(MaterialAlbedo, texCoord).rgb;
         recoveredLuma = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
     } else {
@@ -119,7 +150,9 @@ void main() {
             isGlass = distance(Pg, Ps) < 0.02 + 0.01 * length(Ps);
         }
     }
-    if (HasMaterial == 1 && !terrainMaterial && !isGlass) {
+    // Cap only the pixels we still have to guess -- NOT captured entities (real albedo, so no
+    // flood) and NOT glass (its own deferred response).
+    if (HasMaterial == 1 && !terrainMaterial && !isGlass && !gbufferEntity) {
         float mag = max(illumination.r, max(illumination.g, illumination.b));
         if (mag > ENTITY_LIGHT_CAP) illumination *= ENTITY_LIGHT_CAP / mag;
     }

@@ -15,6 +15,9 @@
   ],
   "client": [
     "material.ChunkSectionsToRenderMixin",
+    "material.MixinGlCommandEncoder",
+    "material.MixinGlRenderPass",
+    "material.MixinShaderManagerCache",
     "shader.pipeline.CompositeRenderTypeAccessor",
     "shader.pipeline.CompositeStateAccessor",
     "DebugRendererMixin",

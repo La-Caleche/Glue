@@ -52,16 +52,21 @@ public class TestKeybinds {
             "key.categories.glue_test", GLFW.GLFW_KEY_F10,
             client -> client.setScreen(new FileDialogTestScreen()));
 
-    public static final KeyMapping TOGGLE_LIGHTS = KEYBINDINGS.register(
-            "toggle_lights",
+    public static final KeyMapping ADD_SPOT = KEYBINDINGS.register(
+            "add_spot",
             "key.categories.glue_test", GLFW.GLFW_MOUSE_BUTTON_5,
             InputConstants.Type.MOUSE,
-            client -> TestLighting.toggle());
+            client -> TestLighting.addStaticSpot());
 
     public static final KeyMapping TOGGLE_LIGHT_HUD = KEYBINDINGS.register(
             "toggle_light_hud",
             "key.categories.glue_test", GLFW.GLFW_KEY_F12,
             client -> LightDebugHud.INSTANCE.toggle());
+
+    public static final KeyMapping TOGGLE_STRESS_LIGHTS = KEYBINDINGS.register(
+            "toggle_stress_lights",
+            "key.categories.glue_test", GLFW.GLFW_KEY_F11,
+            client -> TestLighting.toggle());
 
     public static void registerKeybinds() {
     }
