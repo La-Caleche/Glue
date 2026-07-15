@@ -7,7 +7,10 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -65,9 +68,19 @@ public final class ShadowBaker {
             new Vector3f(0, 0, 1), new Vector3f(0, 0, -1),
     };
 
+    /** Entity shadow maps are re-rendered every frame; entities are small, so a modest size. */
+    private static final int ENTITY_MAP_SIZE = 512;
+    /** Cap on entities rendered into one light's shadow maps, to bound the per-frame cost. */
+    private static final int MAX_SHADOW_ENTITIES = 16;
+
     /** One shadow-casting light's slot: its renderers, its baked maps, and who owns it. */
     private static final class Slot {
         final List<LightDepthSceneRenderer> renderers = new ArrayList<>();
+        // The per-face light view/projection the terrain map was baked with, so the per-frame entity
+        // pass renders with the exact same transform and both maps share one lightViewProj.
+        final List<Matrix4f> faceView = new ArrayList<>();
+        final List<Matrix4f> faceProj = new ArrayList<>();
+        final List<EntityShadowRenderer> entityRenderers = new ArrayList<>();
         List<ShadowParams> maps = List.of();
         @Nullable
         Light owner;
@@ -75,6 +88,10 @@ public final class ShadowBaker {
         void cleanup() {
             renderers.forEach(LightDepthSceneRenderer::cleanup);
             renderers.clear();
+            entityRenderers.forEach(EntityShadowRenderer::cleanup);
+            entityRenderers.clear();
+            faceView.clear();
+            faceProj.clear();
             maps = List.of();
             owner = null;
         }
@@ -84,6 +101,7 @@ public final class ShadowBaker {
     private final List<Slot> pointSlots = new ArrayList<>();
     private final Map<Light, List<ShadowParams>> frame = new IdentityHashMap<>();
     private GlTintBlurPass tintBlur;
+    private float partialTick;
 
     /**
      * Blur the freshly-baked transmittance map. Once, here, rather than per pixel per
@@ -113,8 +131,9 @@ public final class ShadowBaker {
     }
 
     /** Bake (or reuse) every shadow-casting light's maps. Call once per frame, before accumulation. */
-    public void bake(Minecraft mc, GlTintBlurPass tintBlur, List<Light> lights) {
+    public void bake(Minecraft mc, GlTintBlurPass tintBlur, List<Light> lights, float partialTick) {
         this.tintBlur = tintBlur;
+        this.partialTick = partialTick;
         frame.clear();
 
         List<Light> spots = new ArrayList<>();
@@ -254,7 +273,11 @@ public final class ShadowBaker {
                 hasTint ? renderer.getTintTextureId() : -1,
                 hasTint ? renderer.getDepthTextureId() : -1,
                 new Matrix4f(proj).mul(view), SPOT_MAP_SIZE,
-                NEAR, light.range, proj.m11(), BULB_SIZE, -1));
+                NEAR, light.range, proj.m11(), BULB_SIZE, -1, -1));
+        slot.faceView.clear();
+        slot.faceView.add(view);
+        slot.faceProj.clear();
+        slot.faceProj.add(proj);
         return !slot.maps.isEmpty();
     }
 
@@ -268,6 +291,8 @@ public final class ShadowBaker {
                 mc, center, radius, light.x, light.y, light.z, light.range);
 
         List<ShadowParams> maps = new ArrayList<>(6);
+        slot.faceView.clear();
+        slot.faceProj.clear();
         for (int face = 0; face < 6; face++) {
             Matrix4f view = lookAlong(FACE_DIRS[face]);
             LightDepthSceneRenderer renderer = slot.renderers.get(face);
@@ -292,7 +317,9 @@ public final class ShadowBaker {
                     hasTint ? renderer.getTintTextureId() : -1,
                     hasTint ? renderer.getDepthTextureId() : -1,
                     new Matrix4f(proj).mul(view), POINT_FACE_SIZE,
-                    NEAR, light.range, proj.m11(), BULB_SIZE, face));
+                    NEAR, light.range, proj.m11(), BULB_SIZE, face, -1));
+            slot.faceView.add(view);
+            slot.faceProj.add(new Matrix4f(proj));
         }
         slot.maps = Collections.unmodifiableList(maps);
         return true;
@@ -337,8 +364,50 @@ public final class ShadowBaker {
                 slot.owner = light;
                 bakes++;
             }
-            frame.put(light, slot.maps);
+            // The terrain maps above are cached; entities move, so their shadow is rendered here
+            // every frame with the same per-face transform and merged into a per-frame ShadowParams.
+            frame.put(light, renderEntityShadows(mc, slot, light));
         }
+    }
+
+    /**
+     * Render nearby entities from the light's POV into per-face depth maps (re-rendered every frame)
+     * and return {@code slot.maps} augmented with their ids. Returns the terrain maps unchanged when
+     * no entity is near, so the deferred pass simply skips the entity lookup.
+     */
+    private List<ShadowParams> renderEntityShadows(Minecraft mc, Slot slot, Light light) {
+        if (slot.maps.isEmpty() || slot.faceView.size() < slot.maps.size()) return slot.maps;
+        List<Entity> entities = collectEntities(mc, light);
+        if (entities.isEmpty()) return slot.maps;
+
+        while (slot.entityRenderers.size() < slot.maps.size()) {
+            slot.entityRenderers.add(new EntityShadowRenderer());
+        }
+        List<ShadowParams> augmented = new ArrayList<>(slot.maps.size());
+        for (int i = 0; i < slot.maps.size(); i++) {
+            ShadowParams params = slot.maps.get(i);
+            EntityShadowRenderer renderer = slot.entityRenderers.get(i);
+            renderer.configure(slot.faceView.get(i), slot.faceProj.get(i),
+                    light.x, light.y, light.z, params.faceAxis(), entities, partialTick);
+            int entityDepth = renderer.renderToTexture(ENTITY_MAP_SIZE, ENTITY_MAP_SIZE, mc) > 0
+                    ? renderer.getDepthTextureId() : -1;
+            augmented.add(params.withEntityDepth(entityDepth));
+        }
+        return augmented;
+    }
+
+    private static List<Entity> collectEntities(Minecraft mc, Light light) {
+        if (mc.level == null) return List.of();
+        double reach = light.range;
+        AABB box = new AABB(light.x - reach, light.y - reach, light.z - reach,
+                light.x + reach, light.y + reach, light.z + reach);
+        List<Entity> entities = new ArrayList<>();
+        for (LivingEntity entity : mc.level.getEntitiesOfClass(LivingEntity.class, box,
+                candidate -> !candidate.isSpectator() && !candidate.isInvisible())) {
+            entities.add(entity);
+            if (entities.size() >= MAX_SHADOW_ENTITIES) break;
+        }
+        return entities;
     }
 
     @Nullable

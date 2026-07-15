@@ -82,6 +82,11 @@ public final class GlLightResources {
         if (location >= 0) GL20.glUniform3f(location, x, y, z);
     }
 
+    void uniform4fv(int program, String name, FloatBuffer values) {
+        int location = GL20.glGetUniformLocation(program, name);
+        if (location >= 0) GL20.glUniform4fv(location, values);
+    }
+
     void uniformMatrix(int program, String name, Matrix4f matrix) {
         int location = GL20.glGetUniformLocation(program, name);
         if (location < 0) return;
