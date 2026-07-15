@@ -27,7 +27,7 @@ import java.nio.ByteBuffer;
 public final class GlLightDenoisePass {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue/light");
-    private static final float POSITION_SIGMA = 0.15f;
+    private static final float POSITION_SIGMA = 0.12f;
 
     private final GlLightResources resources;
 

@@ -16,7 +16,7 @@ uniform mat4 InvViewProj;      // clip -> camera-relative world, for edge weight
 uniform vec2 Direction;        // one texel step in uv along the blur axis
 uniform float PositionSigma;   // world-space falloff in blocks (edge preservation)
 
-const int RADIUS = 5;
+const int RADIUS = 3;
 
 in vec2 texCoord;
 out vec4 fragColor;

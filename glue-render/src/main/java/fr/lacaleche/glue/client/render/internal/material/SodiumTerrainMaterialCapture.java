@@ -25,7 +25,7 @@ import java.util.Arrays;
  *       "does not match Sodium 0.7.3" and leaving {@code isReady()} false forever;</li>
  *   <li>the MRT attach or framebuffer-completeness check may fail, logging "disabled: ...";</li>
  *   <li>even after "adapter active" logs, the consumer's depth gate
- *       {@code abs(materialDepth - sceneDepth) < 1e-7} in deferred.fsh / composite.fsh can reject every
+ *       {@code abs(materialDepth - sceneDepth) < 1e-5} in deferred.fsh / composite.fsh can reject every
  *       pixel if the copied depth is not bit-identical to the main depth.</li>
  * </ol>
  */
