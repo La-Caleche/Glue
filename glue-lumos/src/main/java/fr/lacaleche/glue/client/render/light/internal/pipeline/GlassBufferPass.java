@@ -1,5 +1,6 @@
 package fr.lacaleche.glue.client.render.light.internal.pipeline;
 
+import fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture;
 import fr.lacaleche.glue.client.render.light.Light;
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
 import fr.lacaleche.glue.client.render.light.internal.scene.GlassSceneRenderer;
@@ -14,21 +15,19 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Builds the camera-space glass textures consumed by deferred lighting. */
+/** Re-renders nearby panes into the shared material G-buffer under the GLASS id, for the deferred
+ *  and reflection passes to identify visible glass by material id rather than a depth heuristic. */
 final class GlassBufferPass {
 
-    Textures render(WorldLightContext context, Minecraft minecraft, LumosFrame frame,
-                    Vector3d camera, List<Light> all, List<Light> visible) {
+    void render(WorldLightContext context, Minecraft minecraft, LumosFrame frame,
+                Vector3d camera, List<Light> all, List<Light> visible) {
+        if (!GBufferCapture.isReady()) return;
         List<BlockPos> blocks = collectBlocks(context, minecraft, all, visible);
-        if (blocks.isEmpty()) return Textures.NONE;
+        if (blocks.isEmpty()) return;
 
         context.glassRenderer().configure(new Matrix4f(frame.viewMatrix()), new Matrix4f(frame.projectionMatrix()),
                 camera.x, camera.y, camera.z, blocks);
-        if (context.glassRenderer().renderToTexture(frame.width(), frame.height(), minecraft) <= 0) {
-            return Textures.NONE;
-        }
-        return new Textures(context.glassRenderer().getColorTextureId(),
-                context.glassRenderer().getDepthTextureId());
+        context.glassRenderer().renderRedirected(frame.width(), frame.height(), minecraft);
     }
 
     private static List<BlockPos> collectBlocks(WorldLightContext context, Minecraft minecraft,
@@ -44,9 +43,5 @@ final class GlassBufferPass {
                             candidate.z, candidate.range)));
         }
         return union.isEmpty() ? List.of() : List.copyOf(union);
-    }
-
-    record Textures(int colorId, int depthId) {
-        static final Textures NONE = new Textures(-1, -1);
     }
 }

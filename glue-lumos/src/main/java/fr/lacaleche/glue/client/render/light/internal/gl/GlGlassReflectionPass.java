@@ -35,12 +35,12 @@ public final class GlGlassReflectionPass {
     /**
      * @param sceneColor  copy of the composited (lit) scene colour
      * @param sceneDepth  copy of the scene depth, sampled along the reflection ray
-     * @param glassDepth  glass G-buffer depth: identifies pane pixels and their normals
+     * @param gbufferId   material-id attachment: pane pixels carry the GLASS id (4)
      */
-    public void render(int sceneColor, int sceneDepth, int glassDepth,
+    public void render(int sceneColor, int sceneDepth, int gbufferId,
                        Matrix4f viewProjection, Matrix4f inverseViewProjection,
                        int destinationFramebuffer, int width, int height) {
-        if (sceneColor <= 0 || sceneDepth <= 0 || glassDepth <= 0) return;
+        if (sceneColor <= 0 || sceneDepth <= 0 || gbufferId <= 0) return;
         int program = resources.program("glue_glass_reflect",
                 "light/deferred.vsh", "light/glass_reflect.fsh");
         if (program == 0) return;
@@ -69,8 +69,9 @@ public final class GlGlassReflectionPass {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, sceneDepth);
             resources.uniform1i(program, "SceneDepth", 1);
             GL13.glActiveTexture(GL13.GL_TEXTURE2);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, glassDepth);
-            resources.uniform1i(program, "GlassDepth", 2);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, gbufferId);
+            resources.uniform1i(program, "GBufferId", 2);
+            resources.uniform1i(program, "HasGBuffer", 1);
 
             resources.uniformMatrix(program, "InvViewProj", inverseViewProjection);
             resources.uniformMatrix(program, "ViewProj", viewProjection);

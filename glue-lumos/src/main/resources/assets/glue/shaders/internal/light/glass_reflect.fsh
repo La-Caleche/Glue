@@ -9,7 +9,8 @@
 
 uniform sampler2D SceneColor;   // unit 0: composited, lit scene colour (sRGB-encoded)
 uniform sampler2D SceneDepth;   // unit 1: scene depth
-uniform sampler2D GlassDepth;   // unit 2: glass G-buffer depth (camera POV), 1.0 where no pane
+uniform sampler2D GBufferId;    // unit 2: material id (R); glass panes carry id 4
+uniform int HasGBuffer;         // 1 if the material G-buffer is bound
 
 uniform mat4 InvViewProj;       // clip -> camera-relative world
 uniform mat4 ViewProj;          // camera-relative world -> clip
@@ -31,23 +32,47 @@ vec3 reconstruct(vec2 uv, float depth) {
     return world.xyz / world.w;
 }
 
-// Axis-snapped normal from the glass depth buffer. Glass is overwhelmingly axis-aligned, so
-// a near-axis derivative snaps to its exact axis (a clean, planar reflection); a genuinely
-// diagonal pane keeps the derived value. Neighbours that fall off the pane (cleared depth
-// 1.0) are dropped in favour of the centre, so the estimate stays valid at pane edges.
+float unpackDepth24(vec3 encodedDepth) {
+    vec3 depthBytes = floor(encodedDepth * 255.0 + 0.5);
+    return dot(depthBytes, vec3(65536.0, 256.0, 1.0)) / 16777215.0;
+}
+
+// True when the frontmost surface at uv is a glass pane (GLASS material id) that actually OWNS the
+// pixel: the pane re-render is sorted only against other panes, so a pane behind an opaque wall
+// stamped its id here too. The depth it wrote must still resolve to the scene surface, or it is
+// occluded and must not reflect.
+bool isGlassAt(vec2 uv) {
+    vec4 idSample = texture(GBufferId, uv);
+    float id = idSample.r * 255.0;
+    if (id < 3.5 || id > 4.5) return false;
+    float ownerDepth = unpackDepth24(idSample.gba);
+    float sceneDepth = texture(SceneDepth, uv).r;
+    vec3 ownerP = reconstruct(uv, ownerDepth);
+    vec3 Ps = reconstruct(uv, sceneDepth);
+    return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps);
+}
+
+// Axis-snapped pane normal from the scene depth of the neighbouring pane texels. Glass is
+// overwhelmingly axis-aligned, so a near-axis derivative snaps to its exact axis (a clean, planar
+// reflection); a genuinely diagonal pane keeps the derived value. Neighbours that are NOT glass
+// are dropped in favour of the centre, so the estimate stays valid at pane edges.
 vec3 glassNormal(vec2 uv, vec3 P) {
-    float dr = texture(GlassDepth, uv + vec2(TexelSize.x, 0.0)).r;
-    float dl = texture(GlassDepth, uv - vec2(TexelSize.x, 0.0)).r;
-    float du = texture(GlassDepth, uv + vec2(0.0, TexelSize.y)).r;
-    float dd = texture(GlassDepth, uv - vec2(0.0, TexelSize.y)).r;
+    vec2 rx = uv + vec2(TexelSize.x, 0.0);
+    vec2 lx = uv - vec2(TexelSize.x, 0.0);
+    vec2 uy = uv + vec2(0.0, TexelSize.y);
+    vec2 dy = uv - vec2(0.0, TexelSize.y);
+    bool rGlass = isGlassAt(rx);
+    bool lGlass = isGlassAt(lx);
+    bool uGlass = isGlassAt(uy);
+    bool dGlass = isGlassAt(dy);
 
-    vec3 pr = dr < 1.0 ? reconstruct(uv + vec2(TexelSize.x, 0.0), dr) : P;
-    vec3 pl = dl < 1.0 ? reconstruct(uv - vec2(TexelSize.x, 0.0), dl) : P;
-    vec3 pu = du < 1.0 ? reconstruct(uv + vec2(0.0, TexelSize.y), du) : P;
-    vec3 pd = dd < 1.0 ? reconstruct(uv - vec2(0.0, TexelSize.y), dd) : P;
+    vec3 pr = rGlass ? reconstruct(rx, texture(SceneDepth, rx).r) : P;
+    vec3 pl = lGlass ? reconstruct(lx, texture(SceneDepth, lx).r) : P;
+    vec3 pu = uGlass ? reconstruct(uy, texture(SceneDepth, uy).r) : P;
+    vec3 pd = dGlass ? reconstruct(dy, texture(SceneDepth, dy).r) : P;
 
-    vec3 ddx = dr < 1.0 ? pr - P : P - pl;
-    vec3 ddy = du < 1.0 ? pu - P : P - pd;
+    vec3 ddx = rGlass ? pr - P : P - pl;
+    vec3 ddy = uGlass ? pu - P : P - pd;
     if (dot(ddx, ddx) < 1e-12 || dot(ddy, ddy) < 1e-12) return vec3(0.0);
 
     vec3 n = normalize(cross(ddx, ddy));
@@ -69,17 +94,15 @@ float camDist(vec3 p) {
 }
 
 void main() {
+    if (HasGBuffer != 1) discard;
     float sceneDepth = texture(SceneDepth, texCoord).r;
     if (sceneDepth >= 1.0) discard;               // sky
-    float gd = texture(GlassDepth, texCoord).r;
-    if (gd >= 1.0) discard;                        // no pane at this pixel
+    // The frontmost visible surface must be a pane. The GLASS id was written depth-tested against
+    // the main depth, so it is set only where a pane is the frontmost surface -- no separate
+    // reconstruct-and-compare test is needed.
+    if (!isGlassAt(texCoord)) discard;
 
     vec3 P = reconstruct(texCoord, sceneDepth);
-    vec3 Pg = reconstruct(texCoord, gd);
-    // The frontmost visible surface must actually be the pane (not opaque geometry in front
-    // of it): the glass G-buffer point has to reconstruct to nearly the same place.
-    if (distance(Pg, P) > 0.05 + 0.02 * length(P)) discard;
-
     vec3 N = glassNormal(texCoord, P);
     if (N == vec3(0.0)) discard;
     vec3 V = normalize(P);                         // camera -> fragment (incident ray)

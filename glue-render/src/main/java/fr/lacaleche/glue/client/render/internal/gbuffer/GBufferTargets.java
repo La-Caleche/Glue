@@ -120,6 +120,38 @@ public final class GBufferTargets {
         return materialIdTex;
     }
 
+    /**
+     * Opens the glass re-render: restricts the draw-buffer set to the material attachments (1 and 2),
+     * leaving attachment 0 (the borrowed main colour) untouched -- vanilla's translucent pass already
+     * blended the pane there. Depth stays the borrowed main depth, read-only (the glass pipeline masks
+     * depth), so occluded panes fail its LEQUAL test and never overwrite the terrain behind them.
+     *
+     * <p>NOT wrapped in {@link SavedGlState}: its {@code restore()} re-applies the saved draw-buffer
+     * set to the bound FBO, and the entity capture can leave THIS FBO bound, so it would immediately
+     * clobber the {@code {NONE,1,2}} set below back to {@code {0,1,2}} -- letting the glass draw's
+     * (unwritten) colour output leak into the main colour. The draw-buffer set is meant to persist for
+     * the glass draws; only the bound FBO is saved/restored here.</p>
+     */
+    public void beginGlassPass() {
+        if (fbo == 0) return;
+        int prevDraw = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
+        GL20.glDrawBuffers(new int[]{
+                GL11.GL_NONE, GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevDraw);
+    }
+
+    /** Restores the full three-attachment draw-buffer set after {@link #beginGlassPass()}. Like it,
+     *  this must not restore draw buffers via SavedGlState. */
+    public void endGlassPass() {
+        if (fbo == 0) return;
+        int prevDraw = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
+        GL20.glDrawBuffers(new int[]{
+                GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevDraw);
+    }
+
     /** Re-points the borrowed colour/depth at their current textures and clears only the owned
      *  material attachments (1 and 2); the shared colour/depth are left to vanilla's own frame
      *  clear. Call at the start of a captured frame. */

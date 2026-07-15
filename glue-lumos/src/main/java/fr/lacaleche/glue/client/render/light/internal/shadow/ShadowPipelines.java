@@ -103,17 +103,21 @@ public final class ShadowPipelines {
                 .depthTest(DepthTestFunction.LESS_DEPTH_TEST)
                 .build();
 
-        // Camera-POV glass G-buffer (see internal/light/glass_gbuffer.fsh). No blend: the depth
-        // test keeps the nearest pane's albedo per pixel, which is the surface the
-        // deferred pass will be shading. No cutout: fully transparent texels must
-        // still write depth, because vanilla's translucent pass writes it too and the
-        // deferred pass matches the two depths for equality.
+        // Glass into the shared material G-buffer (see internal/light/glass_gbuffer.fsh). A post-hoc
+        // re-render of nearby panes redirected into the material attachments (1,2), tested READ-ONLY
+        // (LEQUAL, no depth write) against the borrowed MAIN depth so a pane hidden behind an opaque
+        // wall fails and never overwrites the terrain id there. A visible pane's re-rendered z is not
+        // bit-identical to the stored one, which alone would dither the equality -- so the RenderType
+        // adds a polygon offset (see glassGBuffer()) that biases the pane a hair toward the camera:
+        // a visible pane then passes cleanly, an occluded one (a block+ behind) still fails. No blend,
+        // no cutout: fully transparent texels still carry the id, so clear glass is identified too.
         glassGBufferPipeline = base("glass_gbuffer", "internal/light/glass_gbuffer")
                 .noAlphaCutout()
                 .noBlend()
                 .colorWrite(true)
-                .depthWrite(true)
-                .depthTest(DepthTestFunction.LESS_DEPTH_TEST)
+                .depthWrite(false)
+                .depthTest(DepthTestFunction.LEQUAL_DEPTH_TEST)
+                .depthBias(-1.0f, -10.0f)
                 .build();
     }
 
@@ -153,8 +157,11 @@ public final class ShadowPipelines {
     }
 
     public static RenderType glassGBuffer() {
-        // Vanilla renders translucent terrain with the MIPPED block sheet; match it,
-        // since this buffer's albedo stands in for the pane the player is looking at.
+        // Vanilla renders translucent terrain with the MIPPED block sheet; match it, since this
+        // buffer's albedo stands in for the pane the player is looking at. The pane is biased toward
+        // the camera by the pipeline's depth bias (see glassGBufferPipeline) so its read-only LEQUAL
+        // test against the main depth passes cleanly for a visible pane (no z-fight dither) while an
+        // occluded pane, a block or more behind, still fails rather than overwriting the terrain id.
         return blockAtlasType(glassGBufferPipeline, "glass_gbuffer", true);
     }
 

@@ -10,9 +10,6 @@ uniform sampler2D ShadowMap;    // unit 2: light-POV depth, OPAQUE casters only
 uniform sampler2D ShadowTint;   // unit 3: light-POV transmittance (glass colour)
 uniform int HasShadowTint;      // 1 if the transmittance + tint depth maps are bound
 uniform sampler2D TintDepth;    // unit 6: light-POV depth, opaque PLUS translucent
-uniform sampler2D GlassAlbedo;  // unit 4: camera-POV nearest-pane albedo (glass G-buffer)
-uniform sampler2D GlassDepth;   // unit 5: camera-POV glass depth (glass G-buffer)
-uniform int HasGlassG;          // 1 if the glass G-buffer is bound
 uniform sampler2D MaterialAlbedo; // unit 7: linear terrain albedo + packed normal
 uniform sampler2D MaterialDepth;  // unit 8: opaque terrain depth at capture time
 uniform int HasMaterial;
@@ -437,10 +434,10 @@ void main() {
         if (terrainMaterial) material = texture(MaterialAlbedo, texCoord);
     }
 
-    // A captured surface (terrain id 1, entity id 2, particle id 3) that still owns this pixel
-    // gets a real normal instead of the depth-derivative fallback, which reads a silhouette as
-    // geometry. Ownership: the depth it wrote still resolves to the scene surface (world-space,
-    // distance-scaled tolerance -- see composite.fsh) -- otherwise the id is stale.
+    // A captured surface (terrain id 1, entity id 2, particle id 3, glass id 4) that still owns
+    // this pixel gets its real material data instead of the depth-derivative fallback, which reads
+    // a silhouette as geometry. Ownership: the depth it wrote still resolves to the scene surface
+    // (world-space, distance-scaled tolerance -- see composite.fsh) -- otherwise the id is stale.
     bool gbufferOwned = false;
     float gbufferId = 0.0;
     if (HasGBuffer == 1) {
@@ -449,11 +446,14 @@ void main() {
         float ownerDepth = unpackDepth24(dynamicMaterial.gba);
         vec3 ownerP = reconstruct(texCoord, ownerDepth);
         gbufferOwned = distance(ownerP, P) < 0.02 + 0.01 * length(P)
-                && gbufferId > 0.5 && gbufferId < 3.5;
+                && gbufferId > 0.5 && gbufferId < 4.5;
     }
-    // Terrain (1) and entities (2) carry a real captured normal; particles (3, billboards) do not.
+    // Terrain (1) and entities (2) carry a real captured normal; particles (3, billboards) do not;
+    // glass (4) carries albedo + opacity but derives its normal from depth (panes are axis-aligned),
+    // so it takes the depth-derivative path below and is handled by the dedicated glass branch.
     bool gbufferSolid = gbufferOwned && gbufferId < 2.5;
-    bool gbufferParticle = gbufferOwned && gbufferId > 2.5;
+    bool gbufferParticle = gbufferOwned && gbufferId > 2.5 && gbufferId < 3.5;
+    bool gbufferGlass = gbufferOwned && gbufferId > 3.5;
 
     vec3 N;
     if (gbufferSolid) {
@@ -558,20 +558,16 @@ void main() {
         discard;   // a face pass with no map would double-count this fragment
     }
 
-    // Is the visible surface at this pixel glass? Answered GEOMETRICALLY, not from the
-    // tint map: the glass G-buffer re-rasterised the nearby panes with the exact frame
-    // matrices, so if its depth reconstructs to (almost) the same point as the scene
-    // depth, the scene's frontmost surface is a pane -- on every face, including the
-    // ray-grazing ones where the tint map's per-texel distance heuristic falls apart.
-    bool isGlass = false;
+    // Is the visible surface at this pixel glass? Answered by MATERIAL ID: the panes were
+    // re-rasterised into the shared G-buffer with the exact frame matrices and stamped id=4,
+    // depth-tested so only the frontmost pane survives -- so a GLASS id here means the scene's
+    // frontmost surface is a pane, on every face including the ray-grazing ones the old tint-texel
+    // heuristic could not resolve. The captured albedo carries the pane's own colour (RGB) and
+    // opacity (A).
+    bool isGlass = gbufferGlass;
     vec4 glassAlbedo = vec4(0.0);
-    if (HasGlassG == 1) {
-        float gd = texture(GlassDepth, texCoord).r;
-        if (gd < 1.0) {
-            vec3 Pg = reconstruct(texCoord, gd);
-            isGlass = distance(Pg, P) < 0.02 + 0.01 * length(P);
-            glassAlbedo = texture(GlassAlbedo, texCoord);
-        }
+    if (isGlass) {
+        glassAlbedo = texture(GBufferAlbedo, texCoord);
     }
 
     vec3 tint = vec3(1.0);

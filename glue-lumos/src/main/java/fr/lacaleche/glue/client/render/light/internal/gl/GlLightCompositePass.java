@@ -18,7 +18,7 @@ public final class GlLightCompositePass {
     }
 
     public boolean render(int lightTexture, int sceneColor, int sceneDepth,
-                          int materialColor, int materialDepth, int glassDepth,
+                          int materialColor, int materialDepth,
                           int gbufferAlbedo, int gbufferId,
                           Matrix4f inverseViewProjection,
                           int destinationFramebuffer, int width, int height) {
@@ -55,11 +55,6 @@ public final class GlLightCompositePass {
             resources.uniform1i(program, "SceneDepth", 4);
             resources.uniform1i(program, "HasMaterial", hasMaterial ? 1 : 0);
 
-            boolean hasGlass = glassDepth > 0;
-            GL13.glActiveTexture(GL13.GL_TEXTURE5);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, hasGlass ? glassDepth : 0);
-            resources.uniform1i(program, "GlassDepth", 5);
-            resources.uniform1i(program, "HasGlassG", hasGlass ? 1 : 0);
             resources.uniformMatrix(program, "InvViewProj", inverseViewProjection);
 
             boolean hasGBuffer = gbufferAlbedo > 0 && gbufferId > 0;

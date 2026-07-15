@@ -14,11 +14,8 @@ uniform sampler2D SceneDepth;
 uniform int HasMaterial;
 uniform float Exposure;
 
-// Camera-POV glass G-buffer depth (1.0 where no pane) plus the inverse view-projection used
-// to reconstruct positions. Only needed to tell a glass pane apart from an entity: both are
-// absent from the terrain material buffer, but glass must NOT be capped like an entity.
-uniform sampler2D GlassDepth;
-uniform int HasGlassG;
+// Inverse view-projection, used to reconstruct world positions for the dynamic-material
+// ownership test below.
 uniform mat4 InvViewProj;
 
 // Dynamic material G-buffer: supported entity surfaces are captured in the same draw as the
@@ -62,16 +59,19 @@ float unpackDepth24(vec3 encodedDepth) {
     return dot(depthBytes, vec3(65536.0, 256.0, 1.0)) / 16777215.0;
 }
 
-// True when the frontmost surface at uv is a glass pane: the glass G-buffer point reconstructs
-// to (almost) the same world position as the scene surface, so both the deferred glass pass and
-// this pass agree on what "is glass". Dynamic material ownership is validated separately.
+// True when the frontmost surface at uv is a glass pane. The pane carries the GLASS material id
+// (4), but the glass re-render is sorted only against other panes, so a pane behind an opaque wall
+// stamped its id here too -- verify OWNERSHIP the same way the entity path does: the depth the pane
+// wrote must still resolve to the scene surface, or it is occluded and this pixel is not glass.
 bool frontmostIsGlass(vec2 uv, float sceneDepth) {
-    if (HasGlassG != 1) return false;
-    float gd = texture(GlassDepth, uv).r;
-    if (gd >= 1.0) return false;
-    vec3 Pg = reconstruct(uv, gd);
+    if (HasGBuffer != 1) return false;
+    vec4 idSample = texture(GBufferId, uv);
+    float id = idSample.r * 255.0;
+    if (id < 3.5 || id > 4.5) return false;
+    float ownerDepth = unpackDepth24(idSample.gba);
+    vec3 ownerP = reconstruct(uv, ownerDepth);
     vec3 Ps = reconstruct(uv, sceneDepth);
-    return distance(Pg, Ps) < 0.02 + 0.01 * length(Ps);
+    return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps);
 }
 
 void main() {

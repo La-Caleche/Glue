@@ -105,6 +105,47 @@ public abstract class AbstractSceneRenderer {
         }
     }
 
+    /**
+     * Sets up the scene projection, model-view and viewport and runs {@link #renderScene},
+     * <em>without</em> a private colour/depth target. For a renderer whose draws are redirected
+     * elsewhere at the command-encoder seam (the glass capture writes them into the shared material
+     * G-buffer): binding a private framebuffer here would just be overridden, so there is none, and
+     * {@code renderScene} is responsible for arming and disarming its own redirect.
+     */
+    public void renderRedirected(int width, int height, Minecraft client) {
+        try {
+            if (projectionBuffer == null || projectionBuffer.isClosed()) {
+                projectionBuffer = RenderSystem.getDevice().createBuffer(() -> "SceneRenderer Projection",
+                        GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_MAP_WRITE, RenderSystem.PROJECTION_MATRIX_UBO_SIZE);
+            }
+            Matrix4f projection = createProjectionMatrix(width, height);
+            try (GpuBuffer.MappedView view = RenderSystem.getDevice().createCommandEncoder()
+                    .mapBuffer(projectionBuffer, false, true)) {
+                Std140Builder.intoBuffer(view.data()).putMat4f(projection);
+            }
+
+            int[] prevViewport = new int[4];
+            GL11.glGetIntegerv(GL11.GL_VIEWPORT, prevViewport);
+
+            RenderSystem.backupProjectionMatrix();
+            PoseStack matrices = buildModelViewMatrix(buildViewMatrix(), getScale());
+            RenderSystem.setProjectionMatrix(projectionBuffer.slice(), ProjectionType.PERSPECTIVE);
+            RenderSystem.getModelViewStack().pushMatrix().mul(matrices.last().pose());
+            GlStateManager._viewport(0, 0, width, height);
+            client.gameRenderer.getLighting().setupFor(Lighting.Entry.LEVEL);
+
+            try {
+                renderScene(client, new PoseStack());
+            } finally {
+                RenderSystem.getModelViewStack().popMatrix();
+                RenderSystem.restoreProjectionMatrix();
+                GlStateManager._viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+            }
+        } catch (Exception e) {
+            Glue.LOGGER.error("Error rendering redirected scene", e);
+        }
+    }
+
     protected abstract void renderScene(Minecraft client, PoseStack matrices);
 
     protected abstract Matrix4f buildViewMatrix();
