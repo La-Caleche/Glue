@@ -437,8 +437,8 @@ void main() {
         if (terrainMaterial) material = texture(MaterialAlbedo, texCoord);
     }
 
-    // A captured dynamic surface (entity id 2, particle id 3) that still owns this pixel gets a
-    // real normal instead of the depth-derivative fallback, which reads an entity's silhouette as
+    // A captured surface (terrain id 1, entity id 2, particle id 3) that still owns this pixel
+    // gets a real normal instead of the depth-derivative fallback, which reads a silhouette as
     // geometry. Ownership: the depth it wrote still resolves to the scene surface (world-space,
     // distance-scaled tolerance -- see composite.fsh) -- otherwise the id is stale.
     bool gbufferOwned = false;
@@ -449,13 +449,14 @@ void main() {
         float ownerDepth = unpackDepth24(dynamicMaterial.gba);
         vec3 ownerP = reconstruct(texCoord, ownerDepth);
         gbufferOwned = distance(ownerP, P) < 0.02 + 0.01 * length(P)
-                && gbufferId > 1.5 && gbufferId < 3.5;
+                && gbufferId > 0.5 && gbufferId < 3.5;
     }
-    bool gbufferEntity = gbufferOwned && gbufferId < 2.5;
+    // Terrain (1) and entities (2) carry a real captured normal; particles (3, billboards) do not.
+    bool gbufferSolid = gbufferOwned && gbufferId < 2.5;
     bool gbufferParticle = gbufferOwned && gbufferId > 2.5;
 
     vec3 N;
-    if (gbufferEntity) {
+    if (gbufferSolid) {
         N = unpackNormal(texture(GBufferAlbedo, texCoord).a);
     } else if (gbufferParticle) {
         // Billboards have no real surface normal; face the light so a mote simply catches any

@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.client.render.internal.material;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.minecraft.client.Minecraft;
@@ -33,7 +34,6 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue/material-buffer");
 
-    private final MaterialCaptureTarget target = new MaterialCaptureTarget("Glue Sodium terrain material");
     private boolean frameActive;
     private boolean available;
     private boolean passAttached;
@@ -59,8 +59,6 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
 
         RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
         if (main == null || main.getDepthTextureView() == null) return;
-        target.prepare(main);
-        target.clear();
         frameActive = true;
     }
 
@@ -89,8 +87,12 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
         if (isPassTranslucent(renderPass)) return;
 
         int boundFramebuffer = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
-        int materialTexture = target.colorTextureId();
-        if (boundFramebuffer <= 0 || materialTexture <= 0) return;
+        // Route terrain material into the shared material G-buffer (the same albedo+normal and
+        // id+depth attachments entities and particles fill), so all opaque surfaces land in one
+        // buffer under one id contract. -1 until the G-buffer FBO is ready this frame.
+        int albedoNormal = GBufferCapture.albedoNormalTextureId();
+        int materialId = GBufferCapture.materialIdTextureId();
+        if (boundFramebuffer <= 0 || albedoNormal <= 0 || materialId <= 0) return;
         RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
         if (main == null || boundFramebuffer != FramebufferHelper.getFramebufferId(main)) {
             disable("opaque terrain is not drawing into Minecraft's main framebuffer");
@@ -108,8 +110,11 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
         framebuffer = boundFramebuffer;
         drawBuffers = readDrawBuffers();
         GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT1,
-                GL11.GL_TEXTURE_2D, materialTexture, 0);
-        GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1});
+                GL11.GL_TEXTURE_2D, albedoNormal, 0);
+        GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT2,
+                GL11.GL_TEXTURE_2D, materialId, 0);
+        GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1,
+                GL30.GL_COLOR_ATTACHMENT2});
 
         int status = GL30.glCheckFramebufferStatus(GL30.GL_DRAW_FRAMEBUFFER);
         if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
@@ -127,30 +132,29 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
         passAttached = false;
         if (!restored) return;
 
-        RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
-        if (main == null || main.getDepthTextureView() == null) return;
-        target.copyDepthFrom(main);
         available = true;
         if (!loggedActive) {
             loggedActive = true;
-            LOGGER.info("Sodium 0.7.3 terrain material adapter active");
+            LOGGER.info("Sodium 0.7.3 terrain material adapter active (routed to shared G-buffer)");
         }
     }
 
+    // Terrain material now lives in the shared G-buffer (id 1), not a separate texture, so the
+    // legacy depth-matched consumer path reports nothing for Sodium -- the shaders read terrain
+    // from the G-buffer id attachment instead.
     @Override
     public int colorTextureId() {
-        return available ? target.colorTextureId() : -1;
+        return -1;
     }
 
     @Override
     public int depthTextureId() {
-        return available ? target.depthTextureId() : -1;
+        return -1;
     }
 
     @Override
     public void cleanup() {
         cancelFrame();
-        target.cleanup();
     }
 
     private boolean isPassTranslucent(Object renderPass) {
@@ -186,6 +190,8 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
     private void restoreAttachment() {
         if (drawBuffers != null && drawBuffers.length > 0) GL20.glDrawBuffers(drawBuffers);
         GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT1,
+                GL11.GL_TEXTURE_2D, 0, 0);
+        GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT2,
                 GL11.GL_TEXTURE_2D, 0, 0);
     }
 
