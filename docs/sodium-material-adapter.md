@@ -166,7 +166,13 @@ vec3 N = normalize(cross(dFdx(v_WorldPos), dFdy(v_WorldPos)));
 
 This is **not** the same as the depth-buffer reconstruction that causes the corner faceting.
 Derivatives are evaluated *within a single triangle*, so they can never straddle two surfaces.
-The result is the exact flat geometric normal, for free, with no vertex attribute.
+
+**Caveat, verified in-game:** the derivative normal is clean head-on but **jitters at grazing
+angles** — perspective makes the finite difference a poor tangent estimate and it varies per
+2×2 quad, producing a fine woven grain on angled surfaces that the vanilla vertex normal never
+shows. The adapter therefore **snaps a near-axis derived normal to its exact axis** (terrain is
+overwhelmingly axis-aligned; a genuinely diagonal face, max component ≤ 0.9, keeps the derived
+value). That removes the grain on block faces while staying correct for the rare diagonal.
 
 (Pass `v_WorldPos` from the vertex shader — Sodium already computes it as
 `u_RegionOffset + _get_draw_translation(_draw_id) + _vert_position`.)
