@@ -3,6 +3,7 @@ package fr.lacaleche.glue.client.render.light.internal.pipeline;
 import fr.lacaleche.glue.client.render.light.Light;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlDeferredLightPass;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlLightCompositePass;
+import fr.lacaleche.glue.client.render.light.internal.gl.GlLightDenoisePass;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlLightResources;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlTintBlurPass;
 import fr.lacaleche.glue.client.render.light.internal.gl.LightAccumulator;
@@ -19,6 +20,7 @@ final class DeferredLightPass {
     private final GlLightResources resources = new GlLightResources();
     private final GlDeferredLightPass deferred = new GlDeferredLightPass(resources);
     private final GlLightCompositePass composite = new GlLightCompositePass(resources);
+    private final GlLightDenoisePass denoise = new GlLightDenoisePass(resources);
     private final GlTintBlurPass tintBlur = new GlTintBlurPass(resources);
     private final LightAccumulator accumulator = new LightAccumulator();
 
@@ -53,7 +55,9 @@ final class DeferredLightPass {
         }
 
         accumulator.captureScene(frame.framebufferId());
-        composite.render(accumulator.getColorTextureId(),
+        int denoised = denoise.apply(accumulator.getColorTextureId(), frame.sceneDepthTextureId(),
+                inverseViewProjection, frame.width(), frame.height());
+        composite.render(denoised,
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
                 materialColor, materialDepth, frame.framebufferId(),
                 frame.width(), frame.height());
@@ -61,6 +65,7 @@ final class DeferredLightPass {
 
     void cleanup() {
         tintBlur.cleanup();
+        denoise.cleanup();
         resources.cleanup();
         accumulator.cleanup();
     }

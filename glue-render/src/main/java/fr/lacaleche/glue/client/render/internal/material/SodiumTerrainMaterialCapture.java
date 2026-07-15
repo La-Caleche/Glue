@@ -13,6 +13,22 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
+/**
+ * Captures Sodium's opaque terrain material into a second color attachment during its terrain pass.
+ *
+ * <p>When material never lands (grainy fallback everywhere), check these silent-failure points in order:
+ * <ol>
+ *   <li>{@code SodiumShaderChunkRendererMixin} begin/end injects (require = 0) may not match this Sodium
+ *       build's method signatures, so {@link #beginPass}/{@link #endPass} are never called (total silence,
+ *       not even the "material hook fired" line below);</li>
+ *   <li>{@code SodiumShaderLoaderMixin} / {@code SodiumMaterialShaderPatch} anchors may not match, logging
+ *       "does not match Sodium 0.7.3" and leaving {@code isReady()} false forever;</li>
+ *   <li>the MRT attach or framebuffer-completeness check may fail, logging "disabled: ...";</li>
+ *   <li>even after "adapter active" logs, the consumer's depth gate
+ *       {@code abs(materialDepth - sceneDepth) < 1e-7} in deferred.fsh / composite.fsh can reject every
+ *       pixel if the copied depth is not bit-identical to the main depth.</li>
+ * </ol>
+ */
 final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue/material-buffer");
@@ -22,6 +38,8 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
     private boolean available;
     private boolean passAttached;
     private boolean loggedActive;
+    private boolean loggedHookFired;
+    private boolean loggedWaitingForPatch;
     private boolean warnedFramebuffer;
     private boolean warnedReflection;
     private int framebuffer;
@@ -54,7 +72,20 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
     }
 
     void beginPass(Object renderPass) {
-        if (!frameActive || passAttached || !SodiumMaterialShaderPatch.isReady()) return;
+        if (!loggedHookFired) {
+            loggedHookFired = true;
+            LOGGER.info("Sodium material hook fired; waiting for shader patch + opaque pass");
+        }
+        if (!frameActive || passAttached) return;
+        if (!SodiumMaterialShaderPatch.isReady()) {
+            if (!loggedWaitingForPatch) {
+                loggedWaitingForPatch = true;
+                LOGGER.info("Sodium material capture waiting: shader patch not applied yet "
+                        + "(SodiumMaterialShaderPatch.isReady() == false); both terrain shaders must be "
+                        + "patched before capture can attach");
+            }
+            return;
+        }
         if (isPassTranslucent(renderPass)) return;
 
         int boundFramebuffer = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
