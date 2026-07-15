@@ -3,7 +3,6 @@ package fr.lacaleche.glue.client.render.light.internal.gl;
 import fr.lacaleche.glue.client.render.internal.gl.SavedGlState;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL13;
@@ -27,7 +26,6 @@ import java.nio.ByteBuffer;
 public final class GlLightDenoisePass {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue/light");
-    private static final float POSITION_SIGMA = 0.12f;
 
     private final GlLightResources resources;
 
@@ -48,8 +46,7 @@ public final class GlLightDenoisePass {
      * and returns the denoised color texture id. Returns {@code lightTexture} unchanged when
      * the program cannot be resolved or the input is unavailable.
      */
-    public int apply(int lightTexture, int guideDepthTexture, Matrix4f inverseViewProjection,
-                     int width, int height) {
+    public int apply(int lightTexture, int guideDepthTexture, int width, int height) {
         int program = resources.program("glue_light_denoise",
                 "light/deferred.vsh", "light/denoise.fsh");
         if (program == 0 || lightTexture <= 0) return lightTexture;
@@ -68,8 +65,6 @@ public final class GlLightDenoisePass {
             GL11.glColorMask(true, true, true, true);
             GL11.glViewport(0, 0, width, height);
 
-            resources.uniformMatrix(program, "InvViewProj", inverseViewProjection);
-            resources.uniform1f(program, "PositionSigma", POSITION_SIGMA);
             resources.uniform1i(program, "LightTex", 0);
             resources.uniform1i(program, "GuideDepth", 1);
 

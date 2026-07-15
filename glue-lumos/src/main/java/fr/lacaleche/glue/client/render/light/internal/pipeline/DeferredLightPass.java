@@ -56,7 +56,7 @@ final class DeferredLightPass {
 
         accumulator.captureScene(frame.framebufferId());
         int denoised = denoise.apply(accumulator.getColorTextureId(), frame.sceneDepthTextureId(),
-                inverseViewProjection, frame.width(), frame.height());
+                frame.width(), frame.height());
         composite.render(denoised,
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
                 materialColor, materialDepth, frame.framebufferId(),
