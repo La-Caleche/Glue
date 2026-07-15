@@ -34,6 +34,9 @@ public final class LightAccumulator {
     private int fbo = 0;
     private int colorTex = 0;
 
+    private int litFbo = 0;
+    private int litTex = 0;
+
     private int sceneFbo = 0;
     private int sceneTex = 0;
     private int sceneDepthTex = 0;
@@ -48,7 +51,7 @@ public final class LightAccumulator {
         SavedGlState state = SavedGlState.save();
         try {
             ensureSize(w, h);
-            if (fbo == 0 || sceneFbo == 0) return false;
+            if (fbo == 0 || sceneFbo == 0 || litFbo == 0) return false;
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
             GL11.glViewport(0, 0, width, height);
             // glClear obeys the scissor box and the color mask: with either left over from the
@@ -91,10 +94,13 @@ public final class LightAccumulator {
         colorTex = createTexture(w, h);
         fbo = createFbo(colorTex, "light accumulation");
 
+        litTex = createTexture(w, h);
+        litFbo = createFbo(litTex, "lit hdr");
+
         sceneTex = createTexture(w, h);
         sceneDepthTex = createDepthTexture(w, h);
         sceneFbo = createFbo(sceneTex, sceneDepthTex, "scene copy");
-        if (fbo == 0 || sceneFbo == 0) cleanup();
+        if (fbo == 0 || sceneFbo == 0 || litFbo == 0) cleanup();
     }
 
     private static int createTexture(int w, int h) {
@@ -157,6 +163,16 @@ public final class LightAccumulator {
         return colorTex == 0 ? -1 : colorTex;
     }
 
+    /** GL framebuffer name of the linear HDR lit-scene target (composite writes here), or -1. */
+    public int getLitFramebufferId() {
+        return litFbo == 0 ? -1 : litFbo;
+    }
+
+    /** GL color texture id holding the linear HDR lit scene (scene + Lumos light), or -1. */
+    public int getLitTextureId() {
+        return litTex == 0 ? -1 : litTex;
+    }
+
     /** GL color texture id holding the scene snapshot taken by {@link #captureScene}, or -1. */
     public int getSceneTextureId() {
         return sceneTex == 0 ? -1 : sceneTex;
@@ -172,6 +188,10 @@ public final class LightAccumulator {
             GL30.glDeleteFramebuffers(fbo);
             fbo = 0;
         }
+        if (litFbo != 0) {
+            GL30.glDeleteFramebuffers(litFbo);
+            litFbo = 0;
+        }
         if (sceneFbo != 0) {
             GL30.glDeleteFramebuffers(sceneFbo);
             sceneFbo = 0;
@@ -179,6 +199,10 @@ public final class LightAccumulator {
         if (colorTex != 0) {
             GL11.glDeleteTextures(colorTex);
             colorTex = 0;
+        }
+        if (litTex != 0) {
+            GL11.glDeleteTextures(litTex);
+            litTex = 0;
         }
         if (sceneTex != 0) {
             GL11.glDeleteTextures(sceneTex);

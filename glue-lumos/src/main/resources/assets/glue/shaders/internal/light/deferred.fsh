@@ -51,9 +51,34 @@ const int TINT_TAPS = 8;
 // with distance behind the pane instead of staying a hard projected silhouette.
 const float GLASS_DIFFUSION = 0.12;
 
-// Backlit glass glows with what it transmits rather than going black because its front
-// face happens to point away from the light. 1.0 = as bright as a facing surface.
-const float GLASS_TRANSMISSION = 0.8;
+// A lit pane behaves like a glossy TRANSPARENT surface, not a coloured emitter. Vanilla's
+// translucent pass already draws the pane as absorption -- it tints and darkens whatever
+// sits behind it (a shaderpack writes this as translucentMult = albedo, MULTIPLIED onto the
+// background; it can only subtract, never add). So Lumos must not repaint the pane with its
+// own albedo additively: that fights the vanilla render and floods the pane to a flat,
+// saturated, opaque block. Lumos adds only the pane's own light RESPONSE:
+//   GLASS_SCATTER   the coloured diffuse response of a pane FACING the light -- its "lit"
+//                   brightness. A fraction of a full Lambert term (glass transmits most
+//                   light, so a pane reads dimmer than an opaque block, but must still
+//                   clearly read as lit, not dark).
+//   GLASS_SPECULAR  a tight, light-COLOURED glint where the reflection lines up -- the
+//                   highlight real glass catches, which reads as glossy-transparent rather
+//                   than as a coloured fill (the specular/fresnel term shaderpacks use).
+//   GLASS_FORWARD   forward-scatter transmission: a BACKLIT pane glows brightest where the
+//                   eye looks straight through it at the light (real stained glass lit by
+//                   the sun behind it), fading to the tint off-axis. This gradient is what
+//                   turns a flat uniform fill into a lit pane -- the transmission analog of
+//                   the specular glint, and the biggest anti-flatness win for backlit panes.
+const float GLASS_SCATTER = 0.6;
+const float GLASS_SPECULAR = 1.1;
+const float GLASS_SHININESS = 40.0;
+// Face-on reflectance floor. Physically glass reflects only ~4% head-on, which makes a
+// point light's reflection invisible unless you catch it at a grazing angle -- so the only
+// visible shine lands on the transmission (back-lit) side and the surface reads as if the
+// reflection were reversed. Lift the floor so a pane facing the light still glints.
+const float GLASS_FRESNEL_FLOOR = 0.22;
+const float GLASS_FORWARD = 0.9;
+const float GLASS_FORWARD_SHININESS = 9.0;
 
 // Same opacity boost the shadow bake applies (glue_shadow_tint.fsh): vanilla stained
 // glass is ~50% opaque, which tints far too weakly to read as coloured light. The glow
@@ -477,14 +502,32 @@ void main() {
     vec3 tint = vec3(1.0);
     float diffuse;
     float indirect = 0.0;
+    float specular = 0.0;
 
     if (isGlass) {
-        // The pixel IS glass. Glow from either side -- a backlit pane doesn't go black,
-        // it glows with what it transmits -- and colour the glow with the pane's OWN
-        // albedo (its texture, in place, like any lit surface) rather than whatever the
-        // shadow-map tint texel projects through it from the light's point of view.
-        diffuse = abs(ndotl) * GLASS_TRANSMISSION;
+        // The pixel IS glass. Vanilla already drew it as absorption over its background,
+        // so add only the pane's light response, never a full-albedo flood (see the
+        // GLASS_* constants). A faint coloured in-scatter from either side -- a backlit
+        // pane doesn't go black -- weighted by the pane's own opacity so a near-clear
+        // texel stays see-through, plus the forward-scatter hotspot below. Both are tinted
+        // (transmitted light takes the glass colour) and shadowed via `direct`.
+        // Opacity weight with a floor: a denser texel scatters more, but even the
+        // translucent centre of a stained texel must still read as lit, so it never
+        // collapses toward zero the way raw alpha does.
+        float paneOpacity = 0.35 + 0.65 * glassAlbedo.a;
+        float forward = pow(max(dot(-L, viewDir), 0.0), GLASS_FORWARD_SHININESS)
+                      * GLASS_FORWARD * step(ndotl, 0.0);
+        diffuse = abs(ndotl) * GLASS_SCATTER * paneOpacity + forward;
         tint = mix(vec3(1.0), glassAlbedo.rgb, clamp(glassAlbedo.a * TINT_STRENGTH, 0.0, 1.0));
+
+        // Blinn-Phong glint, Schlick-Fresnel weighted (glass grazes bright) but with a
+        // raised floor so it still reads face-on. Front-lit only: a backlit pane transmits
+        // rather than reflects, so gate on ndotl > 0.
+        vec3 halfVec = normalize(L + viewDir);
+        float fresnel = GLASS_FRESNEL_FLOOR
+                      + (1.0 - GLASS_FRESNEL_FLOOR) * pow(1.0 - max(dot(N, viewDir), 0.0), 5.0);
+        specular = pow(max(dot(N, halfVec), 0.0), GLASS_SHININESS)
+                 * fresnel * GLASS_SPECULAR * step(0.0, ndotl);
 
         // Light that crossed ANOTHER pane before reaching this one arrives pre-tinted.
         // Only the colour is wanted, not that pane's texture pattern -- normalising by
@@ -527,11 +570,18 @@ void main() {
     float bounced = indirect * bounceShadow;
     float lightLuma = dot(LightColor, vec3(0.2126, 0.7152, 0.0722));
     vec3 bouncedColor = mix(LightColor, vec3(lightLuma), 0.35);
-    vec3 result = tint * (LightColor * direct + bouncedColor * bounced) * atten * shape;
+    // The glass glint is light-coloured (a reflection, not a transmission), so it is added
+    // OUTSIDE the pane tint -- tinting it would turn the highlight into another colour wash.
+    vec3 result = (tint * (LightColor * direct + bouncedColor * bounced)
+                   + LightColor * specular * shadow) * atten * shape;
 
-    // Alpha is metadata for the final composite, not opacity. It lets transmitted
-    // light retain its stained-glass colour instead of being suppressed by the
-    // approximate material chroma recovered from the already-lit scene.
-    float transmitted = isGlass ? 1.0 : behindPane;
+    // Alpha is metadata for the final composite, not opacity: it flags COLOURED transmitted
+    // light -- the pool a pane casts on a surface behind it -- so the composite keeps that
+    // pool's stained-glass hue. The pane itself is deliberately NOT flagged: pinning it to
+    // the transmitted reflectance floor forced a uniform 0.5 albedo that washed out
+    // vanilla's own textured, semi-transparent render of the pane and left a flat colour
+    // slab. Unflagged, the pane keeps the ~0.16 floor, vanilla's texture and transparency
+    // survive underneath, and Lumos lifts that render instead of repainting over it.
+    float transmitted = behindPane;
     fragColor = vec4(result, transmitted * (direct + bounced) * atten * shape);
 }
