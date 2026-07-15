@@ -28,6 +28,8 @@ public class MixinGlCommandEncoder {
     private void glue$bindGBuffer(GlRenderPass pass, Collection<String> uniforms,
                                   CallbackInfoReturnable<Boolean> cir) {
         int fbo = GBufferCapture.consumePendingRedirect();
-        if (fbo != 0) GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
+        if (Boolean.TRUE.equals(cir.getReturnValue()) && fbo != 0) {
+            GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
+        }
     }
 }

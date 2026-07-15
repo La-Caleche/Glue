@@ -38,6 +38,8 @@ public final class GlTintBlurPass {
             GL11.glDisable(GL11.GL_DEPTH_TEST);
             GL11.glDepthMask(false);
             GL11.glDisable(GL11.GL_CULL_FACE);
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            GL11.glColorMask(true, true, true, true);
             GL11.glViewport(0, 0, size, size);
 
             GL13.glActiveTexture(GL13.GL_TEXTURE0);

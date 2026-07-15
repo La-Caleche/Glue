@@ -26,7 +26,8 @@ public final class CoreShaderMaterialPatch {
     private static final ResourceLocation ENTITY = ResourceLocation.withDefaultNamespace("core/entity");
     private static final ResourceLocation PARTICLE = ResourceLocation.withDefaultNamespace("core/particle");
 
-    private static final String MARKER = "glue_AlbedoNormal";
+    private static final String VERTEX_MARKER = "out vec4 glue_RawColor;";
+    private static final String FRAGMENT_MARKER = "layout(location = 1) out vec4 glue_AlbedoNormal;";
     private static final String VERSION_ANCHOR = "#version 150";
     private static final String FRAG_OUT_ANCHOR = "out vec4 fragColor;";
 
@@ -56,27 +57,61 @@ public final class CoreShaderMaterialPatch {
                 vec2 e = floor((oct * 0.5 + 0.5) * 15.0 + 0.5);
                 return (e.x + e.y * 16.0) / 255.0;
             }
+            vec3 glue_packDepth24(float depth) {
+                float value = floor(clamp(depth, 0.0, 1.0) * 16777215.0 + 0.5);
+                float high = floor(value / 65536.0);
+                value -= high * 65536.0;
+                float middle = floor(value / 256.0);
+                float low = value - middle * 256.0;
+                return vec3(high, middle, low) / 255.0;
+            }
             """;
 
     private static boolean rejectionLogged;
+    private static boolean entityVertexPatched;
+    private static boolean entityFragmentPatched;
 
     private CoreShaderMaterialPatch() {
     }
 
+    public static boolean isEntityReady() {
+        return entityVertexPatched && entityFragmentPatched;
+    }
+
     public static String patch(ResourceLocation location, ShaderType type, String source) {
-        if (source == null || source.contains(MARKER)) return source;
         boolean entity = ENTITY.equals(location);
         boolean particle = PARTICLE.equals(location);
+        if (source == null) {
+            if (entity && type == ShaderType.VERTEX) entityVertexPatched = false;
+            if (entity && type == ShaderType.FRAGMENT) entityFragmentPatched = false;
+            return null;
+        }
         if (!entity && !particle) return source;
 
         try {
             if (type == ShaderType.VERTEX) {
-                return entity ? patchEntityVertex(source) : patchParticleVertex(source);
+                if (source.contains(VERTEX_MARKER)) {
+                    if (entity) entityVertexPatched = true;
+                    return source;
+                }
+                if (entity) entityVertexPatched = false;
+                String patched = entity ? patchEntityVertex(source) : patchParticleVertex(source);
+                if (entity) entityVertexPatched = true;
+                return patched;
             }
             if (type == ShaderType.FRAGMENT) {
-                return entity ? patchEntityFragment(source) : patchParticleFragment(source);
+                if (source.contains(FRAGMENT_MARKER)) {
+                    if (entity) entityFragmentPatched = true;
+                    return source;
+                }
+                if (entity) entityFragmentPatched = false;
+                String patched = entity ? patchEntityFragment(source) : patchParticleFragment(source);
+                if (entity) entityFragmentPatched = true;
+                return patched;
             }
         } catch (RuntimeException exception) {
+            if (entity && type == ShaderType.VERTEX) entityVertexPatched = false;
+            if (entity && type == ShaderType.FRAGMENT) entityFragmentPatched = false;
             if (!rejectionLogged) {
                 rejectionLogged = true;
                 LOGGER.error("[Glue] Could not patch {} {} for the material G-buffer; entities/particles "
@@ -118,7 +153,7 @@ public final class CoreShaderMaterialPatch {
                         vec3 glue_tint = glue_shade > 1e-4 ? glue_RawColor.rgb / glue_shade : vec3(1.0);
                         glue_AlbedoNormal = vec4(glue_srgbToLinear(color.rgb * glue_tint),
                                                  glue_packNormal(normalize(glue_Normal)));
-                        glue_MaterialId = vec4(2.0 / 255.0, 0.0, 0.0, 1.0);
+                        glue_MaterialId = vec4(2.0 / 255.0, glue_packDepth24(gl_FragCoord.z));
                     }
                 """);
         return patched;
@@ -151,7 +186,7 @@ public final class CoreShaderMaterialPatch {
         patched = insertBefore(patched, "    fragColor = apply_fog(", """
                     glue_AlbedoNormal = vec4(glue_srgbToLinear(glue_texel.rgb * glue_RawColor.rgb),
                                              glue_packNormal(vec3(0.0, 0.0, 1.0)));
-                    glue_MaterialId = vec4(3.0 / 255.0, 0.0, 0.0, 1.0);
+                    glue_MaterialId = vec4(3.0 / 255.0, glue_packDepth24(gl_FragCoord.z));
                 """);
         return patched;
     }

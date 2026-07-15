@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.client.render.internal.gbuffer;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import fr.lacaleche.glue.client.render.internal.gl.SavedGlState;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -23,8 +24,8 @@ import java.nio.ByteBuffer;
  *   <li>{@code COLOR_ATTACHMENT0} = the vanilla main colour texture (so the ordinary lit scene
  *       is still produced by the same draw);</li>
  *   <li>{@code COLOR_ATTACHMENT1} = albedo (linear RGB) + packed normal (A), {@code RGBA16F};</li>
- *   <li>{@code COLOR_ATTACHMENT2} = material id, {@code RGBA8} (red channel = id/255: entity 2,
- *       particle 3; 0 where cleared);</li>
+ *   <li>{@code COLOR_ATTACHMENT2} = material id + owning depth, {@code RGBA8} (red channel =
+ *       id/255, GBA = packed depth24; 0 where cleared);</li>
  *   <li>depth = the vanilla main depth texture (shared).</li>
  * </ul>
  * A geometry draw redirected here writes colour, material and depth together, so the material
@@ -67,37 +68,40 @@ public final class GBufferTargets {
     }
 
     private void rebuild(int w, int h, int color, int depth) {
-        destroyOwned();
-        width = w;
-        height = h;
-        borrowedColor = color;
-        borrowedDepth = depth;
-
-        albedoNormalTex = createTexture(w, h, GL30.GL_RGBA16F, GL11.GL_FLOAT);
-        materialIdTex = createTexture(w, h, GL11.GL_RGBA8, GL11.GL_UNSIGNED_BYTE);
-
-        int previous = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
-        fbo = GL30.glGenFramebuffers();
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
-        GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0,
-                GL11.GL_TEXTURE_2D, color, 0);
-        GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT1,
-                GL11.GL_TEXTURE_2D, albedoNormalTex, 0);
-        GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT2,
-                GL11.GL_TEXTURE_2D, materialIdTex, 0);
-        GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
-                GL11.GL_TEXTURE_2D, depth, 0);
-        GL20.glDrawBuffers(new int[]{
-                GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
-
-        int status = GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER);
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, previous);
-        if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
-            if (!incompleteLogged) {
-                incompleteLogged = true;
-                LOGGER.error("[Glue] G-buffer FBO incomplete: 0x{}", Integer.toHexString(status));
-            }
+        SavedGlState state = SavedGlState.save();
+        try {
             destroyOwned();
+            width = w;
+            height = h;
+            borrowedColor = color;
+            borrowedDepth = depth;
+
+            albedoNormalTex = createTexture(w, h, GL30.GL_RGBA16F, GL11.GL_FLOAT);
+            materialIdTex = createTexture(w, h, GL11.GL_RGBA8, GL11.GL_UNSIGNED_BYTE);
+
+            fbo = GL30.glGenFramebuffers();
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
+            GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0,
+                    GL11.GL_TEXTURE_2D, color, 0);
+            GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT1,
+                    GL11.GL_TEXTURE_2D, albedoNormalTex, 0);
+            GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT2,
+                    GL11.GL_TEXTURE_2D, materialIdTex, 0);
+            GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
+                    GL11.GL_TEXTURE_2D, depth, 0);
+            GL20.glDrawBuffers(new int[]{
+                    GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
+
+            int status = GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER);
+            if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
+                if (!incompleteLogged) {
+                    incompleteLogged = true;
+                    LOGGER.error("[Glue] G-buffer FBO incomplete: 0x{}", Integer.toHexString(status));
+                }
+                destroyOwned();
+            }
+        } finally {
+            state.restore();
         }
     }
 
@@ -120,14 +124,19 @@ public final class GBufferTargets {
      *  to vanilla's own frame clear. Call at the start of a captured frame. */
     public void clearMaterialAttachments() {
         if (fbo == 0) return;
-        int previous = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
-        GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
-        GL11.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
-        GL20.glDrawBuffers(new int[]{
-                GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, previous);
+        SavedGlState state = SavedGlState.save();
+        try {
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
+            GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            GL11.glColorMask(true, true, true, true);
+            GL11.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
+            GL20.glDrawBuffers(new int[]{
+                    GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
+        } finally {
+            state.restore();
+        }
     }
 
     private static int createTexture(int w, int h, int internalFormat, int type) {

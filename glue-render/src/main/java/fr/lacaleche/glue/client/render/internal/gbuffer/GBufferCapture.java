@@ -2,11 +2,13 @@ package fr.lacaleche.glue.client.render.internal.gbuffer;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * Drives the dynamic (entity) material capture into the {@link GBufferTargets} MRT.
@@ -16,8 +18,8 @@ import net.minecraft.client.Minecraft;
  * <em>pipeline vertex format</em> at {@code GlRenderPass.setPipeline}, not by the draw method:
  * Iris's {@code batchedentityrendering} replaces the world-entity buffer source even with no
  * shaderpack, so world entities never reach vanilla's {@code CompositeRenderType.draw}. Every
- * draw -- vanilla or Iris-batched -- still sets its pipeline, and every entity pipeline uses
- * {@code NEW_ENTITY}, so keying on that catches them all.
+ * draw -- vanilla or Iris-batched -- still sets its pipeline; only unblended, depth-writing draws
+ * using the patched vanilla entity shader are redirected.
  *
  * <p>Gated to the world phase (between world-render start and post-world) so later entity-format
  * draws (GUI items, the outline pass) are not redirected, and to the same conditions as terrain
@@ -27,6 +29,8 @@ import net.minecraft.client.Minecraft;
 @Environment(EnvType.CLIENT)
 public final class GBufferCapture {
 
+    private static final ResourceLocation ENTITY_SHADER =
+            ResourceLocation.withDefaultNamespace("core/entity");
     private static final GBufferTargets TARGETS = new GBufferTargets();
 
     private static boolean frameReady;
@@ -77,7 +81,17 @@ public final class GBufferCapture {
      */
     private static int redirectFboFor(RenderPipeline pipeline) {
         if (!frameReady || !inWorldPhase || pipeline == null) return 0;
-        if (pipeline.getVertexFormat() != DefaultVertexFormat.NEW_ENTITY) return 0;
+        if (!CoreShaderMaterialPatch.isEntityReady()
+                || !ENTITY_SHADER.equals(pipeline.getVertexShader())
+                || !ENTITY_SHADER.equals(pipeline.getFragmentShader())
+                || pipeline.getVertexFormat() != DefaultVertexFormat.NEW_ENTITY
+                || pipeline.getBlendFunction().isPresent()
+                || !pipeline.isWriteColor()
+                || !pipeline.isWriteAlpha()
+                || !pipeline.isWriteDepth()
+                || pipeline.getDepthTestFunction() != DepthTestFunction.LEQUAL_DEPTH_TEST) {
+            return 0;
+        }
         return TARGETS.framebufferId();
     }
 

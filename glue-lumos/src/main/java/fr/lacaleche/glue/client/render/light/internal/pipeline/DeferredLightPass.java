@@ -71,12 +71,13 @@ final class DeferredLightPass {
         int litTexture = accumulator.getLitTextureId();
         int gbufferAlbedo = GBufferCapture.albedoNormalTextureId();
         int gbufferId = GBufferCapture.materialIdTextureId();
-        composite.render(denoised,
+        boolean composited = composite.render(denoised,
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
                 materialColor, materialDepth, glass.depthId(),
                 gbufferAlbedo, gbufferId, inverseViewProjection,
                 accumulator.getLitFramebufferId(),
                 frame.width(), frame.height());
+        if (!composited) return;
         int bloomTexture = bloom.apply(litTexture, frame.width(), frame.height());
         combine.render(litTexture, bloomTexture, frame.framebufferId(),
                 frame.width(), frame.height());

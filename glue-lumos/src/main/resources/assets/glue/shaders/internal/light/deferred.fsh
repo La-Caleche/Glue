@@ -221,6 +221,45 @@ void blockerTap(sampler2D depthMap, vec2 uv, float cmp,
     depthSum = dot(weights * blocked, linearDepths);
 }
 
+// TintDepth begins as an exact copy of ShadowMap, then nearer translucent blockers replace
+// its opaque depth. Qualifying against both maps prevents opaque blockers from being mistaken
+// for glass while preserving bilinear coverage at pane edges.
+void tintBlockerTap(vec2 uv, float cmp, out float depthSum, out float blockerWeight) {
+    float res = 1.0 / max(ShadowTexel, 1e-6);
+    vec2 t = uv * res - 0.5;
+    vec2 f = fract(t);
+    vec2 base = (floor(t) + 0.5) * ShadowTexel;
+    vec2 dx = vec2(ShadowTexel, 0.0);
+    vec2 dy = vec2(0.0, ShadowTexel);
+    vec4 tintDepths = vec4(
+        texture(TintDepth, base).r,
+        texture(TintDepth, base + dx).r,
+        texture(TintDepth, base + dy).r,
+        texture(TintDepth, base + dx + dy).r
+    );
+    vec4 opaqueDepths = vec4(
+        texture(ShadowMap, base).r,
+        texture(ShadowMap, base + dx).r,
+        texture(ShadowMap, base + dy).r,
+        texture(ShadowMap, base + dx + dy).r
+    );
+    vec4 weights = vec4(
+        (1.0 - f.x) * (1.0 - f.y),
+        f.x * (1.0 - f.y),
+        (1.0 - f.x) * f.y,
+        f.x * f.y
+    );
+    vec4 receiverBlocked = vec4(1.0) - step(vec4(cmp), tintDepths);
+    vec4 translucentBlocker = step(vec4(0.5 / 16777215.0), opaqueDepths - tintDepths);
+    vec4 blocked = receiverBlocked * translucentBlocker;
+    vec4 linearDepths = vec4(
+        linearizeShadow(tintDepths.x), linearizeShadow(tintDepths.y),
+        linearizeShadow(tintDepths.z), linearizeShadow(tintDepths.w)
+    );
+    blockerWeight = dot(weights, blocked);
+    depthSum = dot(weights * blocked, linearDepths);
+}
+
 // PCSS: search for blockers, estimate the penumbra from how far in front of the
 // receiver they sit, then filter over exactly that width. Contact shadows come
 // out sharp and distant ones soften, instead of everything being uniformly blurry.
@@ -299,7 +338,7 @@ float sampleShadowMap(vec3 Pb, float distToLight, out vec4 tintRaw, out float be
             vec2 t = clamp(uv + vogel(i, TINT_SEARCH_TAPS, phi + 2.5) * tintSearch, lo, hi);
             float sampleDepth;
             float sampleWeight;
-            blockerTap(TintDepth, t, cmpTint, sampleDepth, sampleWeight);
+            tintBlockerTap(t, cmpTint, sampleDepth, sampleWeight);
             paneSum += sampleDepth;
             paneWeight += sampleWeight;
         }
@@ -314,7 +353,9 @@ float sampleShadowMap(vec3 Pb, float distToLight, out vec4 tintRaw, out float be
             float frac = 0.0;
             for (int i = 0; i < TINT_TAPS; i++) {
                 vec2 t = clamp(uv + vogel(i, TINT_TAPS, phi + 2.5) * tintRadius, lo, hi);
-                float coverage = 1.0 - comparisonTap(TintDepth, t, cmpTint);
+                float ignoredDepth;
+                float coverage;
+                tintBlockerTap(t, cmpTint, ignoredDepth, coverage);
                 col += mix(vec3(1.0), texture(ShadowTint, t).rgb, coverage);
                 frac += coverage;
             }
