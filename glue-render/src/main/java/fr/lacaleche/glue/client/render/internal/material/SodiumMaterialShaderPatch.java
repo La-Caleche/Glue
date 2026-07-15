@@ -120,6 +120,20 @@ public final class SodiumMaterialShaderPatch {
                             : vec3(1.0);
                     vec3 glueNormal = normalize(cross(dFdx(glue_WorldPos),
                                                       dFdy(glue_WorldPos)));
+                    // Screen-space derivative normals jitter at grazing angles: perspective
+                    // makes the finite difference a poor tangent estimate, and it varies per
+                    // 2x2 quad, which reads as a woven grain the vanilla vertex normal never
+                    // shows. Terrain is overwhelmingly axis-aligned, so snap a near-axis normal
+                    // to its exact axis; a genuinely diagonal face keeps the derived value.
+                    vec3 glueAxis = abs(glueNormal);
+                    float glueMaxAxis = max(glueAxis.x, max(glueAxis.y, glueAxis.z));
+                    if (glueMaxAxis > 0.9) {
+                        glueNormal = (glueAxis.x >= glueAxis.y && glueAxis.x >= glueAxis.z)
+                                ? vec3(sign(glueNormal.x), 0.0, 0.0)
+                                : ((glueAxis.y >= glueAxis.z)
+                                        ? vec3(0.0, sign(glueNormal.y), 0.0)
+                                        : vec3(0.0, 0.0, sign(glueNormal.z)));
+                    }
                     glue_Material = vec4(
                             glueSrgbToLinear(glue_Texel.rgb * glueTint),
                             gluePackNormal(glueNormal));
