@@ -518,7 +518,13 @@ void main() {
     }
 
     float direct = diffuse * shadow;
-    float bounced = indirect * mix(0.3, 1.0, shadow);
+    // The indirect term is a low-frequency ambient fill. Modulating it by the stochastic
+    // per-pixel shadow injects grain that dominates on near-unlit faces, where the fill is
+    // the ONLY light and its contrast against black is maximal. Fade the shadow modulation
+    // out as the surface turns away from the light: lit faces keep contact darkening,
+    // backfaces get a smooth fill instead of speckle.
+    float bounceShadow = mix(1.0, mix(0.3, 1.0, shadow), smoothstep(0.0, 0.2, ndotl));
+    float bounced = indirect * bounceShadow;
     float lightLuma = dot(LightColor, vec3(0.2126, 0.7152, 0.0722));
     vec3 bouncedColor = mix(LightColor, vec3(lightLuma), 0.35);
     vec3 result = tint * (LightColor * direct + bouncedColor * bounced) * atten * shape;
