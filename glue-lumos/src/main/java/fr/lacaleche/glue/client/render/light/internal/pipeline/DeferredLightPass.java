@@ -2,6 +2,9 @@ package fr.lacaleche.glue.client.render.light.internal.pipeline;
 
 import fr.lacaleche.glue.client.render.light.Light;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlDeferredLightPass;
+import fr.lacaleche.glue.client.render.light.internal.gl.GlGlassReflectionPass;
+import fr.lacaleche.glue.client.render.light.internal.gl.GlLightBloomPass;
+import fr.lacaleche.glue.client.render.light.internal.gl.GlLightCombinePass;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlLightCompositePass;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlLightDenoisePass;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlLightResources;
@@ -20,7 +23,10 @@ final class DeferredLightPass {
     private final GlLightResources resources = new GlLightResources();
     private final GlDeferredLightPass deferred = new GlDeferredLightPass(resources);
     private final GlLightCompositePass composite = new GlLightCompositePass(resources);
+    private final GlLightCombinePass combine = new GlLightCombinePass(resources);
+    private final GlGlassReflectionPass reflection = new GlGlassReflectionPass(resources);
     private final GlLightDenoisePass denoise = new GlLightDenoisePass(resources);
+    private final GlLightBloomPass bloom = new GlLightBloomPass(resources);
     private final GlTintBlurPass tintBlur = new GlTintBlurPass(resources);
     private final LightAccumulator accumulator = new LightAccumulator();
 
@@ -57,15 +63,33 @@ final class DeferredLightPass {
         accumulator.captureScene(frame.framebufferId());
         int denoised = denoise.apply(accumulator.getColorTextureId(), frame.sceneDepthTextureId(),
                 frame.width(), frame.height());
+
+        // Composite the lit scene into a linear HDR buffer, bloom its VISIBLE bright pixels,
+        // then combine (add bloom + tonemap) to the main target. Blooming the lit buffer --
+        // the actual on-screen brightness -- is what keeps the glow on genuine highlights.
+        int litTexture = accumulator.getLitTextureId();
         composite.render(denoised,
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
-                materialColor, materialDepth, frame.framebufferId(),
+                materialColor, materialDepth, accumulator.getLitFramebufferId(),
                 frame.width(), frame.height());
+        int bloomTexture = bloom.apply(litTexture, frame.width(), frame.height());
+        combine.render(litTexture, bloomTexture, frame.framebufferId(),
+                frame.width(), frame.height());
+
+        // Environment reflection on the panes. Re-capture AFTER the combine so the mirror
+        // shows the final lit scene, then blend it onto the glass pixels.
+        if (glass.depthId() > 0) {
+            accumulator.captureScene(frame.framebufferId());
+            reflection.render(accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
+                    glass.depthId(), viewProjection, inverseViewProjection,
+                    frame.framebufferId(), frame.width(), frame.height());
+        }
     }
 
     void cleanup() {
         tintBlur.cleanup();
         denoise.cleanup();
+        bloom.cleanup();
         resources.cleanup();
         accumulator.cleanup();
     }

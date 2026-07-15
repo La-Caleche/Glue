@@ -1,6 +1,10 @@
 #version 150
 
-// Final-color composite of linear Lumos illumination over the existing scene.
+// Linear composite of Lumos illumination over the scene, written to the HDR lit buffer.
+// Bloom and tonemapping happen afterwards in the combine pass, which reads this buffer --
+// so this pass writes EVERY pixel (not just lit ones) in linear light, and never clips or
+// encodes to sRGB. Blooming the visible brightness this buffer holds (rather than the raw
+// light field) is what makes the glow track actual bright pixels instead of nearby light.
 
 uniform sampler2D LightTex;     // unit 0: accumulated HDR light
 uniform sampler2D SceneTex;     // unit 1: copy of the scene colour, taken pre-composite
@@ -21,7 +25,6 @@ out vec4 fragColor;
 void main() {
     vec4 accumulated = texture(LightTex, texCoord);
     vec3 hdr = accumulated.rgb * Exposure;
-    if (hdr == vec3(0.0)) discard;
 
     vec3 sceneSrgb = texture(SceneTex, texCoord).rgb;
     vec3 low = sceneSrgb / 12.92;
@@ -74,9 +77,6 @@ void main() {
     vec3 illumination = vec3(1.0) - exp(-hdr * albedo);
     vec3 finalLinear = sceneLinear + illumination * (vec3(1.0) - sceneLinear);
 
-    vec3 encodedLow = finalLinear * 12.92;
-    vec3 encodedHigh = 1.055 * pow(max(finalLinear, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055;
-    vec3 finalSrgb = mix(encodedLow, encodedHigh, step(vec3(0.0031308), finalLinear));
-
-    fragColor = vec4(clamp(finalSrgb, vec3(0.0), vec3(1.0)), 1.0);
+    // Linear HDR out. The combine pass adds bloom and tonemaps this to the display.
+    fragColor = vec4(finalLinear, 1.0);
 }
