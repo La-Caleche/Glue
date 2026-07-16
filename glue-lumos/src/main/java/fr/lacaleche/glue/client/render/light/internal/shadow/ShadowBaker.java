@@ -257,10 +257,8 @@ public final class ShadowBaker {
                 light.x + dir.x * (light.range * 0.5),
                 light.y + dir.y * (light.range * 0.5),
                 light.z + dir.z * (light.range * 0.5));
-        int radius = Math.max(1, (int) Math.ceil(light.range));
-
         LightDepthSceneRenderer renderer = slot.renderers.get(0);
-        renderer.configure(view, proj, light.x, light.y, light.z, center, radius, light.range,
+        renderer.configure(view, proj, light.x, light.y, light.z, center, light.range,
                 -1, dir, (float) Math.cos(Math.min(Math.PI, fov * 0.5 + 0.15)));
         if (renderer.renderToTexture(SPOT_MAP_SIZE, SPOT_MAP_SIZE, mc) <= 0) return false;
 
@@ -286,9 +284,8 @@ public final class ShadowBaker {
         // that face, so the six maps tile the sphere with no gap and no overlap.
         Matrix4f proj = new Matrix4f().perspective((float) Math.toRadians(90.0), 1f, NEAR, light.range);
         BlockPos center = BlockPos.containing(light.x, light.y, light.z);
-        int radius = Math.max(1, (int) Math.ceil(light.range));
         LightDepthSceneRenderer.Casters casters = LightDepthSceneRenderer.collectCasters(
-                mc, center, radius, light.x, light.y, light.z, light.range);
+                mc, center, light.x, light.y, light.z, light.range);
 
         List<ShadowParams> maps = new ArrayList<>(6);
         slot.faceView.clear();
@@ -296,7 +293,7 @@ public final class ShadowBaker {
         for (int face = 0; face < 6; face++) {
             Matrix4f view = lookAlong(FACE_DIRS[face]);
             LightDepthSceneRenderer renderer = slot.renderers.get(face);
-            renderer.configure(view, proj, light.x, light.y, light.z, center, radius, light.range,
+            renderer.configure(view, proj, light.x, light.y, light.z, center, light.range,
                     face, FACE_DIRS[face], -1f);
             renderer.useCasters(casters);
             if (renderer.renderToTexture(POINT_FACE_SIZE, POINT_FACE_SIZE, mc) <= 0) {
