@@ -5,6 +5,7 @@ import fr.lacaleche.glue.client.render.light.Light;
 import fr.lacaleche.glue.client.render.light.LightAttachment;
 import fr.lacaleche.glue.client.render.light.LightHandle;
 import fr.lacaleche.glue.client.render.light.internal.scene.GlassSceneRenderer;
+import fr.lacaleche.glue.client.render.light.internal.scene.MetalSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.scene.WaterSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.shadow.ShadowBaker;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -27,12 +28,13 @@ public final class WorldLightContext implements AutoCloseable {
     final ShadowBaker shadows = new ShadowBaker();
     final GlassSceneRenderer glass = new GlassSceneRenderer();
     final WaterSceneRenderer water = new WaterSceneRenderer();
-    final Map<Light, NearbyTranslucents> translucentBlocks = new IdentityHashMap<>();
+    final MetalSceneRenderer metal = new MetalSceneRenderer();
+    final Map<Light, NearbyMaterials> materialBlocks = new IdentityHashMap<>();
 
-    /** The translucent surfaces near a light, split by how they are re-rendered: {@code panes} via
-     *  {@code renderSingleBlock} (glass), {@code water} via {@code renderLiquid} (fluids). Cached per
+    /** The special-material blocks near a light, split by how they are re-rendered: {@code panes} and
+     *  {@code metals} via {@code renderSingleBlock}, {@code water} via {@code renderLiquid}. Cached per
      *  light and invalidated together on block changes. */
-    public record NearbyTranslucents(List<BlockPos> panes, List<BlockPos> water) {
+    public record NearbyMaterials(List<BlockPos> panes, List<BlockPos> water, List<BlockPos> metals) {
     }
 
     public WorldLightContext(ClientLevel level) {
@@ -59,8 +61,13 @@ public final class WorldLightContext implements AutoCloseable {
     }
 
     /** Internal rendering state; not part of the light-management API. */
-    public Map<Light, NearbyTranslucents> translucentBlocks() {
-        return translucentBlocks;
+    public MetalSceneRenderer metalRenderer() {
+        return metal;
+    }
+
+    /** Internal rendering state; not part of the light-management API. */
+    public Map<Light, NearbyMaterials> materialBlocks() {
+        return materialBlocks;
     }
 
     public synchronized Light add(Light light) {
@@ -75,7 +82,7 @@ public final class WorldLightContext implements AutoCloseable {
         for (int i = 0; i < lights.size(); i++) {
             if (lights.get(i) == light) {
                 lights.remove(i);
-                translucentBlocks.remove(light);
+                materialBlocks.remove(light);
                 shadows.remove(light);
                 return;
             }
@@ -86,7 +93,7 @@ public final class WorldLightContext implements AutoCloseable {
         lights.clear();
         handles.forEach(LightHandle::markRemoved);
         handles.clear();
-        translucentBlocks.clear();
+        materialBlocks.clear();
         shadows.clearOwners();
     }
 
@@ -107,7 +114,7 @@ public final class WorldLightContext implements AutoCloseable {
         handles.remove(handle);
         Light resolved = handle.resolved();
         if (resolved != null) {
-            translucentBlocks.remove(resolved);
+            materialBlocks.remove(resolved);
             shadows.remove(resolved);
         }
         handle.markRemoved();
@@ -119,7 +126,7 @@ public final class WorldLightContext implements AutoCloseable {
         }
         Light previous = handle.resolved();
         if (previous != null) {
-            translucentBlocks.remove(previous);
+            materialBlocks.remove(previous);
             shadows.remove(previous);
         }
         handle.updateTemplate(light);
@@ -131,7 +138,7 @@ public final class WorldLightContext implements AutoCloseable {
         int minZ = chunk.getMinBlockZ();
         int maxX = chunk.getMaxBlockX();
         int maxZ = chunk.getMaxBlockZ();
-        translucentBlocks.entrySet().removeIf(entry -> {
+        materialBlocks.entrySet().removeIf(entry -> {
             Light light = entry.getKey();
             double nearestX = Math.clamp(light.x, minX, maxX);
             double nearestZ = Math.clamp(light.z, minZ, maxZ);
@@ -152,7 +159,7 @@ public final class WorldLightContext implements AutoCloseable {
             Light resolved = handle.resolve(partialTick);
             if (resolved == null) {
                 if (previous != null) {
-                    translucentBlocks.remove(previous);
+                    materialBlocks.remove(previous);
                     shadows.remove(previous);
                 }
                 handle.markRemoved();
@@ -174,10 +181,11 @@ public final class WorldLightContext implements AutoCloseable {
     /** Clears world-owned GPU caches after a resource reload. */
     public synchronized void resetRenderCaches() {
         RenderSystem.assertOnRenderThread();
-        translucentBlocks.clear();
+        materialBlocks.clear();
         shadows.cleanup();
         glass.cleanup();
         water.cleanup();
+        metal.cleanup();
     }
 
     @Override
@@ -186,9 +194,10 @@ public final class WorldLightContext implements AutoCloseable {
         lights.clear();
         handles.forEach(LightHandle::markRemoved);
         handles.clear();
-        translucentBlocks.clear();
+        materialBlocks.clear();
         shadows.cleanup();
         glass.cleanup();
         water.cleanup();
+        metal.cleanup();
     }
 }

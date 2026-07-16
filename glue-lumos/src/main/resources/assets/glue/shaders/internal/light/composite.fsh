@@ -87,6 +87,19 @@ bool frontmostIsWater(vec2 uv, float sceneDepth) {
     return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps);
 }
 
+// Same ownership test for metal (id 6). Metal gets a real metallic deferred response, so it too must
+// be exempt from the uncaptured-translucent light cap.
+bool frontmostIsMetal(vec2 uv, float sceneDepth) {
+    if (HasGBuffer != 1) return false;
+    vec4 idSample = texture(GBufferId, uv);
+    float id = idSample.r * 255.0;
+    if (id < 5.5) return false;
+    float ownerDepth = unpackDepth24(idSample.gba);
+    vec3 ownerP = reconstruct(uv, ownerDepth);
+    vec3 Ps = reconstruct(uv, sceneDepth);
+    return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps);
+}
+
 void main() {
     vec4 accumulated = texture(LightTex, texCoord);
     vec3 hdr = accumulated.rgb * Exposure;
@@ -100,6 +113,7 @@ void main() {
     float sceneDepth = texture(SceneDepth, texCoord).r;
     bool isGlass = frontmostIsGlass(texCoord, sceneDepth);
     bool isWater = frontmostIsWater(texCoord, sceneDepth);
+    bool isMetal = frontmostIsMetal(texCoord, sceneDepth);
 
     float recoveredLuma;
     vec3 albedo;
@@ -171,7 +185,7 @@ void main() {
     // capped is genuinely uncaptured geometry (translucents with no material data). The guard is
     // "we have material capability at all" -- terrain buffer (vanilla) OR the G-buffer (Sodium).
     if ((HasMaterial == 1 || HasGBuffer == 1)
-            && !terrainMaterial && !isGlass && !isWater && !gbufferDynamic) {
+            && !terrainMaterial && !isGlass && !isWater && !isMetal && !gbufferDynamic) {
         float mag = max(illumination.r, max(illumination.g, illumination.b));
         if (mag > ENTITY_LIGHT_CAP) illumination *= ENTITY_LIGHT_CAP / mag;
     }
