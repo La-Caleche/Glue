@@ -20,7 +20,7 @@ import java.util.List;
 /** Owns Lumos frame admission, visibility, pass ordering, and global render resources. */
 public final class LightRenderCoordinator {
 
-    private final GlassBufferPass glassPass = new GlassBufferPass();
+    private final TranslucentBufferPass translucentPass = new TranslucentBufferPass();
     private final DeferredLightPass deferredPass = new DeferredLightPass();
 
     private int maxSpotShadows = 15;
@@ -65,7 +65,7 @@ public final class LightRenderCoordinator {
         if (visible.isEmpty()) return;
 
         context.shadows().bake(minecraft, deferredPass.tintBlur(), visible, partialTick);
-        glassPass.render(context, minecraft, frame, camera, all, visible);
+        translucentPass.render(context, minecraft, frame, camera, all, visible);
         deferredPass.render(frame, viewProjection, inverseViewProjection, camera,
                 visible, context.shadows(), minecraft, partialTick);
     }
@@ -100,7 +100,7 @@ public final class LightRenderCoordinator {
         WorldLightContext context = LightManager.getInstance().currentWorld();
         if (context == null) return;
         context.shadows().invalidateAt(position);
-        context.glassBlocks().entrySet().removeIf(entry -> reaches(entry.getKey(), position));
+        context.translucentBlocks().entrySet().removeIf(entry -> reaches(entry.getKey(), position));
     }
 
     public void reloadResources() {

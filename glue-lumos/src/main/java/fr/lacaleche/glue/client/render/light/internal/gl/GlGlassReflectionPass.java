@@ -4,6 +4,7 @@ import fr.lacaleche.glue.client.render.internal.gl.SavedGlState;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.joml.Matrix4f;
+import org.joml.Vector3d;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
@@ -39,6 +40,7 @@ public final class GlGlassReflectionPass {
      */
     public void render(int sceneColor, int sceneDepth, int gbufferId,
                        Matrix4f viewProjection, Matrix4f inverseViewProjection,
+                       Vector3d cameraPos, float time,
                        int destinationFramebuffer, int width, int height) {
         if (sceneColor <= 0 || sceneDepth <= 0 || gbufferId <= 0) return;
         int program = resources.program("glue_glass_reflect",
@@ -77,6 +79,9 @@ public final class GlGlassReflectionPass {
             resources.uniformMatrix(program, "ViewProj", viewProjection);
             resources.uniform2f(program, "TexelSize", 1f / width, 1f / height);
             resources.uniform1f(program, "Strength", STRENGTH);
+            resources.uniform1f(program, "Time", time);
+            resources.uniform3f(program, "CameraPos",
+                    (float) cameraPos.x, (float) cameraPos.y, (float) cameraPos.z);
 
             resources.drawFullscreen(program);
         } finally {

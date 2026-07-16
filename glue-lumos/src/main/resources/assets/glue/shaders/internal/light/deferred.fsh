@@ -32,6 +32,8 @@ uniform mat4 ViewProj;          // camera-relative world -> clip (screen-space s
 uniform mat4 LightMatrix;       // world -> gobo clip (GOBO only)
 uniform mat4 LightViewProj;     // camera-relative world -> shadow-map clip
 uniform vec2 TexelSize;         // 1/width, 1/height
+uniform float Time;             // seconds, water ripple animation
+uniform vec3 CameraPos;         // camera world position, to anchor water ripples in world space
 
 uniform float ShadowTexel;      // 1/shadowMapSize
 uniform float ShadowNear;       // shadow frustum near plane
@@ -237,6 +239,20 @@ int cubeFace(vec3 d) {
     if (a.x >= a.y && a.x >= a.z) return d.x > 0.0 ? 0 : 1;
     if (a.y >= a.z)               return d.y > 0.0 ? 2 : 3;
     return d.z > 0.0 ? 4 : 5;
+}
+
+// Animated ripple normal for a flat (top-facing) water surface, anchored in world XZ so the ripples
+// stay put as the camera moves. A few directional wave layers summed into a height gradient; small
+// amplitudes so the surface reads as gentle ripples. Matches internal/light/glass_reflect.fsh.
+vec3 waterNormal(vec2 worldXZ, float time) {
+    vec2 grad = vec2(0.0);
+    vec2 d1 = normalize(vec2(0.8, 0.6));   float f1 = 2.2;
+    grad += d1 * f1 * cos(dot(worldXZ, d1) * f1 + time * 1.5) * 0.030;
+    vec2 d2 = normalize(vec2(-0.5, 0.9));  float f2 = 3.9;
+    grad += d2 * f2 * cos(dot(worldXZ, d2) * f2 + time * 2.3) * 0.020;
+    vec2 d3 = normalize(vec2(0.3, -0.95)); float f3 = 6.1;
+    grad += d3 * f3 * cos(dot(worldXZ, d3) * f3 + time * 3.1) * 0.008;
+    return normalize(vec3(-grad.x, 1.0, -grad.y));
 }
 
 // Normal-offset bias: nudge the receiver off its surface, toward the light, BEFORE
@@ -537,14 +553,15 @@ void main() {
         float ownerDepth = unpackDepth24(dynamicMaterial.gba);
         vec3 ownerP = reconstruct(texCoord, ownerDepth);
         gbufferOwned = distance(ownerP, P) < 0.02 + 0.01 * length(P)
-                && gbufferId > 0.5 && gbufferId < 4.5;
+                && gbufferId > 0.5 && gbufferId < 6.5;
     }
     // Terrain (1) and entities (2) carry a real captured normal; particles (3, billboards) do not;
-    // glass (4) carries albedo + opacity but derives its normal from depth (panes are axis-aligned),
-    // so it takes the depth-derivative path below and is handled by the dedicated glass branch.
+    // glass (4) and water (5) carry albedo + opacity but derive their normal from depth (both are
+    // axis-aligned / flat), so they take the depth-derivative path below and their own branches.
     bool gbufferSolid = gbufferOwned && gbufferId < 2.5;
     bool gbufferParticle = gbufferOwned && gbufferId > 2.5 && gbufferId < 3.5;
-    bool gbufferGlass = gbufferOwned && gbufferId > 3.5;
+    bool gbufferGlass = gbufferOwned && gbufferId > 3.5 && gbufferId < 4.5;
+    bool gbufferWater = gbufferOwned && gbufferId > 4.5 && gbufferId < 5.5;
 
     vec3 N;
     if (gbufferSolid) {
@@ -667,9 +684,14 @@ void main() {
     // heuristic could not resolve. The captured albedo carries the pane's own colour (RGB) and
     // opacity (A).
     bool isGlass = gbufferGlass;
+    bool isWater = gbufferWater;
     vec4 glassAlbedo = vec4(0.0);
     if (isGlass) {
         glassAlbedo = texture(GBufferAlbedo, texCoord);
+    }
+    vec4 waterAlbedo = vec4(0.0);
+    if (isWater) {
+        waterAlbedo = texture(GBufferAlbedo, texCoord);
     }
 
     vec3 tint = vec3(1.0);
@@ -721,6 +743,33 @@ void main() {
                 tint *= mix(vec3(1.0), tintRaw.rgb * (0.9 / tintMax), crossStrength);
             }
         }
+    } else if (isWater) {
+        // Water is a near-mirror transparent surface. Vanilla already drew it, so add only its light
+        // response: a coloured in-scatter plus a Fresnel-weighted specular glint that ripples across
+        // the surface. The environment reflection itself is added by the screen-space reflection pass;
+        // this is the per-light highlight (the light source's own reflection) that pass cannot produce.
+        // Ripple the flat depth-derived normal so the glint sparkles along the surface like real water.
+        vec3 waterN = waterNormal((P + CameraPos).xz, Time);
+        float wndotl = dot(waterN, L);
+
+        // Water is transparent: keep the broad response LOW (a faint coloured in-scatter, not an
+        // opaque glow) and let a crisp glint carry the reaction.
+        diffuse = max(wndotl, 0.0) * 0.10;
+        indirect = 0.03 * smoothstep(-0.2, 0.3, wndotl);
+        tint = mix(vec3(1.0), waterAlbedo.rgb, 0.5);
+
+        vec3 halfSum = L + viewDir;
+        float halfLen = length(halfSum);
+        vec3 halfVec = halfLen > 1e-6 ? halfSum / halfLen : waterN;
+        // Near-physical Fresnel: water reflects only a few percent head-on, so a low floor keeps a
+        // downward view subtle (no blow-out) while grazing angles still catch a bright reflection.
+        // Forcing a high floor is exactly what over-saturated the glint when looking down at a pool.
+        float fresnel = 0.06 + 0.94 * pow(1.0 - max(dot(waterN, viewDir), 0.0), 5.0);
+        // A tight sheen + a pinpoint sparkle, low-weight, riding the rippled normal so they read as a
+        // coloured reflection of the light rather than a blown-out white patch.
+        float sheen = pow(max(dot(waterN, halfVec), 0.0), 70.0) * 0.12;
+        float sparkle = pow(max(dot(waterN, halfVec), 0.0), 320.0) * 0.5;
+        specular = (sheen + sparkle) * fresnel * step(0.0, wndotl) * step(1e-6, halfLen);
     } else {
         // Keep Lambertian direct light exact. The indirect term approximates the
         // low-frequency fill that even a small skylight opening contributes in vanilla:
