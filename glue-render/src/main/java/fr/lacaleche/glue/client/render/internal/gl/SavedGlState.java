@@ -26,8 +26,16 @@ public record SavedGlState(
         boolean colorRed, boolean colorGreen, boolean colorBlue, boolean colorAlpha,
         int activeTexture,
         int[] viewport, int[] scissorBox, float[] clearColor,
-        int tex0, int tex1, int tex2, int tex3, int tex4, int tex5, int tex6, int tex7, int tex8
+        int[] textures
 ) {
+    /**
+     * Number of texture units saved and restored, covering units 0..12 — the full range Glue's
+     * passes bind (the deferred light pass reaches unit 12, {@code MaterialProps}). Vanilla and
+     * Sodium rebind their samplers unconditionally, so this is defence for consumer mods and
+     * Iris, which may leave a high unit active across a Glue pass.
+     */
+    private static final int TEXTURE_UNITS = 13;
+
     /** Compatibility accessor for operations that use one combined framebuffer binding. */
     public int fbo() {
         return drawFbo;
@@ -45,24 +53,11 @@ public record SavedGlState(
         int[] drawBuffers = readDrawBuffers();
 
         int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
-        GL13.glActiveTexture(GL13.GL_TEXTURE0);
-        int tex0 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        GL13.glActiveTexture(GL13.GL_TEXTURE1);
-        int tex1 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        GL13.glActiveTexture(GL13.GL_TEXTURE2);
-        int tex2 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        GL13.glActiveTexture(GL13.GL_TEXTURE3);
-        int tex3 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        GL13.glActiveTexture(GL13.GL_TEXTURE4);
-        int tex4 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        GL13.glActiveTexture(GL13.GL_TEXTURE5);
-        int tex5 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        GL13.glActiveTexture(GL13.GL_TEXTURE6);
-        int tex6 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        GL13.glActiveTexture(GL13.GL_TEXTURE7);
-        int tex7 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-        GL13.glActiveTexture(GL13.GL_TEXTURE8);
-        int tex8 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        int[] textures = new int[TEXTURE_UNITS];
+        for (int unit = 0; unit < TEXTURE_UNITS; unit++) {
+            GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
+            textures[unit] = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        }
         GL13.glActiveTexture(activeTexture);
 
         return new SavedGlState(
@@ -88,7 +83,7 @@ public record SavedGlState(
                 colorMask[0] != 0, colorMask[1] != 0, colorMask[2] != 0, colorMask[3] != 0,
                 activeTexture,
                 vp, scissorBox, clearColor,
-                tex0, tex1, tex2, tex3, tex4, tex5, tex6, tex7, tex8
+                textures
         );
     }
 
@@ -123,24 +118,10 @@ public record SavedGlState(
         GL11.glColorMask(colorRed, colorGreen, colorBlue, colorAlpha);
         GL11.glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
 
-        GL13.glActiveTexture(GL13.GL_TEXTURE0);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex0);
-        GL13.glActiveTexture(GL13.GL_TEXTURE1);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex1);
-        GL13.glActiveTexture(GL13.GL_TEXTURE2);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex2);
-        GL13.glActiveTexture(GL13.GL_TEXTURE3);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex3);
-        GL13.glActiveTexture(GL13.GL_TEXTURE4);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex4);
-        GL13.glActiveTexture(GL13.GL_TEXTURE5);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex5);
-        GL13.glActiveTexture(GL13.GL_TEXTURE6);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex6);
-        GL13.glActiveTexture(GL13.GL_TEXTURE7);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex7);
-        GL13.glActiveTexture(GL13.GL_TEXTURE8);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex8);
+        for (int unit = 0; unit < textures.length; unit++) {
+            GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, textures[unit]);
+        }
 
         GL13.glActiveTexture(activeTexture);
         GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
