@@ -7,8 +7,8 @@
 // point light itself is never in the scene colour (Lumos lights are not geometry), so this complements
 // the specular glint from the deferred pass rather than replacing it.
 //
-// Glass derives an axis-snapped planar normal from depth; water uses an animated ripple normal so its
-// reflection shimmers and breaks up like a real surface.
+// Glass and metal derive an axis-snapped planar normal from depth; a top-facing water surface swaps in
+// an animated ripple normal so its reflection shimmers and breaks up like a real surface.
 
 uniform sampler2D SceneColor;   // unit 0: composited, lit scene colour (sRGB-encoded)
 uniform sampler2D SceneDepth;   // unit 1: scene depth
@@ -127,9 +127,15 @@ void main() {
     bool metal = id > 5.5;
 
     vec3 P = reconstruct(texCoord, sceneDepth);
-    // Water ripples; glass and metal are blocky, so they take the axis-snapped depth normal.
-    vec3 N = water ? waterNormal((P + CameraPos).xz, Time) : glassNormal(texCoord, P);
-    if (N == vec3(0.0)) discard;
+    // The ripple is bounded near +Y, so it may only ride a surface that really is horizontal: on a
+    // waterfall's vertical side face (real geometry, stamped id 5 too) it would leave N perpendicular to
+    // the view, peaking the Fresnel below while reflect() marched the ray straight ahead into the
+    // geometry behind -- a full-strength mirror of the cliff. Tested on abs() because the derived normal
+    // carries no reliable side convention; a threshold rather than an exact axis test because the snap
+    // only fires on a near-axis derivative.
+    vec3 base = glassNormal(texCoord, P);
+    if (base == vec3(0.0)) discard;
+    vec3 N = (water && abs(base.y) > 0.7) ? waterNormal((P + CameraPos).xz, Time) : base;
     vec3 V = normalize(P);                         // camera -> fragment (incident ray)
     if (dot(N, V) > 0.0) N = -N;                    // face the surface toward the camera
     vec3 R = reflect(V, N);
