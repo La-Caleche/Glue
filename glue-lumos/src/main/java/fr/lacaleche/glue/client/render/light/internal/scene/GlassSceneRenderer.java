@@ -7,26 +7,25 @@ import fr.lacaleche.glue.client.render.light.internal.shadow.ShadowPipelines;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
-import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.IceBlock;
+import net.minecraft.world.level.block.StainedGlassBlock;
+import net.minecraft.world.level.block.StainedGlassPaneBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
 import org.joml.Matrix4f;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Re-rasterises nearby translucent blocks from the <strong>camera's</strong> point of view
+ * Re-rasterises nearby glass blocks from the <strong>camera's</strong> point of view
  * into the shared material G-buffer, stamping them with the {@code GLASS} material id.
  *
  * <p>The deferred light pass shades whatever surface the scene depth buffer holds, and
@@ -37,15 +36,47 @@ import java.util.List;
  * {@code id=4} + owner-depth are written into the same G-buffer attachments that terrain,
  * entities and particles fill. The draws are redirected into that buffer at the
  * command-encoder seam; only attachments 1 and 2 are written, because vanilla's own
- * translucent pass already blended the pane colour into the main target.</p>
+ * terrain passes already drew the pane colour into the main target.</p>
  *
  * <p>Re-rendered once per frame (camera-dependent, so not cacheable like shadow maps),
- * but the <em>block list</em> it draws is cached per light by {@code LightRenderer}
- * and invalidated on block changes, so the per-frame cost is rasterising a handful
- * of blocks, not scanning the world.</p>
+ * but the <em>block list</em> it draws comes from {@link MaterialBlockScan}, which is
+ * cached per light and invalidated on block changes, so the per-frame cost is
+ * rasterising a handful of blocks, not scanning the world.</p>
  */
 @Environment(EnvType.CLIENT)
 public final class GlassSceneRenderer extends AbstractSceneRenderer {
+
+    /** Glass named block by block because no class check captures it cleanly: {@code GLASS} is a plain
+     *  {@code TransparentBlock}, a subtree that also holds the copper grates, and {@code GLASS_PANE} an
+     *  {@code IronBarsBlock}, shared with {@code IRON_BARS}. {@code TINTED_GLASS} joins them rather than
+     *  earning a fourth {@code instanceof} for a single block. */
+    private static final Set<Block> GLASS_BLOCKS =
+            Set.of(Blocks.GLASS, Blocks.GLASS_PANE, Blocks.TINTED_GLASS);
+
+    /**
+     * Whether Lumos gives this block the glass BRDF. Vanilla carries no PBR data, so &mdash; like
+     * {@link MetalSceneRenderer#isMetal} &mdash; this predicate is the deliberate data source; edit here
+     * to add or remove glass.
+     *
+     * <p>The chunk render layer cannot stand in for it, in either direction: vanilla maps {@code GLASS}
+     * to {@code CUTOUT} and {@code GLASS_PANE} to {@code CUTOUT_MIPPED}, so a {@code TRANSLUCENT} test
+     * misses plain glass entirely, while that same layer also carries the matte {@code SLIME_BLOCK} and
+     * {@code HONEY_BLOCK} and the {@code NETHER_PORTAL} effect block, none of which want a sharp
+     * specular and a mirror reflection.</p>
+     *
+     * <p>The ~32 stained variants are exactly the {@link StainedGlassBlock} and
+     * {@link StainedGlassPaneBlock} hierarchies, so they are matched by class instead of listed.
+     * {@link IceBlock} covers {@code ICE} and {@code FROSTED_ICE} &mdash; smooth, translucent and
+     * refractive enough for a glass BRDF to be a fair approximation &mdash; and notably not the opaque
+     * {@code PACKED_ICE} or {@code BLUE_ICE}, which are not {@code IceBlock}s.</p>
+     */
+    public static boolean isGlass(BlockState state) {
+        Block block = state.getBlock();
+        return block instanceof StainedGlassBlock
+                || block instanceof StainedGlassPaneBlock
+                || block instanceof IceBlock
+                || GLASS_BLOCKS.contains(block);
+    }
 
     private Matrix4f view = new Matrix4f();
     private Matrix4f proj = new Matrix4f();
@@ -55,7 +86,7 @@ public final class GlassSceneRenderer extends AbstractSceneRenderer {
     /**
      * @param view   the frame's real view matrix (camera-relative, includes bobbing)
      * @param proj   the frame's real projection matrix
-     * @param blocks translucent blocks to rasterise, world coordinates
+     * @param blocks glass blocks to rasterise, world coordinates
      */
     public void configure(Matrix4f view, Matrix4f proj,
                           double camX, double camY, double camZ, List<BlockPos> blocks) {
@@ -118,71 +149,5 @@ public final class GlassSceneRenderer extends AbstractSceneRenderer {
         } finally {
             GBufferCapture.endGlassCapture();
         }
-    }
-
-    /**
-     * Translucent blocks within a light's reach. This is the scan that must NOT run
-     * per frame &mdash; the caller caches the result per light and invalidates it on
-     * block changes, exactly like the shadow maps.
-     */
-    public static List<BlockPos> collectTranslucents(Minecraft client,
-                                                     double lx, double ly, double lz, float range) {
-        if (client.level == null) return List.of();
-
-        int radius = Math.max(2, (int) Math.ceil(range));
-        BlockPos center = BlockPos.containing(lx, ly, lz);
-        double reach = range + 1.0;   // +1 covers the block's own half-diagonal
-        List<BlockPos> result = new ArrayList<>();
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int cameraChunkX = ((int) Math.floor(client.gameRenderer.getMainCamera().getPosition().x)) >> 4;
-        int cameraChunkZ = ((int) Math.floor(client.gameRenderer.getMainCamera().getPosition().z)) >> 4;
-        int loadedRadius = client.options.getEffectiveRenderDistance() + 2;
-        int minChunkX = Math.max((int) Math.floorDiv((long) center.getX() - radius, 16L),
-                cameraChunkX - loadedRadius);
-        int maxChunkX = Math.min((int) Math.floorDiv((long) center.getX() + radius, 16L),
-                cameraChunkX + loadedRadius);
-        int minChunkZ = Math.max((int) Math.floorDiv((long) center.getZ() - radius, 16L),
-                cameraChunkZ - loadedRadius);
-        int maxChunkZ = Math.min((int) Math.floorDiv((long) center.getZ() + radius, 16L),
-                cameraChunkZ + loadedRadius);
-        long minY = (long) center.getY() - radius;
-        long maxY = (long) center.getY() + radius;
-
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                LevelChunk chunk = client.level.getChunkSource().getChunk(
-                        chunkX, chunkZ, ChunkStatus.FULL, false);
-                if (chunk == null) continue;
-                LevelChunkSection[] sections = chunk.getSections();
-                for (int sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
-                    LevelChunkSection section = sections[sectionIndex];
-                    if (section.hasOnlyAir()) continue;
-                    int sectionY = chunk.getSectionYFromSectionIndex(sectionIndex) << 4;
-                    if (sectionY > maxY || sectionY + 15 < minY) continue;
-                    int localMinY = (int) Math.max(0L, minY - sectionY);
-                    int localMaxY = (int) Math.min(15L, maxY - sectionY);
-                    for (int localY = localMinY; localY <= localMaxY; localY++) {
-                        for (int localX = 0; localX < 16; localX++) {
-                            for (int localZ = 0; localZ < 16; localZ++) {
-                                int worldX = (chunkX << 4) + localX;
-                                int worldZ = (chunkZ << 4) + localZ;
-                                pos.set(worldX, sectionY + localY, worldZ);
-                                double dx = worldX + 0.5 - lx;
-                                double dy = sectionY + localY + 0.5 - ly;
-                                double dz = worldZ + 0.5 - lz;
-                                if (dx * dx + dy * dy + dz * dz > reach * reach) continue;
-                                BlockState state = section.getBlockState(localX, localY, localZ);
-                                if (state.isAir() || state.getRenderShape() != RenderShape.MODEL) continue;
-                                if (ItemBlockRenderTypes.getChunkRenderType(state)
-                                        == ChunkSectionLayer.TRANSLUCENT) {
-                                    result.add(pos.immutable());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return result;
     }
 }
