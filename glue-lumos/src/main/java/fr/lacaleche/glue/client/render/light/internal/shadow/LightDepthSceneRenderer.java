@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.client.render.light.internal.shadow;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import fr.lacaleche.glue.client.render.light.internal.scene.GlassSceneRenderer;
 import fr.lacaleche.glue.client.render.scene.AbstractSceneRenderer;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import net.fabricmc.api.EnvType;
@@ -55,7 +56,6 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
     private Matrix4f lightProj = new Matrix4f();
     private double lightX, lightY, lightZ;
     private BlockPos center = BlockPos.ZERO;
-    private int radius = 12;
     private float range = 16f;
     private int faceAxis = -1;
     private float coneCosLimit = -1f;
@@ -71,7 +71,6 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
 
     /**
      * @param center     centre of the block region to rasterise
-     * @param radius     half-extent of that region, in blocks
      * @param range      light range; casters beyond it are culled
      * @param faceAxis   cube face 0..5 to cull against, or -1 for a spot
      * @param coneDir    spot direction (ignored when {@code faceAxis >= 0})
@@ -79,7 +78,7 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
      */
     public void configure(Matrix4f view, Matrix4f proj,
                           double lightX, double lightY, double lightZ,
-                          BlockPos center, int radius, float range,
+                          BlockPos center, float range,
                           int faceAxis, Vector3f coneDir, float coneCosLimit) {
         this.lightView = view;
         this.lightProj = proj;
@@ -87,7 +86,6 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
         this.lightY = lightY;
         this.lightZ = lightZ;
         this.center = center;
-        this.radius = radius;
         this.range = range;
         this.faceAxis = faceAxis;
         this.coneDir.set(coneDir);
@@ -189,7 +187,7 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
 
         Casters candidates = suppliedCasters != null
                 ? suppliedCasters
-                : collectCasters(client, center, radius, lightX, lightY, lightZ, range);
+                : collectCasters(client, center, lightX, lightY, lightZ, range);
         List<BlockPos> opaque = filterCasters(candidates.opaque());
         List<BlockPos> translucent = filterCasters(candidates.translucent());
         hadTranslucents = !translucent.isEmpty();
@@ -288,29 +286,36 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
         return result;
     }
 
-    static Casters collectCasters(Minecraft client, BlockPos center, int radius,
+    static Casters collectCasters(Minecraft client, BlockPos center,
                                   double lightX, double lightY, double lightZ, float range) {
         List<BlockPos> opaque = new ArrayList<>();
         List<BlockPos> translucent = new ArrayList<>();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        double reach = range + 1.0;
+        double reachSquared = reach * reach;
+        int radius = (int) Math.ceil(reach);   // the box must contain the reach sphere
         int cameraChunkX = ((int) Math.floor(client.gameRenderer.getMainCamera().getPosition().x)) >> 4;
         int cameraChunkZ = ((int) Math.floor(client.gameRenderer.getMainCamera().getPosition().z)) >> 4;
         int loadedRadius = client.options.getEffectiveRenderDistance() + 2;
-        int minChunkX = Math.max((int) Math.floorDiv((long) center.getX() - radius, 16L),
-                cameraChunkX - loadedRadius);
-        int maxChunkX = Math.min((int) Math.floorDiv((long) center.getX() + radius, 16L),
-                cameraChunkX + loadedRadius);
-        int minChunkZ = Math.max((int) Math.floorDiv((long) center.getZ() - radius, 16L),
-                cameraChunkZ - loadedRadius);
-        int maxChunkZ = Math.min((int) Math.floorDiv((long) center.getZ() + radius, 16L),
-                cameraChunkZ + loadedRadius);
+        long minX = (long) center.getX() - radius;
+        long maxX = (long) center.getX() + radius;
         long minY = (long) center.getY() - radius;
         long maxY = (long) center.getY() + radius;
-        double reach = range + 1.0;
-        double reachSquared = reach * reach;
+        long minZ = (long) center.getZ() - radius;
+        long maxZ = (long) center.getZ() + radius;
+        int minChunkX = Math.max((int) Math.floorDiv(minX, 16L), cameraChunkX - loadedRadius);
+        int maxChunkX = Math.min((int) Math.floorDiv(maxX, 16L), cameraChunkX + loadedRadius);
+        int minChunkZ = Math.max((int) Math.floorDiv(minZ, 16L), cameraChunkZ - loadedRadius);
+        int maxChunkZ = Math.min((int) Math.floorDiv(maxZ, 16L), cameraChunkZ + loadedRadius);
 
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            int originX = chunkX << 4;
+            int localMinX = (int) Math.max(0L, minX - originX);
+            int localMaxX = (int) Math.min(15L, maxX - originX);
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                int originZ = chunkZ << 4;
+                int localMinZ = (int) Math.max(0L, minZ - originZ);
+                int localMaxZ = (int) Math.min(15L, maxZ - originZ);
                 LevelChunk chunk = client.level.getChunkSource().getChunk(
                         chunkX, chunkZ, ChunkStatus.FULL, false);
                 if (chunk == null) continue;
@@ -324,10 +329,10 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
                     int localMinY = (int) Math.max(0L, minY - sectionY);
                     int localMaxY = (int) Math.min(15L, maxY - sectionY);
                     for (int localY = localMinY; localY <= localMaxY; localY++) {
-                        for (int localX = 0; localX < 16; localX++) {
-                            for (int localZ = 0; localZ < 16; localZ++) {
-                                int worldX = (chunkX << 4) + localX;
-                                int worldZ = (chunkZ << 4) + localZ;
+                        for (int localX = localMinX; localX <= localMaxX; localX++) {
+                            int worldX = originX + localX;
+                            for (int localZ = localMinZ; localZ <= localMaxZ; localZ++) {
+                                int worldZ = originZ + localZ;
                                 pos.set(worldX, sectionY + localY, worldZ);
                                 double dx = worldX + 0.5 - lightX;
                                 double dy = sectionY + localY + 0.5 - lightY;
@@ -336,8 +341,7 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
 
                                 BlockState state = section.getBlockState(localX, localY, localZ);
                                 if (state.isAir() || state.getRenderShape() != RenderShape.MODEL) continue;
-                                if (ItemBlockRenderTypes.getChunkRenderType(state)
-                                        == ChunkSectionLayer.TRANSLUCENT) {
+                                if (tintsLight(state)) {
                                     translucent.add(pos.immutable());
                                 } else {
                                     opaque.add(pos.immutable());
@@ -352,6 +356,20 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
     }
 
     record Casters(List<BlockPos> opaque, List<BlockPos> translucent) {
+    }
+
+    /**
+     * Whether a caster tints the light passing through it rather than blocking it outright.
+     *
+     * <p>Broader than {@link GlassSceneRenderer#isGlass}, and deliberately so: that predicate asks which
+     * blocks earn a glass BRDF, this one asks which let light through at all. A slime or honey block is
+     * matte &mdash; no specular &mdash; yet still tints a shadow. The translucent layer answers this
+     * correctly except for plain {@code GLASS} and {@code GLASS_PANE}, which vanilla maps to
+     * {@code CUTOUT}; without the union they would cast solid shadows.</p>
+     */
+    private static boolean tintsLight(BlockState state) {
+        return ItemBlockRenderTypes.getChunkRenderType(state) == ChunkSectionLayer.TRANSLUCENT
+                || GlassSceneRenderer.isGlass(state);
     }
 
     private void drawCasters(Minecraft client, PoseStack matrices, List<BlockPos> casters, RenderType type) {
