@@ -26,6 +26,8 @@ import java.nio.ByteBuffer;
  *   <li>{@code COLOR_ATTACHMENT1} = albedo (linear RGB) + packed normal (A), {@code RGBA16F};</li>
  *   <li>{@code COLOR_ATTACHMENT2} = material id + owning depth, {@code RGBA8} (red channel =
  *       id/255, GBA = packed depth24; 0 where cleared);</li>
+ *   <li>{@code COLOR_ATTACHMENT3} = surface material properties, {@code RGBA8} (R = roughness,
+ *       G = metalness, B = dielectric F0, A = reserved; 0 where cleared);</li>
  *   <li>depth = the vanilla main depth texture (shared).</li>
  * </ul>
  * A geometry draw redirected here writes colour, material and depth together, so the material
@@ -41,6 +43,7 @@ public final class GBufferTargets {
     private int fbo;
     private int albedoNormalTex;
     private int materialIdTex;
+    private int materialPropsTex;
 
     private int width;
     private int height;
@@ -78,6 +81,7 @@ public final class GBufferTargets {
 
             albedoNormalTex = createTexture(w, h, GL30.GL_RGBA16F, GL11.GL_FLOAT);
             materialIdTex = createTexture(w, h, GL11.GL_RGBA8, GL11.GL_UNSIGNED_BYTE);
+            materialPropsTex = createTexture(w, h, GL11.GL_RGBA8, GL11.GL_UNSIGNED_BYTE);
 
             fbo = GL30.glGenFramebuffers();
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
@@ -87,10 +91,13 @@ public final class GBufferTargets {
                     GL11.GL_TEXTURE_2D, albedoNormalTex, 0);
             GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT2,
                     GL11.GL_TEXTURE_2D, materialIdTex, 0);
+            GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT3,
+                    GL11.GL_TEXTURE_2D, materialPropsTex, 0);
             GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
                     GL11.GL_TEXTURE_2D, depth, 0);
             GL20.glDrawBuffers(new int[]{
-                    GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
+                    GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1,
+                    GL30.GL_COLOR_ATTACHMENT2, GL30.GL_COLOR_ATTACHMENT3});
 
             int status = GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER);
             if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
@@ -120,6 +127,11 @@ public final class GBufferTargets {
         return materialIdTex;
     }
 
+    /** Material-properties attachment (roughness/metalness/F0), or 0. */
+    public int materialPropsTextureId() {
+        return materialPropsTex;
+    }
+
     /**
      * Opens the glass re-render: restricts the draw-buffer set to the material attachments (1 and 2),
      * leaving attachment 0 (the borrowed main colour) untouched -- vanilla's translucent pass already
@@ -137,18 +149,20 @@ public final class GBufferTargets {
         int prevDraw = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
         GL20.glDrawBuffers(new int[]{
-                GL11.GL_NONE, GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
+                GL11.GL_NONE, GL30.GL_COLOR_ATTACHMENT1,
+                GL30.GL_COLOR_ATTACHMENT2, GL30.GL_COLOR_ATTACHMENT3});
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevDraw);
     }
 
-    /** Restores the full three-attachment draw-buffer set after {@link #beginGlassPass()}. Like it,
+    /** Restores the full four-attachment draw-buffer set after {@link #beginGlassPass()}. Like it,
      *  this must not restore draw buffers via SavedGlState. */
     public void endGlassPass() {
         if (fbo == 0) return;
         int prevDraw = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
         GL20.glDrawBuffers(new int[]{
-                GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
+                GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1,
+                GL30.GL_COLOR_ATTACHMENT2, GL30.GL_COLOR_ATTACHMENT3});
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevDraw);
     }
 
@@ -170,13 +184,15 @@ public final class GBufferTargets {
                     GL11.GL_TEXTURE_2D, borrowedColor, 0);
             GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
                     GL11.GL_TEXTURE_2D, borrowedDepth, 0);
-            GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
+            GL20.glDrawBuffers(new int[]{
+                    GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2, GL30.GL_COLOR_ATTACHMENT3});
             GL11.glDisable(GL11.GL_SCISSOR_TEST);
             GL11.glColorMask(true, true, true, true);
             GL11.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
             GL20.glDrawBuffers(new int[]{
-                    GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1, GL30.GL_COLOR_ATTACHMENT2});
+                    GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1,
+                    GL30.GL_COLOR_ATTACHMENT2, GL30.GL_COLOR_ATTACHMENT3});
         } finally {
             state.restore();
         }
@@ -206,6 +222,10 @@ public final class GBufferTargets {
         if (materialIdTex != 0) {
             GL11.glDeleteTextures(materialIdTex);
             materialIdTex = 0;
+        }
+        if (materialPropsTex != 0) {
+            GL11.glDeleteTextures(materialPropsTex);
+            materialPropsTex = 0;
         }
     }
 

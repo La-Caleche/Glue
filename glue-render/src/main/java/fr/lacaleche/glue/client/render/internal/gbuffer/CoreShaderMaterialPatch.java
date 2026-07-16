@@ -41,6 +41,7 @@ public final class CoreShaderMaterialPatch {
 
             layout(location = 1) out vec4 glue_AlbedoNormal;
             layout(location = 2) out vec4 glue_MaterialId;
+            layout(location = 3) out vec4 glue_MaterialProps;
 
             vec3 glue_srgbToLinear(vec3 c) {
                 vec3 lo = c / 12.92;
@@ -171,6 +172,7 @@ public final class CoreShaderMaterialPatch {
                         glue_AlbedoNormal = vec4(glue_srgbToLinear(color.rgb * glue_tint),
                                                  glue_packNormal(normalize(glue_Normal)));
                         glue_MaterialId = vec4(2.0 / 255.0, glue_packDepth24(gl_FragCoord.z));
+                        glue_MaterialProps = vec4(0.7, 0.0, 0.04, 1.0);
                     }
                 """);
         return patched;
@@ -204,6 +206,7 @@ public final class CoreShaderMaterialPatch {
                     glue_AlbedoNormal = vec4(glue_srgbToLinear(glue_texel.rgb * glue_RawColor.rgb),
                                              glue_packNormal(vec3(0.0, 0.0, 1.0)));
                     glue_MaterialId = vec4(3.0 / 255.0, glue_packDepth24(gl_FragCoord.z));
+                    glue_MaterialProps = vec4(1.0, 0.0, 0.04, 1.0);
                 """);
         return patched;
     }

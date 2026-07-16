@@ -33,16 +33,19 @@ public final class GBufferCapture {
             ResourceLocation.withDefaultNamespace("core/entity");
     private static final ResourceLocation PARTICLE_SHADER =
             ResourceLocation.withDefaultNamespace("core/particle");
-    // The Lumos glass capture is a Glue pipeline; its fragment shader identifies it uniquely.
+    // The Lumos glass/water captures are Glue pipelines; their fragment shaders identify them uniquely.
     private static final ResourceLocation GLASS_SHADER =
             ResourceLocation.fromNamespaceAndPath("glue", "internal/light/glass_gbuffer");
+    private static final ResourceLocation WATER_SHADER =
+            ResourceLocation.fromNamespaceAndPath("glue", "internal/light/water_gbuffer");
     private static final GBufferTargets TARGETS = new GBufferTargets();
 
     private static boolean frameReady;
     private static boolean inWorldPhase;
-    // Glass is captured by a post-world re-render, so it is armed explicitly around that draw
-    // rather than by the world phase (which is already closed by then).
+    // Glass and water are captured by a post-world re-render, so each is armed explicitly around its
+    // draw rather than by the world phase (which is already closed by then).
     private static boolean glassCaptureActive;
+    private static boolean waterCaptureActive;
 
     // Entity shadow maps re-render entities from a light's POV, post-world. Vanilla entity draws only
     // honour the framebuffer bound at the trySetup seam (not RenderSystem's output override), so the
@@ -112,10 +115,30 @@ public final class GBufferCapture {
         entityShadowFbo = 0;
     }
 
-    /** Closes the glass capture and restores the full three-attachment draw-buffer set. */
+    /** Closes the glass capture and restores the full draw-buffer set. */
     public static void endGlassCapture() {
         if (!glassCaptureActive) return;
         glassCaptureActive = false;
+        TARGETS.endGlassPass();
+    }
+
+    /**
+     * Opens the water capture: like {@link #beginGlassCapture()} it restricts the shared FBO to its
+     * material attachments (1,2,3) and arms the redirect for water draws. Water and glass share the
+     * same material-only pass setup ({@code beginGlassPass}). Returns false (drawing nothing) if the
+     * target is not ready. Pair every {@code true} return with {@link #endWaterCapture()}.
+     */
+    public static boolean beginWaterCapture() {
+        if (!frameReady) return false;
+        TARGETS.beginGlassPass();
+        waterCaptureActive = true;
+        return true;
+    }
+
+    /** Closes the water capture and restores the full draw-buffer set. */
+    public static void endWaterCapture() {
+        if (!waterCaptureActive) return;
+        waterCaptureActive = false;
         TARGETS.endGlassPass();
     }
 
@@ -157,6 +180,12 @@ public final class GBufferCapture {
                 && GLASS_SHADER.equals(pipeline.getFragmentShader())) {
             return TARGETS.framebufferId();
         }
+        // Water: a post-world re-render of nearby fluid surfaces, armed explicitly like glass. Same
+        // material-only redirect -- attachment 0 keeps the water colour vanilla already blended.
+        if (waterCaptureActive && frameReady
+                && WATER_SHADER.equals(pipeline.getFragmentShader())) {
+            return TARGETS.framebufferId();
+        }
         if (!frameReady || !inWorldPhase) return 0;
         if (pipeline.getBlendFunction().isPresent()
                 || !pipeline.isWriteColor()
@@ -184,6 +213,11 @@ public final class GBufferCapture {
     /** Material-id attachment, or -1 if not captured this frame. */
     public static int materialIdTextureId() {
         return frameReady ? TARGETS.materialIdTextureId() : -1;
+    }
+
+    /** Material-properties attachment (roughness/metalness/F0), or -1 if not captured this frame. */
+    public static int materialPropsTextureId() {
+        return frameReady ? TARGETS.materialPropsTextureId() : -1;
     }
 
     public static void cleanup() {

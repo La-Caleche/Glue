@@ -92,7 +92,8 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
         // buffer under one id contract. -1 until the G-buffer FBO is ready this frame.
         int albedoNormal = GBufferCapture.albedoNormalTextureId();
         int materialId = GBufferCapture.materialIdTextureId();
-        if (boundFramebuffer <= 0 || albedoNormal <= 0 || materialId <= 0) return;
+        int materialProps = GBufferCapture.materialPropsTextureId();
+        if (boundFramebuffer <= 0 || albedoNormal <= 0 || materialId <= 0 || materialProps <= 0) return;
         RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
         if (main == null || boundFramebuffer != FramebufferHelper.getFramebufferId(main)) {
             disable("opaque terrain is not drawing into Minecraft's main framebuffer");
@@ -113,8 +114,10 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
                 GL11.GL_TEXTURE_2D, albedoNormal, 0);
         GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT2,
                 GL11.GL_TEXTURE_2D, materialId, 0);
+        GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT3,
+                GL11.GL_TEXTURE_2D, materialProps, 0);
         GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1,
-                GL30.GL_COLOR_ATTACHMENT2});
+                GL30.GL_COLOR_ATTACHMENT2, GL30.GL_COLOR_ATTACHMENT3});
 
         int status = GL30.glCheckFramebufferStatus(GL30.GL_DRAW_FRAMEBUFFER);
         if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
@@ -192,6 +195,8 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
         GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT1,
                 GL11.GL_TEXTURE_2D, 0, 0);
         GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT2,
+                GL11.GL_TEXTURE_2D, 0, 0);
+        GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT3,
                 GL11.GL_TEXTURE_2D, 0, 0);
     }
 
