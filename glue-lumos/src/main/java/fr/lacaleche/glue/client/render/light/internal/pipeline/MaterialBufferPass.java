@@ -3,10 +3,8 @@ package fr.lacaleche.glue.client.render.light.internal.pipeline;
 import fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture;
 import fr.lacaleche.glue.client.render.light.Light;
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
-import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext.NearbyMaterials;
-import fr.lacaleche.glue.client.render.light.internal.scene.GlassSceneRenderer;
-import fr.lacaleche.glue.client.render.light.internal.scene.MetalSceneRenderer;
-import fr.lacaleche.glue.client.render.light.internal.scene.WaterSceneRenderer;
+import fr.lacaleche.glue.client.render.light.internal.scene.MaterialBlockScan;
+import fr.lacaleche.glue.client.render.light.internal.scene.MaterialBlockScan.NearbyMaterials;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import org.joml.Matrix4f;
@@ -37,13 +35,8 @@ final class MaterialBufferPass {
         LinkedHashSet<BlockPos> metals = new LinkedHashSet<>();
         for (Light light : visible) {
             NearbyMaterials nearby = context.materialBlocks().computeIfAbsent(light, candidate ->
-                    new NearbyMaterials(
-                            GlassSceneRenderer.collectTranslucents(minecraft, candidate.x, candidate.y,
-                                    candidate.z, candidate.range),
-                            WaterSceneRenderer.collectWater(minecraft, candidate.x, candidate.y,
-                                    candidate.z, candidate.range),
-                            MetalSceneRenderer.collectMetals(minecraft, candidate.x, candidate.y,
-                                    candidate.z, candidate.range)));
+                    MaterialBlockScan.scan(minecraft, candidate.x, candidate.y,
+                            candidate.z, candidate.range));
             panes.addAll(nearby.panes());
             water.addAll(nearby.water());
             metals.addAll(nearby.metals());

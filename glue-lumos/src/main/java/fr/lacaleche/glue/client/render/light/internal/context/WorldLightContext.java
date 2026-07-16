@@ -5,11 +5,11 @@ import fr.lacaleche.glue.client.render.light.Light;
 import fr.lacaleche.glue.client.render.light.LightAttachment;
 import fr.lacaleche.glue.client.render.light.LightHandle;
 import fr.lacaleche.glue.client.render.light.internal.scene.GlassSceneRenderer;
+import fr.lacaleche.glue.client.render.light.internal.scene.MaterialBlockScan.NearbyMaterials;
 import fr.lacaleche.glue.client.render.light.internal.scene.MetalSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.scene.WaterSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.shadow.ShadowBaker;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 
 import java.util.ArrayList;
@@ -30,12 +30,6 @@ public final class WorldLightContext implements AutoCloseable {
     final WaterSceneRenderer water = new WaterSceneRenderer();
     final MetalSceneRenderer metal = new MetalSceneRenderer();
     final Map<Light, NearbyMaterials> materialBlocks = new IdentityHashMap<>();
-
-    /** The special-material blocks near a light, split by how they are re-rendered: {@code panes} and
-     *  {@code metals} via {@code renderSingleBlock}, {@code water} via {@code renderLiquid}. Cached per
-     *  light and invalidated together on block changes. */
-    public record NearbyMaterials(List<BlockPos> panes, List<BlockPos> water, List<BlockPos> metals) {
-    }
 
     public WorldLightContext(ClientLevel level) {
         this.level = level;

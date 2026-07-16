@@ -12,15 +12,10 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.core.BlockPos;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.material.FluidState;
 import org.joml.Matrix4f;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -35,6 +30,11 @@ import java.util.List;
  * does not transfer. Instead each fluid draw is routed through {@link OffsetVertexConsumer}, which
  * adds {@code sectionOrigin - camera} to every vertex, producing the camera-relative world
  * coordinates the pipeline's model-view expects.</p>
+ *
+ * <p>The block list comes from {@link MaterialBlockScan}, cached per light and already reduced to
+ * fluid blocks with a potentially visible face. Submerged blocks are dropped there rather than left to
+ * {@code renderLiquid}: it does reject them, but only after allocating the six neighbour positions it
+ * needs to prove it, which would be paid on every one of them every frame.</p>
  */
 @Environment(EnvType.CLIENT)
 public final class WaterSceneRenderer extends AbstractSceneRenderer {
@@ -103,72 +103,6 @@ public final class WaterSceneRenderer extends AbstractSceneRenderer {
         } finally {
             GBufferCapture.endWaterCapture();
         }
-    }
-
-    /**
-     * Water fluid blocks within a light's reach. Like {@link GlassSceneRenderer#collectTranslucents}
-     * this must NOT run per frame &mdash; the caller caches the result per light and invalidates it on
-     * block changes. Fully-submerged water blocks are kept but cost nothing: {@code renderLiquid} culls
-     * every face against its identical neighbours and emits no geometry for them.
-     */
-    public static List<BlockPos> collectWater(Minecraft client,
-                                              double lx, double ly, double lz, float range) {
-        if (client.level == null) return List.of();
-
-        int radius = Math.max(2, (int) Math.ceil(range));
-        BlockPos center = BlockPos.containing(lx, ly, lz);
-        double reach = range + 1.0;
-        List<BlockPos> result = new ArrayList<>();
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int cameraChunkX = ((int) Math.floor(client.gameRenderer.getMainCamera().getPosition().x)) >> 4;
-        int cameraChunkZ = ((int) Math.floor(client.gameRenderer.getMainCamera().getPosition().z)) >> 4;
-        int loadedRadius = client.options.getEffectiveRenderDistance() + 2;
-        int minChunkX = Math.max((int) Math.floorDiv((long) center.getX() - radius, 16L),
-                cameraChunkX - loadedRadius);
-        int maxChunkX = Math.min((int) Math.floorDiv((long) center.getX() + radius, 16L),
-                cameraChunkX + loadedRadius);
-        int minChunkZ = Math.max((int) Math.floorDiv((long) center.getZ() - radius, 16L),
-                cameraChunkZ - loadedRadius);
-        int maxChunkZ = Math.min((int) Math.floorDiv((long) center.getZ() + radius, 16L),
-                cameraChunkZ + loadedRadius);
-        long minY = (long) center.getY() - radius;
-        long maxY = (long) center.getY() + radius;
-
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                LevelChunk chunk = client.level.getChunkSource().getChunk(
-                        chunkX, chunkZ, ChunkStatus.FULL, false);
-                if (chunk == null) continue;
-                LevelChunkSection[] sections = chunk.getSections();
-                for (int sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
-                    LevelChunkSection section = sections[sectionIndex];
-                    if (section.hasOnlyAir()) continue;
-                    int sectionY = chunk.getSectionYFromSectionIndex(sectionIndex) << 4;
-                    if (sectionY > maxY || sectionY + 15 < minY) continue;
-                    int localMinY = (int) Math.max(0L, minY - sectionY);
-                    int localMaxY = (int) Math.min(15L, maxY - sectionY);
-                    for (int localY = localMinY; localY <= localMaxY; localY++) {
-                        for (int localX = 0; localX < 16; localX++) {
-                            for (int localZ = 0; localZ < 16; localZ++) {
-                                int worldX = (chunkX << 4) + localX;
-                                int worldZ = (chunkZ << 4) + localZ;
-                                double dx = worldX + 0.5 - lx;
-                                double dy = sectionY + localY + 0.5 - ly;
-                                double dz = worldZ + 0.5 - lz;
-                                if (dx * dx + dy * dy + dz * dz > reach * reach) continue;
-                                FluidState fluid = section.getBlockState(localX, localY, localZ)
-                                        .getFluidState();
-                                if (!fluid.isEmpty() && fluid.is(FluidTags.WATER)) {
-                                    pos.set(worldX, sectionY + localY, worldZ);
-                                    result.add(pos.immutable());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return result;
     }
 
     /**
