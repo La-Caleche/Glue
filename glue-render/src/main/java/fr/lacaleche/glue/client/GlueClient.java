@@ -45,6 +45,7 @@ public class GlueClient implements ClientModInitializer {
         TerrainMaterialBuffer.init();
         FboDebugHud.registerTexture("GBuffer Albedo+N", GBufferCapture::albedoNormalTextureId);
         FboDebugHud.registerTexture("GBuffer MaterialID", GBufferCapture::materialIdTextureId);
+        FboDebugHud.registerTexture("GBuffer MaterialProps", GBufferCapture::materialPropsTextureId);
         GlueOutlineRenderers.registerOutlineRenderers();
 
         DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);

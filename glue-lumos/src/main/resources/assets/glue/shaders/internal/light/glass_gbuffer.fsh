@@ -27,6 +27,7 @@ in float lightNormDist;
 
 layout(location = 1) out vec4 glue_Material;
 layout(location = 2) out vec4 glue_MaterialId;
+layout(location = 3) out vec4 glue_MaterialProps;
 
 vec3 srgbToLinear(vec3 color) {
     vec3 low = color / 12.92;
@@ -47,4 +48,6 @@ void main() {
     vec4 color = texture(Sampler0, texCoord0) * vertexColor;
     glue_Material = vec4(srgbToLinear(color.rgb), color.a);
     glue_MaterialId = vec4(4.0 / 255.0, gluePackDepth24(gl_FragCoord.z));
+    // Glass: smooth dielectric.
+    glue_MaterialProps = vec4(0.05, 0.0, 0.04, 1.0);
 }

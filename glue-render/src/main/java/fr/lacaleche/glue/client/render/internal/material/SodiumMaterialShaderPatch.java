@@ -88,6 +88,7 @@ public final class SodiumMaterialShaderPatch {
 
                 layout(location = 1) out vec4 glue_Material;
                 layout(location = 2) out vec4 glue_MaterialId;
+                layout(location = 3) out vec4 glue_MaterialProps;
 
                 vec3 glueSrgbToLinear(vec3 color) {
                     vec3 low = color / 12.92;
@@ -148,6 +149,9 @@ public final class SodiumMaterialShaderPatch {
                             glueSrgbToLinear(glue_Texel.rgb * glueTint),
                             gluePackNormal(glueNormal));
                     glue_MaterialId = vec4(1.0 / 255.0, gluePackDepth24(gl_FragCoord.z));
+                    // Generic terrain: rough dielectric. Specific materials (water, metal) get
+                    // their real properties from a dedicated capture that overwrites this pixel.
+                    glue_MaterialProps = vec4(1.0, 0.0, 0.04, 1.0);
 
                 """);
         acceptFragment();
