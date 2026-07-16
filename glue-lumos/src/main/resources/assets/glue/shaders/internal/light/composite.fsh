@@ -74,6 +74,19 @@ bool frontmostIsGlass(vec2 uv, float sceneDepth) {
     return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps);
 }
 
+// Same ownership test for water (id 5). Like glass, water gets a real purpose-built deferred
+// response, so it must be exempt from the uncaptured-translucent light cap below.
+bool frontmostIsWater(vec2 uv, float sceneDepth) {
+    if (HasGBuffer != 1) return false;
+    vec4 idSample = texture(GBufferId, uv);
+    float id = idSample.r * 255.0;
+    if (id < 4.5 || id > 5.5) return false;
+    float ownerDepth = unpackDepth24(idSample.gba);
+    vec3 ownerP = reconstruct(uv, ownerDepth);
+    vec3 Ps = reconstruct(uv, sceneDepth);
+    return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps);
+}
+
 void main() {
     vec4 accumulated = texture(LightTex, texCoord);
     vec3 hdr = accumulated.rgb * Exposure;
@@ -86,6 +99,7 @@ void main() {
     float sceneLuma = dot(sceneLinear, vec3(0.2126, 0.7152, 0.0722));
     float sceneDepth = texture(SceneDepth, texCoord).r;
     bool isGlass = frontmostIsGlass(texCoord, sceneDepth);
+    bool isWater = frontmostIsWater(texCoord, sceneDepth);
 
     float recoveredLuma;
     vec3 albedo;
@@ -156,7 +170,8 @@ void main() {
     // undo, and NOT captured surfaces, which carry real albedo and so do not flood. What stays
     // capped is genuinely uncaptured geometry (translucents with no material data). The guard is
     // "we have material capability at all" -- terrain buffer (vanilla) OR the G-buffer (Sodium).
-    if ((HasMaterial == 1 || HasGBuffer == 1) && !terrainMaterial && !isGlass && !gbufferDynamic) {
+    if ((HasMaterial == 1 || HasGBuffer == 1)
+            && !terrainMaterial && !isGlass && !isWater && !gbufferDynamic) {
         float mag = max(illumination.r, max(illumination.g, illumination.b));
         if (mag > ENTITY_LIGHT_CAP) illumination *= ENTITY_LIGHT_CAP / mag;
     }

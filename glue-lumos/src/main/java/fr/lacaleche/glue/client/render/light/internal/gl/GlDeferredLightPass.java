@@ -31,7 +31,8 @@ public final class GlDeferredLightPass {
                        Matrix4f inverseViewProjection, Vector3d camera, Light light,
                        int width, int height, int[] bounds, @Nullable ShadowParams shadow,
                        int materialColor, int materialDepth,
-                       int gbufferAlbedo, int gbufferId, float[] blobData, int blobCount) {
+                       int gbufferAlbedo, int gbufferId, float[] blobData, int blobCount,
+                       float time) {
         int program = resources.program("glue_light_deferred",
                 "light/deferred.vsh", "light/deferred.fsh");
         if (program == 0 || lightFramebuffer <= 0 || sceneDepth <= 0) return;
@@ -54,6 +55,9 @@ public final class GlDeferredLightPass {
             resources.uniformMatrix(program, "InvViewProj", inverseViewProjection);
             resources.uniformMatrix(program, "ViewProj", viewProjection);
             resources.uniform2f(program, "TexelSize", 1f / width, 1f / height);
+            resources.uniform1f(program, "Time", time);
+            resources.uniform3f(program, "CameraPos",
+                    (float) camera.x, (float) camera.y, (float) camera.z);
             resources.uniform3f(program, "LightPos",
                     (float) (light.x - camera.x),
                     (float) (light.y - camera.y),

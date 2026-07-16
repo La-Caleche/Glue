@@ -65,6 +65,7 @@ public final class ShadowPipelines {
     private static GluePipeline tintColorPipeline;
     private static GluePipeline tintDepthPipeline;
     private static GluePipeline glassGBufferPipeline;
+    private static GluePipeline waterGBufferPipeline;
 
     private ShadowPipelines() {
     }
@@ -119,6 +120,19 @@ public final class ShadowPipelines {
                 .depthTest(DepthTestFunction.LEQUAL_DEPTH_TEST)
                 .depthBias(-1.0f, -10.0f)
                 .build();
+
+        // Water into the shared material G-buffer (see internal/light/water_gbuffer.fsh). Identical
+        // read-only, camera-biased setup to glass: the visible water surface passes the LEQUAL test
+        // against the main depth while a surface behind an opaque wall fails and never overwrites the
+        // terrain id there.
+        waterGBufferPipeline = base("water_gbuffer", "internal/light/water_gbuffer")
+                .noAlphaCutout()
+                .noBlend()
+                .colorWrite(true)
+                .depthWrite(false)
+                .depthTest(DepthTestFunction.LEQUAL_DEPTH_TEST)
+                .depthBias(-1.0f, -10.0f)
+                .build();
     }
 
     private static GluePipeline.Builder base(String name, String fragShader) {
@@ -154,6 +168,13 @@ public final class ShadowPipelines {
         // its discard reads the same averaged alpha, so the two passes agree on
         // which texels exist.
         return blockAtlasType(tintDepthPipeline, "shadow_tint_depth", true);
+    }
+
+    public static RenderType waterGBuffer() {
+        // Vanilla renders water with the MIPPED block sheet; match it so the captured albedo agrees
+        // with the surface the player sees. Camera-biased like glassGBuffer() so only the frontmost
+        // water surface survives the read-only depth test against the main depth.
+        return blockAtlasType(waterGBufferPipeline, "water_gbuffer", true);
     }
 
     public static RenderType glassGBuffer() {
