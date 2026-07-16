@@ -202,14 +202,22 @@ float sampleEntityShadow(vec3 Pb) {
     vec4 clip = LightViewProj * vec4(Pb, 1.0);
     if (clip.w <= 0.0) return 1.0;
     vec3 ndc = clip.xyz / clip.w;
+    if (abs(ndc.z) > 1.0) return 1.0;   // beyond the map's depth range
     vec2 uv = ndc.xy * 0.5 + 0.5;
     if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return 1.0;
+
+    // Same half-texel clamp as sampleShadowMap: the bounds test above passes the centre, not the taps.
+    // The map's CLAMP_TO_EDGE already resolves an outlying tap to the same texel, so this holds the
+    // result independent of that sampler state rather than fixing a live artifact.
+    vec2 lo = vec2(0.5 * ENTITY_TEXEL);
+    vec2 hi = vec2(1.0 - 0.5 * ENTITY_TEXEL);
 
     float refLinear = linearizeShadow(ndc.z * 0.5 + 0.5);
     float lit = 0.0;
     for (int x = -1; x <= 1; x++) {
         for (int y = -1; y <= 1; y++) {
-            float occluder = texture(EntityShadowMap, uv + vec2(x, y) * ENTITY_TEXEL).r;
+            vec2 tap = clamp(uv + vec2(x, y) * ENTITY_TEXEL, lo, hi);
+            float occluder = texture(EntityShadowMap, tap).r;
             lit += step(refLinear - ENTITY_BIAS, linearizeShadow(occluder));
         }
     }
@@ -752,8 +760,14 @@ void main() {
         // response: a coloured in-scatter plus a Fresnel-weighted specular glint that ripples across
         // the surface. The environment reflection itself is added by the screen-space reflection pass;
         // this is the per-light highlight (the light source's own reflection) that pass cannot produce.
-        // Ripple the flat depth-derived normal so the glint sparkles along the surface like real water.
-        vec3 waterN = waterNormal((P + CameraPos).xz, Time);
+        //
+        // The ripple is bounded near +Y, so it may only ride a surface that really is horizontal:
+        // forcing it onto a waterfall's vertical side face (real geometry, stamped id 5 too) would leave
+        // the normal perpendicular to the view and drive the Fresnel below to its maximum. Tested on
+        // abs() because N is flipped camera-facing above, so a surface seen from underwater reads -Y and
+        // is no less horizontal for it; a threshold rather than an exact axis test because N is a
+        // depth-derivative estimate, never exact.
+        vec3 waterN = abs(N.y) > 0.7 ? waterNormal((P + CameraPos).xz, Time) : N;
         float wndotl = dot(waterN, L);
 
         // Water is transparent: keep the broad response LOW (a faint coloured in-scatter, not an
