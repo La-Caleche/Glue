@@ -12,7 +12,8 @@
 
 uniform sampler2D SceneColor;   // unit 0: composited, lit scene colour (sRGB-encoded)
 uniform sampler2D SceneDepth;   // unit 1: scene depth
-uniform sampler2D GBufferId;    // unit 2: material id (R); glass = 4, water = 5
+uniform sampler2D GBufferId;    // unit 2: material id (R); glass = 4, water = 5, metal = 6
+uniform sampler2D GBufferAlbedo;// unit 3: linear albedo (RGB) -- tints a metal's reflection
 uniform int HasGBuffer;         // 1 if the material G-buffer is bound
 
 uniform mat4 InvViewProj;       // clip -> camera-relative world
@@ -49,7 +50,7 @@ float unpackDepth24(vec3 encodedDepth) {
 float surfaceId(vec2 uv) {
     vec4 idSample = texture(GBufferId, uv);
     float id = idSample.r * 255.0;
-    if (id < 3.5 || id > 5.5) return 0.0;
+    if (id < 3.5 || id > 6.5) return 0.0;
     float ownerDepth = unpackDepth24(idSample.gba);
     float sceneDepth = texture(SceneDepth, uv).r;
     vec3 ownerP = reconstruct(uv, ownerDepth);
@@ -122,9 +123,11 @@ void main() {
     if (sceneDepth >= 1.0) discard;               // sky
     float id = surfaceId(texCoord);
     if (id < 0.5) discard;
-    bool water = id > 4.5;
+    bool water = id > 4.5 && id < 5.5;
+    bool metal = id > 5.5;
 
     vec3 P = reconstruct(texCoord, sceneDepth);
+    // Water ripples; glass and metal are blocky, so they take the axis-snapped depth normal.
     vec3 N = water ? waterNormal((P + CameraPos).xz, Time) : glassNormal(texCoord, P);
     if (N == vec3(0.0)) discard;
     vec3 V = normalize(P);                         // camera -> fragment (incident ray)
@@ -180,14 +183,18 @@ void main() {
            * (vec2(1.0) - smoothstep(vec2(0.92), vec2(1.0), hitUV));
     float edge = e.x * e.y;
 
-    // Water reflects more strongly overall and has a lower face-on reflectance than glass.
-    float r0 = water ? WATER_R0 : GLASS_R0;
-    float strength = water ? Strength * 1.4 : Strength;
+    // Metal reflects noticeably but must NOT become a mirror, or it washes the block's texture out to
+    // a milky slab; water reflects more at grazing with a low face-on reflectance; glass least of all.
+    float r0 = metal ? 0.2 : (water ? WATER_R0 : GLASS_R0);
+    float strength = metal ? Strength * 0.7 : (water ? Strength * 1.4 : Strength);
     float fresnel = r0 + (1.0 - r0) * pow(1.0 - max(dot(N, -V), 0.0), 5.0);
     float alpha = clamp(fresnel * strength * edge, 0.0, 1.0);
     if (alpha <= 0.0) discard;
 
     vec3 reflected = texture(SceneColor, hitUV).rgb;
+    // A metal's reflection takes on the metal's own colour (a gold block reflects gold), so tint the
+    // reflected scene by the captured albedo.
+    if (metal) reflected *= texture(GBufferAlbedo, texCoord).rgb;
     // A NaN/Inf sample renders as a solid black block and blends it straight onto the surface.
     // Drop the fragment rather than leak it; a missing reflection is invisible, a black hole isn't.
     if (any(isnan(reflected)) || any(isinf(reflected))) discard;

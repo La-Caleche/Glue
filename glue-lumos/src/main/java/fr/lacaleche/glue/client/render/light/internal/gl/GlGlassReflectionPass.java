@@ -38,7 +38,7 @@ public final class GlGlassReflectionPass {
      * @param sceneDepth  copy of the scene depth, sampled along the reflection ray
      * @param gbufferId   material-id attachment: pane pixels carry the GLASS id (4)
      */
-    public void render(int sceneColor, int sceneDepth, int gbufferId,
+    public void render(int sceneColor, int sceneDepth, int gbufferId, int gbufferAlbedo,
                        Matrix4f viewProjection, Matrix4f inverseViewProjection,
                        Vector3d cameraPos, float time,
                        int destinationFramebuffer, int width, int height) {
@@ -74,6 +74,9 @@ public final class GlGlassReflectionPass {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, gbufferId);
             resources.uniform1i(program, "GBufferId", 2);
             resources.uniform1i(program, "HasGBuffer", 1);
+            GL13.glActiveTexture(GL13.GL_TEXTURE3);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, Math.max(gbufferAlbedo, 0));
+            resources.uniform1i(program, "GBufferAlbedo", 3);
 
             resources.uniformMatrix(program, "InvViewProj", inverseViewProjection);
             resources.uniformMatrix(program, "ViewProj", viewProjection);

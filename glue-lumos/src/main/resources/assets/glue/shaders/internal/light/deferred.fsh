@@ -18,6 +18,8 @@ uniform int HasMaterial;
 uniform sampler2D GBufferAlbedo;  // unit 9: dynamic (entity) albedo + packed normal (A)
 uniform sampler2D GBufferId;      // unit 10: dynamic material id (R) + owning depth24 (GBA)
 uniform int HasGBuffer;           // 1 if the dynamic material G-buffer is bound
+uniform sampler2D MaterialProps;  // unit 12: roughness (R) + metalness (G) + F0 (B)
+uniform int HasMaterialProps;     // 1 if the material-properties attachment is bound
 
 // Entity blob shadows: nearby entities approximated as vertical capsules that occlude this light.
 // Entities are not in the (cached) shadow maps -- they move every frame -- so their shadow is added
@@ -562,6 +564,7 @@ void main() {
     bool gbufferParticle = gbufferOwned && gbufferId > 2.5 && gbufferId < 3.5;
     bool gbufferGlass = gbufferOwned && gbufferId > 3.5 && gbufferId < 4.5;
     bool gbufferWater = gbufferOwned && gbufferId > 4.5 && gbufferId < 5.5;
+    bool gbufferMetal = gbufferOwned && gbufferId > 5.5;
 
     vec3 N;
     if (gbufferSolid) {
@@ -685,6 +688,7 @@ void main() {
     // opacity (A).
     bool isGlass = gbufferGlass;
     bool isWater = gbufferWater;
+    bool isMetal = gbufferMetal;
     vec4 glassAlbedo = vec4(0.0);
     if (isGlass) {
         glassAlbedo = texture(GBufferAlbedo, texCoord);
@@ -770,6 +774,27 @@ void main() {
         float sheen = pow(max(dot(waterN, halfVec), 0.0), 70.0) * 0.12;
         float sparkle = pow(max(dot(waterN, halfVec), 0.0), 320.0) * 0.5;
         specular = (sheen + sparkle) * fresnel * step(0.0, wndotl) * step(1e-6, halfLen);
+    } else if (isMetal) {
+        // Metal: no diffuse -- all the light response is an albedo-TINTED specular (a gold block
+        // reflects gold). The roughness from the material-props attachment drives the lobe width.
+        // Vanilla already drew the block's base colour, so this adds the shiny highlight on top; the
+        // environment reflection itself comes from the screen-space reflection pass.
+        vec3 metalAlbedo = texture(GBufferAlbedo, texCoord).rgb;
+        float roughness = HasMaterialProps == 1 ? texture(MaterialProps, texCoord).r : 0.3;
+
+        vec3 halfSum = L + viewDir;
+        float halfLen = length(halfSum);
+        vec3 halfVec = halfLen > 1e-6 ? halfSum / halfLen : N;
+        float shininess = mix(400.0, 16.0, clamp(roughness, 0.0, 1.0));
+        float spec = pow(max(dot(N, halfVec), 0.0), shininess) * step(0.0, ndotl) * step(1e-6, halfLen);
+        float fres = 0.5 + 0.5 * pow(1.0 - max(dot(N, viewDir), 0.0), 5.0);
+        // A moderate diffuse keeps the block's texture and colour visible (a pure-specular metal on a
+        // pixel-art texture reads as a washed-out slab), plus a softer albedo-tinted glint. Both go
+        // into `diffuse` so the shared result line tints them by the metal albedo; a small ambient
+        // keeps metal in shadow from going black.
+        diffuse = max(ndotl, 0.0) * 0.35 + spec * fres * 0.6;
+        indirect = 0.06;
+        tint = metalAlbedo;
     } else {
         // Keep Lambertian direct light exact. The indirect term approximates the
         // low-frequency fill that even a small skylight opening contributes in vanilla:

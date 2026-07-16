@@ -48,6 +48,7 @@ final class DeferredLightPass {
         int materialDepth = frame.materialDepthTextureId();
         int gbufferAlbedo = GBufferCapture.albedoNormalTextureId();
         int gbufferId = GBufferCapture.materialIdTextureId();
+        int gbufferProps = GBufferCapture.materialPropsTextureId();
 
         // Seconds for water ripple animation, wrapped to a day to keep the sine phase precise.
         float time = minecraft.level != null
@@ -65,13 +66,13 @@ final class DeferredLightPass {
                 int blobCount = EntityShadowBlobs.collect(minecraft, light, camera, partialTick, blobData);
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
                         camera, light, bounds, null, materialColor, materialDepth,
-                        gbufferAlbedo, gbufferId, blobCount, time);
+                        gbufferAlbedo, gbufferId, gbufferProps, blobCount, time);
                 continue;
             }
             for (ShadowParams map : maps) {
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
                         camera, light, bounds, map, materialColor, materialDepth,
-                        gbufferAlbedo, gbufferId, 0, time);
+                        gbufferAlbedo, gbufferId, gbufferProps, 0, time);
             }
         }
 
@@ -100,7 +101,7 @@ final class DeferredLightPass {
         if (gbufferId > 0) {
             accumulator.captureScene(frame.framebufferId());
             reflection.render(accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
-                    gbufferId, viewProjection, inverseViewProjection, camera, time,
+                    gbufferId, gbufferAlbedo, viewProjection, inverseViewProjection, camera, time,
                     frame.framebufferId(), frame.width(), frame.height());
         }
     }
@@ -117,11 +118,12 @@ final class DeferredLightPass {
                             Matrix4f viewProjection, Matrix4f inverseViewProjection,
                             Vector3d camera, Light light, int[] bounds, ShadowParams shadow,
                             int materialColor, int materialDepth,
-                            int gbufferAlbedo, int gbufferId, int blobCount, float time) {
+                            int gbufferAlbedo, int gbufferId, int gbufferProps, int blobCount, float time) {
         deferred.render(lightFramebuffer, frame.sceneDepthTextureId(),
                 viewProjection, inverseViewProjection, camera, light,
                 frame.width(), frame.height(), bounds, shadow,
-                materialColor, materialDepth, gbufferAlbedo, gbufferId, blobData, blobCount, time);
+                materialColor, materialDepth, gbufferAlbedo, gbufferId, gbufferProps,
+                blobData, blobCount, time);
     }
 
 }

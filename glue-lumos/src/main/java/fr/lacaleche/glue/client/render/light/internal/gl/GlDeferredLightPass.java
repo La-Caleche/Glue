@@ -31,8 +31,8 @@ public final class GlDeferredLightPass {
                        Matrix4f inverseViewProjection, Vector3d camera, Light light,
                        int width, int height, int[] bounds, @Nullable ShadowParams shadow,
                        int materialColor, int materialDepth,
-                       int gbufferAlbedo, int gbufferId, float[] blobData, int blobCount,
-                       float time) {
+                       int gbufferAlbedo, int gbufferId, int gbufferProps,
+                       float[] blobData, int blobCount, float time) {
         int program = resources.program("glue_light_deferred",
                 "light/deferred.vsh", "light/deferred.fsh");
         if (program == 0 || lightFramebuffer <= 0 || sceneDepth <= 0) return;
@@ -104,6 +104,9 @@ public final class GlDeferredLightPass {
             bindTexture(program, "GBufferAlbedo", 9, hasGBuffer ? gbufferAlbedo : 0);
             bindTexture(program, "GBufferId", 10, hasGBuffer ? gbufferId : 0);
             resources.uniform1i(program, "HasGBuffer", hasGBuffer ? 1 : 0);
+
+            bindTexture(program, "MaterialProps", 12, gbufferProps > 0 ? gbufferProps : 0);
+            resources.uniform1i(program, "HasMaterialProps", gbufferProps > 0 ? 1 : 0);
 
             // Entity blob shadows: two vec4 per capsule (lower axis + radius, upper axis).
             if (blobCount > 0) {

@@ -38,6 +38,8 @@ public final class GBufferCapture {
             ResourceLocation.fromNamespaceAndPath("glue", "internal/light/glass_gbuffer");
     private static final ResourceLocation WATER_SHADER =
             ResourceLocation.fromNamespaceAndPath("glue", "internal/light/water_gbuffer");
+    private static final ResourceLocation METAL_SHADER =
+            ResourceLocation.fromNamespaceAndPath("glue", "internal/light/metal_gbuffer");
     private static final GBufferTargets TARGETS = new GBufferTargets();
 
     private static boolean frameReady;
@@ -46,6 +48,7 @@ public final class GBufferCapture {
     // draw rather than by the world phase (which is already closed by then).
     private static boolean glassCaptureActive;
     private static boolean waterCaptureActive;
+    private static boolean metalCaptureActive;
 
     // Entity shadow maps re-render entities from a light's POV, post-world. Vanilla entity draws only
     // honour the framebuffer bound at the trySetup seam (not RenderSystem's output override), so the
@@ -142,6 +145,25 @@ public final class GBufferCapture {
         TARGETS.endGlassPass();
     }
 
+    /**
+     * Opens the metal capture: like glass/water it restricts the shared FBO to its material
+     * attachments (1,2,3) and arms the redirect for metal draws. Returns false (drawing nothing) if
+     * the target is not ready. Pair every {@code true} return with {@link #endMetalCapture()}.
+     */
+    public static boolean beginMetalCapture() {
+        if (!frameReady) return false;
+        TARGETS.beginGlassPass();
+        metalCaptureActive = true;
+        return true;
+    }
+
+    /** Closes the metal capture and restores the full draw-buffer set. */
+    public static void endMetalCapture() {
+        if (!metalCaptureActive) return;
+        metalCaptureActive = false;
+        TARGETS.endGlassPass();
+    }
+
     /** Called at {@code setPipeline}: record whether the draw about to run should be redirected. */
     public static void armForPipeline(RenderPipeline pipeline) {
         pendingFbo = redirectFboFor(pipeline);
@@ -184,6 +206,11 @@ public final class GBufferCapture {
         // material-only redirect -- attachment 0 keeps the water colour vanilla already blended.
         if (waterCaptureActive && frameReady
                 && WATER_SHADER.equals(pipeline.getFragmentShader())) {
+            return TARGETS.framebufferId();
+        }
+        // Metal: a post-world re-render of nearby curated metal blocks, armed explicitly like glass.
+        if (metalCaptureActive && frameReady
+                && METAL_SHADER.equals(pipeline.getFragmentShader())) {
             return TARGETS.framebufferId();
         }
         if (!frameReady || !inWorldPhase) return 0;

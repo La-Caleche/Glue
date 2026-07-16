@@ -66,6 +66,7 @@ public final class ShadowPipelines {
     private static GluePipeline tintDepthPipeline;
     private static GluePipeline glassGBufferPipeline;
     private static GluePipeline waterGBufferPipeline;
+    private static GluePipeline metalGBufferPipeline;
 
     private ShadowPipelines() {
     }
@@ -133,6 +134,19 @@ public final class ShadowPipelines {
                 .depthTest(DepthTestFunction.LEQUAL_DEPTH_TEST)
                 .depthBias(-1.0f, -10.0f)
                 .build();
+
+        // Metal into the shared material G-buffer (see internal/light/metal_gbuffer.fsh). Opaque, but
+        // the re-render still only writes the material attachments (main colour is already drawn), so
+        // it uses the same read-only, camera-biased setup as glass: the visible metal surface passes
+        // the LEQUAL test against the main depth and overwrites the terrain id there.
+        metalGBufferPipeline = base("metal_gbuffer", "internal/light/metal_gbuffer")
+                .noAlphaCutout()
+                .noBlend()
+                .colorWrite(true)
+                .depthWrite(false)
+                .depthTest(DepthTestFunction.LEQUAL_DEPTH_TEST)
+                .depthBias(-1.0f, -10.0f)
+                .build();
     }
 
     private static GluePipeline.Builder base(String name, String fragShader) {
@@ -168,6 +182,12 @@ public final class ShadowPipelines {
         // its discard reads the same averaged alpha, so the two passes agree on
         // which texels exist.
         return blockAtlasType(tintDepthPipeline, "shadow_tint_depth", true);
+    }
+
+    public static RenderType metalGBuffer() {
+        // Vanilla renders opaque terrain with the MIPPED block sheet; match it so the captured albedo
+        // (which tints the metal's reflection) agrees with the block the player sees.
+        return blockAtlasType(metalGBufferPipeline, "metal_gbuffer", true);
     }
 
     public static RenderType waterGBuffer() {
