@@ -161,14 +161,33 @@ public class VecHelperTest {
     }
 
     @Test
-    public void intersectSphere_rayAlignedWithSphere_returnsFarHitPoint() {
+    public void intersectSphere_rayAlignedWithSphere_returnsNearHitPoint() {
         Vec3 hit = VecHelper.intersectSphere(
                 new Vec3(-5, 0, 0), new Vec3(1, 0, 0),
                 new Vec3(0, 0, 0), 1.0);
         assertNotNull(hit);
-        assertEquals(1.0, hit.x, EPS, "Far hit point should be at x=+1");
+        assertEquals(-1.0, hit.x, EPS, "Ray from outside should hit the near face at x=-1");
         assertEquals(0.0, hit.y, EPS);
         assertEquals(0.0, hit.z, EPS);
+    }
+
+    @Test
+    public void intersectSphere_originInsideSphere_returnsForwardExitPoint() {
+        Vec3 hit = VecHelper.intersectSphere(
+                new Vec3(-0.5, 0, 0), new Vec3(1, 0, 0),
+                new Vec3(0, 0, 0), 1.0);
+        assertNotNull(hit);
+        assertEquals(1.0, hit.x, EPS, "The only forward hit from inside is the exit at x=+1");
+        assertEquals(0.0, hit.y, EPS);
+        assertEquals(0.0, hit.z, EPS);
+    }
+
+    @Test
+    public void intersectSphere_sphereBehindOrigin_returnsNull() {
+        Vec3 hit = VecHelper.intersectSphere(
+                new Vec3(5, 0, 0), new Vec3(1, 0, 0),
+                new Vec3(0, 0, 0), 1.0);
+        assertNull(hit, "A sphere entirely behind the ray should not intersect");
     }
 
     @Test
