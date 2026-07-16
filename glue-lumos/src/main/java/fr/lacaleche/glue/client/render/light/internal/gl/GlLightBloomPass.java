@@ -14,11 +14,11 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 
 /**
- * Quarter-resolution bloom built from the HDR light buffer. A bright-pass downsample feeds
- * a separable Gaussian blur run twice with a growing step, giving a wide soft glow around
- * brightly-lit areas for a fraction of a full-resolution pass. Because it reads Lumos' light
- * contribution rather than the final image, it glows only what Lumos lit -- never vanilla's
- * own bright pixels.
+ * Quarter-resolution bloom built from the composited HDR lit scene. A bright-pass downsample
+ * feeds a separable Gaussian blur run twice with a growing step, giving a wide soft glow around
+ * bright areas for a fraction of a full-resolution pass. It reads the lit buffer -- the visible
+ * on-screen brightness -- rather than the raw light field, so the glow tracks whatever actually
+ * looks bright, vanilla's own highlights (sun, moon) included, not only what Lumos lit.
  */
 @Environment(EnvType.CLIENT)
 public final class GlLightBloomPass {
@@ -43,11 +43,11 @@ public final class GlLightBloomPass {
     }
 
     /**
-     * Produces the blurred bloom texture from {@code lightTexture} (full-resolution HDR
-     * light). Returns the bloom color texture id at quarter resolution, or 0 if unavailable.
+     * Produces the blurred bloom texture from {@code litTexture} (the full-resolution HDR lit
+     * scene). Returns the bloom color texture id at quarter resolution, or 0 if unavailable.
      */
-    public int apply(int lightTexture, int fullWidth, int fullHeight) {
-        if (lightTexture <= 0) return 0;
+    public int apply(int litTexture, int fullWidth, int fullHeight) {
+        if (litTexture <= 0) return 0;
         int bright = resources.program("glue_bloom_bright",
                 "light/deferred.vsh", "light/bloom_bright.fsh");
         int blur = resources.program("glue_bloom_blur",
@@ -71,13 +71,13 @@ public final class GlLightBloomPass {
             GL11.glViewport(0, 0, bw, bh);
 
             GL20.glUseProgram(bright);
-            resources.uniform1i(bright, "LightTex", 0);
+            resources.uniform1i(bright, "LitTex", 0);
             resources.uniform2f(bright, "SrcTexel", 1f / fullWidth, 1f / fullHeight);
             resources.uniform1f(bright, "Threshold", THRESHOLD);
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fboA);
             GL20.glDrawBuffers(new int[]{GL30.GL_COLOR_ATTACHMENT0});
             GL13.glActiveTexture(GL13.GL_TEXTURE0);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, lightTexture);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, litTexture);
             resources.drawFullscreen(bright);
 
             GL20.glUseProgram(blur);

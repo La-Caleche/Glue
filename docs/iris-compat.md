@@ -52,7 +52,7 @@ Iris's `redirectIrisProgram` mixin intercepts pipeline compilation. `withIrisByp
 
 `apply()` uses the shared `SavedGlState` utility to save and restore comprehensive GL state:
 program, read/draw FBOs, the complete MRT draw-buffer vector and read buffer, bound array buffer,
-VAO, texture bindings for units 0–8, blend (with per-channel src/dst), depth test/func/mask,
+VAO, texture bindings for units 0–12, blend (with per-channel src/dst), depth test/func/mask,
 cull, scissor, color mask, active texture, and viewport.
 
 ## 5. Deferred Draw Queue
