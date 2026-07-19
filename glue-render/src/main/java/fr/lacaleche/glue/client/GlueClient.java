@@ -58,7 +58,7 @@ public class GlueClient implements ClientModInitializer {
             TerrainMaterialBuffer.beginFrame();
             GBufferCapture.beginFrame();
         });
-        RenderEvents.POST_WORLD_RENDER.register(GBufferCapture::endWorldPhase);
+        RenderEvents.POST_WORLD_RENDER.register(RenderEvents.PHASE_CAPTURE, GBufferCapture::endWorldPhase);
         RaycastUtils.register();
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
