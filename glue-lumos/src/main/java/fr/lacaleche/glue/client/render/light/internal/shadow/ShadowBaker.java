@@ -17,6 +17,7 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +73,9 @@ public final class ShadowBaker {
     private static final int ENTITY_MAP_SIZE = 512;
     /** Cap on entities rendered into one light's shadow maps, to bound the per-frame cost. */
     private static final int MAX_SHADOW_ENTITIES = 16;
+    /** Radians the spot cone is widened by when culling entity casters, so an entity straddling the
+     *  cone rim still casts. ~14 degrees, comfortably past a typical entity's angular size past NEAR. */
+    private static final double CONE_MARGIN = 0.25;
 
     /** One shadow-casting light's slot: its renderers, its baked maps, and who owns it. */
     private static final class Slot {
@@ -393,18 +397,62 @@ public final class ShadowBaker {
         return augmented;
     }
 
+    /**
+     * The living entities whose shadow this light should render, capped at {@link #MAX_SHADOW_ENTITIES}.
+     *
+     * <p>When more than the cap are in range, the <em>nearest</em> are kept: they cast the most
+     * prominent shadows and are the ones most likely on screen. Selecting by distance also keeps the
+     * chosen set stable frame to frame -- the previous first-N-in-query-order pick flickered as entities
+     * crossed the level's internal section boundaries. For a spot or gobo, entities outside the cone are
+     * dropped first: the cone is convex from the light, so an occluder outside it cannot shadow any
+     * receiver inside it, and rendering it would only waste a shadow slot.</p>
+     */
     private static List<Entity> collectEntities(Minecraft mc, Light light) {
         if (mc.level == null) return List.of();
         double reach = light.range;
         AABB box = new AABB(light.x - reach, light.y - reach, light.z - reach,
                 light.x + reach, light.y + reach, light.z + reach);
+
+        boolean cone = light.type != LightType.POINT;
+        // Cosine of the outer half-angle widened by a margin, so an entity straddling the cone rim is
+        // not clipped. Compared against the direction to the entity centre.
+        float coneLimit = cone
+                ? (float) Math.cos(Math.min(Math.PI,
+                        Math.acos(Math.clamp(light.cosOuter, -1f, 1f)) + CONE_MARGIN))
+                : -1f;
+        double nearSquared = LightDepthSceneRenderer.NEAR_LIGHT * LightDepthSceneRenderer.NEAR_LIGHT;
+
         List<Entity> entities = new ArrayList<>();
         for (LivingEntity entity : mc.level.getEntitiesOfClass(LivingEntity.class, box,
                 candidate -> !candidate.isSpectator() && !candidate.isInvisible())) {
+            if (cone) {
+                double dx = entity.getX() - light.x;
+                double dy = entity.getY() + entity.getBbHeight() * 0.5 - light.y;
+                double dz = entity.getZ() - light.z;
+                double distSquared = dx * dx + dy * dy + dz * dz;
+                // Very near the light the direction is unreliable and the entity dominates the map, so
+                // keep it regardless -- matching the point-face selection's own near-light exception.
+                if (distSquared > nearSquared) {
+                    double cosine = (dx * light.directionX + dy * light.directionY + dz * light.directionZ)
+                            / Math.sqrt(distSquared);
+                    if (cosine < coneLimit) continue;
+                }
+            }
             entities.add(entity);
-            if (entities.size() >= MAX_SHADOW_ENTITIES) break;
+        }
+
+        if (entities.size() > MAX_SHADOW_ENTITIES) {
+            entities.sort(Comparator.comparingDouble(entity -> distanceSquaredToLight(light, entity)));
+            return new ArrayList<>(entities.subList(0, MAX_SHADOW_ENTITIES));
         }
         return entities;
+    }
+
+    private static double distanceSquaredToLight(Light light, Entity entity) {
+        double dx = entity.getX() - light.x;
+        double dy = entity.getY() + entity.getBbHeight() * 0.5 - light.y;
+        double dz = entity.getZ() - light.z;
+        return dx * dx + dy * dy + dz * dz;
     }
 
     @Nullable
