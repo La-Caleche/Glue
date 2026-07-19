@@ -18,8 +18,16 @@ dependencies {
     modImplementation(libs.fabric.api)
 
     compileOnly(libs.iris)
-    if (providers.gradleProperty("glue.showcase.sodium").orNull != "false") {
+
+    val irisRuntime: Boolean = providers.gradleProperty("glue.showcase.iris").orNull == "true"
+
+    // Iris hard-depends on Sodium 0.7.x, so enabling it has to pull Sodium in even when the Sodium flag is off.
+    if (providers.gradleProperty("glue.showcase.sodium").orNull != "false" || irisRuntime) {
         modRuntimeOnly(libs.sodium)
+    }
+
+    if (irisRuntime) {
+        modRuntimeOnly(libs.iris)
     }
 
     implementation("org.lwjgl:lwjgl-nfd:3.3.3")
