@@ -1,7 +1,6 @@
 package fr.lacaleche.glue.client.render.light.internal.pipeline;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
 import fr.lacaleche.glue.client.render.light.Light;
 import fr.lacaleche.glue.client.render.light.LightManager;
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
@@ -50,10 +49,7 @@ public final class LightRenderCoordinator {
         int fbo = FramebufferHelper.getFramebufferId(main);
         int depth = FramebufferHelper.getDepthTextureId(main);
         if (fbo <= 0 || depth <= 0) return;
-        int materialColor = TerrainMaterialBuffer.currentColorTextureId();
-        int materialDepth = TerrainMaterialBuffer.currentDepthTextureId();
-        LumosFrame frame = new LumosFrame(fbo, depth, main.width, main.height, view, projection,
-                materialColor, materialDepth);
+        LumosFrame frame = new LumosFrame(fbo, depth, main.width, main.height, view, projection);
 
         Matrix4f viewProjection = new Matrix4f(projection).mul(view);
         Matrix4f inverseViewProjection = new Matrix4f(viewProjection).invert();
@@ -114,6 +110,10 @@ public final class LightRenderCoordinator {
 
     public void cleanup() {
         deferredPass.cleanup();
+        // The shadow maps and re-render targets live on the world context, so releasing only the
+        // deferred pass would leave the largest allocations resident.
+        WorldLightContext context = LightManager.getInstance().currentWorld();
+        if (context != null) context.resetRenderCaches();
     }
 
     private List<Light> cull(Minecraft minecraft, List<Light> all,

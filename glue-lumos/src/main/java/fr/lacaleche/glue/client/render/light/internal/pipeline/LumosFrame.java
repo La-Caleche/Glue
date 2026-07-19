@@ -9,8 +9,6 @@ record LumosFrame(
         int width,
         int height,
         Matrix4f viewMatrix,
-        Matrix4f projectionMatrix,
-        int materialColorTextureId,
-        int materialDepthTextureId
+        Matrix4f projectionMatrix
 ) {
 }

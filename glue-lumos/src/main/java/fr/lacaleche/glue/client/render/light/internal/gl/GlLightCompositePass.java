@@ -18,7 +18,6 @@ public final class GlLightCompositePass {
     }
 
     public boolean render(int lightTexture, int sceneColor, int sceneDepth,
-                          int materialColor, int materialDepth,
                           int gbufferAlbedo, int gbufferId,
                           Matrix4f inverseViewProjection,
                           int destinationFramebuffer, int width, int height) {
@@ -41,19 +40,11 @@ public final class GlLightCompositePass {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, sceneColor);
             resources.uniform1i(program, "SceneTex", 1);
 
-            boolean hasMaterial = materialColor > 0 && materialDepth > 0 && sceneDepth > 0;
-            GL13.glActiveTexture(GL13.GL_TEXTURE2);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, hasMaterial ? materialColor : 0);
-            GL13.glActiveTexture(GL13.GL_TEXTURE3);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, hasMaterial ? materialDepth : 0);
-            // SceneDepth is also sampled by the glass and entity-ownership paths, not just
-            // terrain material, so bind it whenever it exists -- independent of HasMaterial.
+            // SceneDepth carries every material-ownership test in the shader, so bind it whenever
+            // it exists.
             GL13.glActiveTexture(GL13.GL_TEXTURE4);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, sceneDepth > 0 ? sceneDepth : 0);
-            resources.uniform1i(program, "MaterialAlbedo", 2);
-            resources.uniform1i(program, "MaterialDepth", 3);
             resources.uniform1i(program, "SceneDepth", 4);
-            resources.uniform1i(program, "HasMaterial", hasMaterial ? 1 : 0);
 
             resources.uniformMatrix(program, "InvViewProj", inverseViewProjection);
 

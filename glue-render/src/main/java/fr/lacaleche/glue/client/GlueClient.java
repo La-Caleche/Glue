@@ -42,7 +42,7 @@ public class GlueClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        TerrainMaterialBuffer.init();
+        TerrainMaterialBuffer.releaseOnClose(GBufferCapture::cleanup);
         FboDebugHud.registerTexture("GBuffer Albedo+N", GBufferCapture::albedoNormalTextureId);
         FboDebugHud.registerTexture("GBuffer MaterialID", GBufferCapture::materialIdTextureId);
         FboDebugHud.registerTexture("GBuffer MaterialProps", GBufferCapture::materialPropsTextureId);

@@ -1,8 +1,8 @@
 #version 150
 
 // Deferred light accumulation pass. Runs once per light, additively blended into
-// an HDR lighting buffer. Normals are reconstructed from the scene depth buffer
-// (the vanilla path has no normal G-buffer).
+// an HDR lighting buffer. Normals come from the material G-buffer wherever a captured
+// surface owns the pixel, and are reconstructed from the scene depth buffer otherwise.
 
 uniform sampler2D SceneDepth;   // unit 0: main render target depth
 uniform sampler2D Gobo;         // unit 1: projected mask (GOBO only)
@@ -12,12 +12,9 @@ uniform int HasShadowTint;      // 1 if the transmittance + tint depth maps are 
 uniform sampler2D TintDepth;    // unit 6: light-POV depth, opaque PLUS translucent
 uniform sampler2D EntityShadowMap; // unit 11: per-frame entity depth from the light POV (shares LightViewProj)
 uniform int HasEntityShadow;    // 1 if an entity shadow map is bound for this light
-uniform sampler2D MaterialAlbedo; // unit 7: linear terrain albedo + packed normal
-uniform sampler2D MaterialDepth;  // unit 8: opaque terrain depth at capture time
-uniform int HasMaterial;
-uniform sampler2D GBufferAlbedo;  // unit 9: dynamic (entity) albedo + packed normal (A)
-uniform sampler2D GBufferId;      // unit 10: dynamic material id (R) + owning depth24 (GBA)
-uniform int HasGBuffer;           // 1 if the dynamic material G-buffer is bound
+uniform sampler2D GBufferAlbedo;  // unit 9: captured albedo + packed normal (A)
+uniform sampler2D GBufferId;      // unit 10: material id (R) + owning depth24 (GBA)
+uniform int HasGBuffer;           // 1 if the material G-buffer is bound
 uniform sampler2D MaterialProps;  // unit 12: roughness (R) + metalness (G) + F0 (B)
 uniform int HasMaterialProps;     // 1 if the material-properties attachment is bound
 
@@ -543,14 +540,6 @@ void main() {
     // cube-face test has to wait until the shadow bias is known -- see below.
     if (distance(P, LightPos) > Range) discard;
 
-    bool terrainMaterial = false;
-    vec4 material = vec4(0.0);
-    if (HasMaterial == 1) {
-        float materialDepth = texture(MaterialDepth, texCoord).r;
-        terrainMaterial = materialDepth < 1.0 && abs(materialDepth - depth) < 1e-5;
-        if (terrainMaterial) material = texture(MaterialAlbedo, texCoord);
-    }
-
     // A captured surface (terrain id 1, entity id 2, particle id 3, glass id 4) that still owns
     // this pixel gets its real material data instead of the depth-derivative fallback, which reads
     // a silhouette as geometry. Ownership: the depth it wrote still resolves to the scene surface
@@ -583,11 +572,10 @@ void main() {
         vec3 toLight = LightPos - P;
         float toLightLen = length(toLight);
         N = toLightLen > 1e-4 ? toLight / toLightLen : vec3(0.0, 1.0, 0.0);
-    } else if (terrainMaterial) {
-        N = unpackNormal(material.a);
     } else {
-        // Fallback for entities and translucent surfaces: reconstruct an edge-aware
-        // normal from neighbouring depth because they are not in the terrain buffer.
+        // Everything with no captured normal: glass, water and metal (which carry albedo but
+        // derive their normal here) and any surface the G-buffer never claimed. Reconstruct an
+        // edge-aware normal from neighbouring depth.
         float dr = texture(SceneDepth, texCoord + vec2(TexelSize.x, 0.0)).r;
         float dl = texture(SceneDepth, texCoord - vec2(TexelSize.x, 0.0)).r;
         float du = texture(SceneDepth, texCoord + vec2(0.0, TexelSize.y)).r;

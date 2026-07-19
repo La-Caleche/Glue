@@ -30,7 +30,6 @@ public final class GlDeferredLightPass {
     public void render(int lightFramebuffer, int sceneDepth, Matrix4f viewProjection,
                        Matrix4f inverseViewProjection, Vector3d camera, Light light,
                        int width, int height, int[] bounds, @Nullable ShadowParams shadow,
-                       int materialColor, int materialDepth,
                        int gbufferAlbedo, int gbufferId, int gbufferProps,
                        float[] blobData, int blobCount, float time) {
         int program = resources.program("glue_light_deferred",
@@ -94,11 +93,6 @@ public final class GlDeferredLightPass {
             boolean hasEntityShadow = hasShadow && shadow.entityDepthId() > 0;
             bindTexture(program, "EntityShadowMap", 11, hasEntityShadow ? shadow.entityDepthId() : 0);
             resources.uniform1i(program, "HasEntityShadow", hasEntityShadow ? 1 : 0);
-
-            boolean hasMaterial = materialColor > 0 && materialDepth > 0;
-            bindTexture(program, "MaterialAlbedo", 7, hasMaterial ? materialColor : 0);
-            bindTexture(program, "MaterialDepth", 8, hasMaterial ? materialDepth : 0);
-            resources.uniform1i(program, "HasMaterial", hasMaterial ? 1 : 0);
 
             boolean hasGBuffer = gbufferAlbedo > 0 && gbufferId > 0;
             bindTexture(program, "GBufferAlbedo", 9, hasGBuffer ? gbufferAlbedo : 0);

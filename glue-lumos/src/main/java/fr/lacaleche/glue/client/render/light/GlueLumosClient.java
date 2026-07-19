@@ -22,6 +22,7 @@ public final class GlueLumosClient implements ClientModInitializer {
     public void onInitializeClient() {
         LightRenderer.init();
         TerrainMaterialBuffer.requestWhen(() -> !LightManager.getInstance().isEmpty());
+        TerrainMaterialBuffer.releaseOnClose(LightRenderer::cleanup);
         switchWorld(Minecraft.getInstance().level);
         ClientWorldEvents.AFTER_CLIENT_WORLD_CHANGE.register((client, level) -> switchWorld(level));
         ClientChunkEvents.CHUNK_LOAD.register((level, chunk) -> invalidateChunk(level, chunk.getPos()));
