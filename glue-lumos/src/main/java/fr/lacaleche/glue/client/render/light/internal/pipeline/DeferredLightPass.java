@@ -44,8 +44,6 @@ final class DeferredLightPass {
         int lightFramebuffer = accumulator.getFramebufferId();
         if (lightFramebuffer <= 0) return;
 
-        int materialColor = frame.materialColorTextureId();
-        int materialDepth = frame.materialDepthTextureId();
         int gbufferAlbedo = GBufferCapture.albedoNormalTextureId();
         int gbufferId = GBufferCapture.materialIdTextureId();
         int gbufferProps = GBufferCapture.materialPropsTextureId();
@@ -65,13 +63,13 @@ final class DeferredLightPass {
                 // real per-frame entity depth map, so collecting (and uploading) blobs for it is waste.
                 int blobCount = EntityShadowBlobs.collect(minecraft, light, camera, partialTick, blobData);
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
-                        camera, light, bounds, null, materialColor, materialDepth,
+                        camera, light, bounds, null,
                         gbufferAlbedo, gbufferId, gbufferProps, blobCount, time);
                 continue;
             }
             for (ShadowParams map : maps) {
                 accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
-                        camera, light, bounds, map, materialColor, materialDepth,
+                        camera, light, bounds, map,
                         gbufferAlbedo, gbufferId, gbufferProps, 0, time);
             }
         }
@@ -86,7 +84,6 @@ final class DeferredLightPass {
         int litTexture = accumulator.getLitTextureId();
         boolean composited = composite.render(denoised,
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
-                materialColor, materialDepth,
                 gbufferAlbedo, gbufferId, inverseViewProjection,
                 accumulator.getLitFramebufferId(),
                 frame.width(), frame.height());
@@ -117,12 +114,11 @@ final class DeferredLightPass {
     private void accumulate(int lightFramebuffer, LumosFrame frame,
                             Matrix4f viewProjection, Matrix4f inverseViewProjection,
                             Vector3d camera, Light light, int[] bounds, ShadowParams shadow,
-                            int materialColor, int materialDepth,
                             int gbufferAlbedo, int gbufferId, int gbufferProps, int blobCount, float time) {
         deferred.render(lightFramebuffer, frame.sceneDepthTextureId(),
                 viewProjection, inverseViewProjection, camera, light,
                 frame.width(), frame.height(), bounds, shadow,
-                materialColor, materialDepth, gbufferAlbedo, gbufferId, gbufferProps,
+                gbufferAlbedo, gbufferId, gbufferProps,
                 blobData, blobCount, time);
     }
 

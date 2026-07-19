@@ -1,25 +1,30 @@
 package fr.lacaleche.glue.client.render.internal.gbuffer;
 
+import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.platform.DestFactor;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.ResourceLocation;
 
+import java.util.Optional;
+
 /**
- * Drives the dynamic (entity) material capture into the {@link GBufferTargets} MRT.
+ * Drives the vanilla material capture into the {@link GBufferTargets} MRT.
  *
  * <p>Geometry is drawn once, by vanilla, but redirected into our multi-attachment framebuffer so
- * a single draw fills colour + material + depth together. The redirect is armed by
- * <em>pipeline vertex format</em> at {@code GlRenderPass.setPipeline}, not by the draw method:
- * Iris's {@code batchedentityrendering} replaces the world-entity buffer source even with no
- * shaderpack, so world entities never reach vanilla's {@code CompositeRenderType.draw}. Every
- * draw -- vanilla or Iris-batched -- still sets its pipeline; only unblended, depth-writing draws
- * using the patched vanilla entity shader are redirected.
+ * a single draw fills colour + material + depth together. The redirect is armed at
+ * {@code GlRenderPass.setPipeline}, not by the draw method: Iris's {@code batchedentityrendering}
+ * replaces the world-entity buffer source even with no shaderpack, so world entities never reach
+ * vanilla's {@code CompositeRenderType.draw}. Every draw -- vanilla or Iris-batched -- still sets
+ * its pipeline; only draws that own their pixels (see {@link #ownsItsPixels}) and use a patched
+ * vanilla terrain, entity or particle shader are redirected.
  *
  * <p>Gated to the world phase (between world-render start and post-world) so later entity-format
  * draws (GUI items, the outline pass) are not redirected, and to the same conditions as terrain
@@ -80,6 +85,7 @@ public final class GBufferCapture {
     /** Closes the world phase so post-world entity-format draws (GUI, hand-held items) are not
      *  captured. Call at post-world-render. */
     public static void endWorldPhase() {
+        if (inWorldPhase && frameReady) TARGETS.restoreMaterialBlend();
         inWorldPhase = false;
     }
 
@@ -173,16 +179,47 @@ public final class GBufferCapture {
     public static int consumePendingRedirect() {
         int fbo = pendingFbo;
         pendingFbo = 0;
+        // The per-draw seam for the material attachments' blend state as well as for the bind: this
+        // runs after Blaze3D has applied the pipeline's blend, which is the only point at which the
+        // suppression survives to the draw. Skipped for the shadow FBO, which has no attachment 1..3.
+        if (fbo != 0 && fbo == TARGETS.framebufferId()) {
+            TARGETS.suppressMaterialBlend();
+        }
         return fbo;
     }
 
     /**
-     * The framebuffer to bind for a draw about to use {@code pipeline}, or 0 to leave it alone.
-     * Non-zero only for opaque, depth-writing entity or particle geometry during the world phase.
+     * True when a draw establishes the visible surface at the pixels it covers: it writes colour,
+     * writes depth, and depth-tests with the ordinary LEQUAL function; and its blend, if it has
+     * one, is alpha compositing -- whose {@code ONE_MINUS_SRC_ALPHA} destination factor wipes out
+     * whatever was behind once the source texel is opaque.
      *
-     * <p>The unblended + write-depth + LEQUAL gate is what makes this safe: it captures the opaque
-     * entity and the opaque/lit particle sheets (which on the Fancy path both draw into the main
-     * target) and rejects the translucent particle sheet, entity shadows, and outline passes.
+     * <p>Carrying a blend function does NOT make geometry translucent, and rejecting on it is what
+     * left the player unlit: vanilla's {@code ENTITY_TRANSLUCENT} (the player, piglins, allays,
+     * wardens, armour stands, ...) is {@code ALPHA_CUTOUT} geometry that keeps {@code writeDepth}
+     * and LEQUAL, and merely carries a blend for the rare part-transparent skin. Because it writes
+     * correct depth, the world-space ownership test downstream already works on it.
+     *
+     * <p>What this still keeps out is geometry that does NOT own its pixels: anything that does not
+     * write depth ({@code ENTITY_TRANSLUCENT_EMISSIVE}, {@code EYES}, {@code ENTITY_NO_OUTLINE}),
+     * a decal's {@code EQUAL} re-test ({@code ARMOR_DECAL_CUTOUT_NO_CULL}), and -- the reason the
+     * blend is inspected rather than ignored -- an additive blend, which only ever adds light on
+     * top of a surface somebody else owns ({@code ENERGY_SWIRL} writes depth with LEQUAL, so
+     * nothing else here would reject it).
+     */
+    private static boolean ownsItsPixels(RenderPipeline pipeline) {
+        if (!pipeline.isWriteColor()
+                || !pipeline.isWriteDepth()
+                || pipeline.getDepthTestFunction() != DepthTestFunction.LEQUAL_DEPTH_TEST) {
+            return false;
+        }
+        Optional<BlendFunction> blend = pipeline.getBlendFunction();
+        return blend.isEmpty() || blend.get().destColor() == DestFactor.ONE_MINUS_SRC_ALPHA;
+    }
+
+    /**
+     * The framebuffer to bind for a draw about to use {@code pipeline}, or 0 to leave it alone.
+     * Non-zero only for pixel-owning terrain, entity or particle geometry during the world phase.
      */
     private static int redirectFboFor(RenderPipeline pipeline) {
         if (pipeline == null) return 0;
@@ -214,22 +251,37 @@ public final class GBufferCapture {
             return TARGETS.framebufferId();
         }
         if (!frameReady || !inWorldPhase) return 0;
-        if (pipeline.getBlendFunction().isPresent()
-                || !pipeline.isWriteColor()
-                || !pipeline.isWriteDepth()
-                || pipeline.getDepthTestFunction() != DepthTestFunction.LEQUAL_DEPTH_TEST) {
-            return 0;
-        }
+        if (!ownsItsPixels(pipeline)) return 0;
+        // isWriteAlpha is load-bearing, not a proxy for opacity: glColorMask is not per-attachment,
+        // so a draw that masks alpha would drop the packed normal in attachment 1's alpha and the
+        // low byte of the owning depth in attachment 2's.
         boolean entity = CoreShaderMaterialPatch.isEntityReady()
                 && pipeline.isWriteAlpha()
                 && ENTITY_SHADER.equals(pipeline.getVertexShader())
                 && ENTITY_SHADER.equals(pipeline.getFragmentShader())
                 && pipeline.getVertexFormat() == DefaultVertexFormat.NEW_ENTITY;
+        // Particles keep the stricter unblended gate that ownsItsPixels no longer applies. A
+        // translucent billboard (smoke, spell, glow) has no single albedo or normal to capture, so
+        // the deferred cap is the right answer for it; and TRANSLUCENT_PARTICLE / WEATHER_DEPTH_WRITE
+        // do write depth with LEQUAL, so ownsItsPixels alone would pull the whole sheet in.
         boolean particle = CoreShaderMaterialPatch.isParticleReady()
+                && pipeline.getBlendFunction().isEmpty()
                 && PARTICLE_SHADER.equals(pipeline.getVertexShader())
                 && PARTICLE_SHADER.equals(pipeline.getFragmentShader())
                 && pipeline.getVertexFormat() == DefaultVertexFormat.PARTICLE;
-        return (entity || particle) ? TARGETS.framebufferId() : 0;
+        // Terrain is matched by PIPELINE IDENTITY, not by shader, because core/terrain is shared:
+        // RenderPipelines.WIREFRAME is built from the same TERRAIN_SNIPPET and inherits no-blend +
+        // writeDepth + LEQUAL, so a shader-keyed gate would redirect it too and stamp a debug
+        // wireframe as solid terrain. The public pipeline API (PipelineCodecs' `terrain` category)
+        // hands out TERRAIN_SNIPPET as well, so consumer pipelines would be caught the same way.
+        // These three ARE the opaque chunk layers, though not exclusively: RenderType.solid() and
+        // friends hand the same objects to non-chunk geometry, which then captures as terrain --
+        // correct, since it is opaque BLOCK-format geometry carrying a real normal.
+        boolean terrain = CoreShaderMaterialPatch.isTerrainReady()
+                && (pipeline == RenderPipelines.SOLID
+                        || pipeline == RenderPipelines.CUTOUT_MIPPED
+                        || pipeline == RenderPipelines.CUTOUT);
+        return (entity || particle || terrain) ? TARGETS.framebufferId() : 0;
     }
 
     /** Albedo (RGB) + packed normal (A), or -1 if not captured this frame. */

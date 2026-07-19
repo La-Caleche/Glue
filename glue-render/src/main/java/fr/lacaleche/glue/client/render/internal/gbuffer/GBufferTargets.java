@@ -154,7 +154,8 @@ public final class GBufferTargets {
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevDraw);
     }
 
-    /** Restores the full four-attachment draw-buffer set after {@link #beginGlassPass()}. Like it,
+    /** Restores the full four-attachment draw-buffer set after {@link #beginGlassPass()}, and the
+     *  material attachments' blend enable the captured draws suppressed. Like {@link #beginGlassPass()},
      *  this must not restore draw buffers via SavedGlState. */
     public void endGlassPass() {
         if (fbo == 0) return;
@@ -164,6 +165,44 @@ public final class GBufferTargets {
                 GL30.GL_COLOR_ATTACHMENT0, GL30.GL_COLOR_ATTACHMENT1,
                 GL30.GL_COLOR_ATTACHMENT2, GL30.GL_COLOR_ATTACHMENT3});
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevDraw);
+        restoreMaterialBlend();
+    }
+
+    /**
+     * Turns blending OFF for the material attachments (1..3) only, leaving attachment 0 -- the real
+     * scene colour -- blending exactly as vanilla asked.
+     *
+     * <p>Required as soon as a blended draw is captured. The material channels carry packed data,
+     * not colour: an alpha composite would mix the incoming id with whatever the pixel already held
+     * and decode as an unrelated material (an entity's id 2 landing on a cleared pixel with a source
+     * alpha near 0.5 resolves to 1 -- terrain), and would equally corrupt the packed normal and
+     * owning depth.
+     *
+     * <p>Must be re-issued for EVERY redirected draw, which is why this is not paired with a
+     * begin-call: Blaze3D applies a pipeline's blend with the NON-indexed {@code glEnable(GL_BLEND)}
+     * (via {@code GlStateManager}'s cached {@code BooleanState}), and a non-indexed enable re-enables
+     * blending on every draw buffer -- silently undoing this the next time any pipeline switches
+     * blending on.
+     */
+    public void suppressMaterialBlend() {
+        GL30.glDisablei(GL11.GL_BLEND, 1);
+        GL30.glDisablei(GL11.GL_BLEND, 2);
+        GL30.glDisablei(GL11.GL_BLEND, 3);
+    }
+
+    /**
+     * Re-syncs the material attachments' blend enable with draw buffer 0's, undoing
+     * {@link #suppressMaterialBlend()}. Per-attachment blend enable is context state that outlives
+     * the FBO binding and is absent from {@code GlStateManager}'s cache, so nothing else would ever
+     * put it back: left suppressed, it would silently disable blending on colortex1..3 for an Iris
+     * shaderpack enabled later in the session.
+     */
+    public void restoreMaterialBlend() {
+        boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
+        for (int attachment = 1; attachment <= 3; attachment++) {
+            if (blend) GL30.glEnablei(GL11.GL_BLEND, attachment);
+            else GL30.glDisablei(GL11.GL_BLEND, attachment);
+        }
     }
 
     /** Re-points the borrowed colour/depth at their current textures and clears only the owned

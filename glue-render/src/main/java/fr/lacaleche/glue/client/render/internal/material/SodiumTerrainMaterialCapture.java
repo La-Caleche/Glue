@@ -25,9 +25,9 @@ import java.util.Arrays;
  *   <li>{@code SodiumShaderLoaderMixin} / {@code SodiumMaterialShaderPatch} anchors may not match, logging
  *       "does not match Sodium 0.7.3" and leaving {@code isReady()} false forever;</li>
  *   <li>the MRT attach or framebuffer-completeness check may fail, logging "disabled: ...";</li>
- *   <li>even after "adapter active" logs, the consumer's depth gate
- *       {@code abs(materialDepth - sceneDepth) < 1e-5} in deferred.fsh / composite.fsh can reject every
- *       pixel if the copied depth is not bit-identical to the main depth.</li>
+ *   <li>even after "adapter active" logs, the consumer's world-space ownership test in deferred.fsh /
+ *       composite.fsh can reject every pixel if the owning depth packed into the id attachment does not
+ *       resolve back to the scene surface.</li>
  * </ol>
  */
 final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
@@ -35,7 +35,6 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
     private static final Logger LOGGER = LoggerFactory.getLogger("glue/material-buffer");
 
     private boolean frameActive;
-    private boolean available;
     private boolean passAttached;
     private boolean loggedActive;
     private boolean loggedHookFired;
@@ -48,7 +47,6 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
 
     @Override
     public void beginFrame(long sequence) {
-        available = false;
         frameActive = false;
         if (passAttached) {
             forceRestoreRecordedFramebuffer();
@@ -65,7 +63,6 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
     @Override
     public void cancelFrame() {
         frameActive = false;
-        available = false;
         if (passAttached) forceRestoreRecordedFramebuffer();
     }
 
@@ -135,24 +132,10 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
         passAttached = false;
         if (!restored) return;
 
-        available = true;
         if (!loggedActive) {
             loggedActive = true;
             LOGGER.info("Sodium 0.7.3 terrain material adapter active (routed to shared G-buffer)");
         }
-    }
-
-    // Terrain material now lives in the shared G-buffer (id 1), not a separate texture, so the
-    // legacy depth-matched consumer path reports nothing for Sodium -- the shaders read terrain
-    // from the G-buffer id attachment instead.
-    @Override
-    public int colorTextureId() {
-        return -1;
-    }
-
-    @Override
-    public int depthTextureId() {
-        return -1;
     }
 
     @Override
@@ -214,7 +197,6 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
 
     private void disable(String reason) {
         frameActive = false;
-        available = false;
         if (!warnedFramebuffer) {
             warnedFramebuffer = true;
             LOGGER.error("Sodium material adapter disabled: {}", reason);
@@ -223,7 +205,6 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
 
     private void disable(String reason, Exception exception) {
         frameActive = false;
-        available = false;
         if (!warnedReflection) {
             warnedReflection = true;
             LOGGER.error("Sodium material adapter disabled: {}", reason, exception);
