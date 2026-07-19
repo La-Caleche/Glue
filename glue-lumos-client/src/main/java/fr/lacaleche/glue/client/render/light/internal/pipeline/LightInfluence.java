@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.client.render.light.internal.pipeline;
 
-import fr.lacaleche.glue.client.render.light.Light;
-import fr.lacaleche.glue.client.render.light.LightType;
+import fr.lacaleche.glue.lumos.Light;
+import fr.lacaleche.glue.lumos.LightType;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector4f;

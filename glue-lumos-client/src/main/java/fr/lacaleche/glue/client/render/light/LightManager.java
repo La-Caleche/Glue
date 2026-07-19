@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.client.render.light;
 
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
+import fr.lacaleche.glue.lumos.Light;
 import java.util.List;
 import net.minecraft.client.multiplayer.ClientLevel;
 import org.jetbrains.annotations.Nullable;

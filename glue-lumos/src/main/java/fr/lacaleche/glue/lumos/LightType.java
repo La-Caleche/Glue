@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.client.render.light;
+package fr.lacaleche.glue.lumos;
 
 /**
  * The emission shape of a {@link Light}.

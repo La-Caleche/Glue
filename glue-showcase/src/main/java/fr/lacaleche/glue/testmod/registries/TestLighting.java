@@ -1,6 +1,6 @@
 package fr.lacaleche.glue.testmod.registries;
 
-import fr.lacaleche.glue.client.render.light.Light;
+import fr.lacaleche.glue.lumos.Light;
 import fr.lacaleche.glue.client.render.light.LightAttachments;
 import fr.lacaleche.glue.client.render.light.LightHandle;
 import fr.lacaleche.glue.client.render.light.LightManager;

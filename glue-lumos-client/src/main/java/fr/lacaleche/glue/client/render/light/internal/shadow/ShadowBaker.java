@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.client.render.light.internal.shadow;
 
-import fr.lacaleche.glue.client.render.light.Light;
-import fr.lacaleche.glue.client.render.light.LightType;
+import fr.lacaleche.glue.lumos.Light;
+import fr.lacaleche.glue.lumos.LightType;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlTintBlurPass;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;

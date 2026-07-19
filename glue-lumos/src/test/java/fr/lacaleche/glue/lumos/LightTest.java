@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.client.render.light;
+package fr.lacaleche.glue.lumos;
 
 import org.junit.jupiter.api.Test;
 

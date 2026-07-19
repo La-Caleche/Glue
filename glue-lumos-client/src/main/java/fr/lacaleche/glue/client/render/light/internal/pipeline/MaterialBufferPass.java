@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.client.render.light.internal.pipeline;
 
 import fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture;
-import fr.lacaleche.glue.client.render.light.Light;
+import fr.lacaleche.glue.lumos.Light;
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
 import fr.lacaleche.glue.client.render.light.internal.scene.MaterialBlockScan;
 import fr.lacaleche.glue.client.render.light.internal.scene.MaterialBlockScan.NearbyMaterials;

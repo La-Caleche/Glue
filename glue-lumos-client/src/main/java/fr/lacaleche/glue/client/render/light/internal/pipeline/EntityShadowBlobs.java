@@ -1,6 +1,6 @@
 package fr.lacaleche.glue.client.render.light.internal.pipeline;
 
-import fr.lacaleche.glue.client.render.light.Light;
+import fr.lacaleche.glue.lumos.Light;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
