@@ -22,7 +22,7 @@ public final class LightRenderer {
         if (initialized) return;
         initialized = true;
         ShadowPipelines.init();
-        RenderEvents.POST_WORLD_RENDER.register(COORDINATOR::render);
+        RenderEvents.POST_WORLD_RENDER.register(RenderEvents.PHASE_LIGHTING, COORDINATOR::render);
     }
 
     /** Caps resident shadow maps. Lights past the budget still illuminate without shadows. */
