@@ -16,6 +16,13 @@ dependencies {
     // falls back when absent. compileOnly only so the mixins can be typed instead of @Pseudo.
     modCompileOnly(libs.sodium)
 
+    // Native OS file dialogs (moved here from glue-core with the client file-dialog API).
+    implementation("org.lwjgl:lwjgl-nfd:3.3.3")
+    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-windows")
+    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-linux")
+    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-macos")
+    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-macos-arm64")
+
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
