@@ -51,11 +51,18 @@ The version lives in `gradle.properties` (`app.version`). User-facing documentat
 
 ### Repository Structure
 
-Three source sets:
+A composite build of **feature modules**, each its own Fabric mod with its own id, `fabric.mod.json`, and remapped jar (in the workspace-root `build/libs/`). A mod pulls only the modules it needs; a dedicated server loads only the ones that declare no client environment. Each module has `src/main` (+ `src/test` for JUnit); `internal` sub-packages are not API.
 
-- **`src/main`** — the library. Entry points: `fr.lacaleche.glue.Glue` (main), `fr.lacaleche.glue.client.GlueClient` (client). Notable packages: `registries`, `client.registries` (typed registry wrappers), `client.shader` (+ `pipeline`, `effect`, `internal`), `client.render` (+ `light`, `outline`, `scene`, `gizmo`), `client.events` (`RenderEvents`, `DebugEvents`), `client.utils`, `client.debug`, `compat` (Iris reflection), `math`, `shaper`, `history`. Mixins: `glue.mixins.json` + `glue.client.mixins.json`; access widener `glue.accesswidener`.
-- **`src/testmod`** — a demo mod (`glue-test`) that doubles as living documentation: every library feature has a demo there (see `src/testmod/README.md` for the feature→file map and keybinds). New library features should get a testmod demo.
-- **`src/test`** — JUnit tests.
+| Module | id | Environment | Role |
+|---|---|---|---|
+| `glue-core` | `glue` | both | Environment-agnostic base: typed registries (`registries`), networking/codecs (`packets`), `math`, `shaper`, `history`. Entry point `fr.lacaleche.glue.Glue` (main). No client/blaze3d code. |
+| `glue-render` | `glue-render` | client | Client infrastructure: `client.shader` (+ `pipeline`, `effect`, `internal`), `client.render` (gbuffer, material, outline, scene), `client.events` (`RenderEvents`, `DebugEvents`), `client.debug`, `compat` (Iris), the client file dialogs and client registries (`KeybindingsRegistry`, `BlocksRendererRegistry`). Entry point `client.GlueClient`. Access widener `glue-render.accesswidener`. |
+| `glue-server` | `glue-server` | both | Server-side infrastructure (networking senders, world-save persistence) that runs on the logical server — integrated in singleplayer, dedicated in multiplayer. No client code. |
+| `glue-lumos` | `glue-lumos` | both | Shared light model: `fr.lacaleche.glue.lumos.Light` / `LightType` (and the light codecs/sync as they land). Loads on both sides so the renderer and server persistence share one definition. |
+| `glue-lumos-client` | `glue-lumos-client` | client | The deferred colored-light renderer: `client.render.light.*` (pipeline, shadow, scene, gl) + its GLSL. Depends on `glue-lumos` + `glue-render`. Entry point `client.render.light.GlueLumosClient`. |
+| `glue-showcase` | `glue-showcase` | dev only | Development/demo mod and the sole run config; not shipped. Doubles as living documentation — every feature has a demo (see `glue-showcase/README.md`). New features should get one. |
+
+A feature that spans environments (like lighting) splits into a both-sides model module and a client renderer, because a client-only module cannot load on a dedicated server (e.g. `glue-render`'s access widener references a client class) and Fabric mod dependencies are not per-environment. Future features (UI, …) follow the same split.
 
 ---
 
@@ -96,20 +103,21 @@ Build it incrementally and verify each stage in-game (GLSL and MRT wiring have n
 
 ### Build System & Verification
 
-- Compile the library: `.\gradlew.bat compileJava`
-- Compile library + testmod: `.\gradlew.bat compileTestmodJava`
+- Compile every module: `.\gradlew.bat compileJava`
 - Run tests: `.\gradlew.bat test`
-- Launch the demo client (interactive; usually the maintainer does this): `.\gradlew.bat runTestmodClient`
-- Build the distributable jar: `.\gradlew.bat remapJar` (lands in the workspace-root `build/libs/`)
+- Launch the demo client (interactive; usually the maintainer does this): `.\gradlew.bat :glue-showcase:runClient`
+- Build the distributable jars: `.\gradlew.bat remapJar` (one per module, in the workspace-root `build/libs/`)
 
-**Always verify before considering a task done:** compile the touched source set(s). GLSL shaders and JSON resources have **no compile step** — they fail at runtime — so review them extra carefully and say explicitly when a change needs an in-game check.
+Note: the `build`/`check` tasks currently fail resolving a PMD snapshot in the `caldle` plugin, unrelated to the code — verify with `compileJava` + `test`, not `build`.
+
+**Always verify before considering a task done:** compile the touched module(s). GLSL shaders and JSON resources have **no compile step** — they fail at runtime — so review them extra carefully and say explicitly when a change needs an in-game check.
 
 ---
 
 ## Important Rules
 
-1. **Respect boundaries.** Library code never references the testmod; `internal` packages are not API.
+1. **Respect boundaries.** No library module references `glue-showcase`; `internal` packages are not API; keep client code out of the both-sides modules (`glue-core`, `glue-server`, `glue-lumos`).
 2. **Reuse existing utilities.** Before creating helpers, check `client.utils`, the registries, and the shader/pipeline infrastructure.
 3. **Keep changes surgical.** No "just in case" features, no drive-by refactors.
 4. **No placeholder content.** No TODOs or stubs that will not be immediately acted on.
-5. **Docs follow the API.** A change to public behavior updates the matching page in `docs/` (and the testmod demo when one exists).
+5. **Docs follow the API.** A change to public behavior updates the matching page in `docs/` (and the showcase demo when one exists).

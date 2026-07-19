@@ -43,7 +43,7 @@ Structure every reply so the signal is up front and corrections are impossible t
 
 ### Before Writing Code
 
-1. **Identify the source set** and respect its boundary: `src/main` = the library (with `internal` packages that are not API), `src/testmod` = demos, `src/test` = JUnit. Library code never references the testmod.
+1. **Identify the module** and respect its boundary (see `AGENTS.md` › Repository Structure): the feature modules (`glue-core`, `glue-render`, `glue-server`, `glue-lumos`, `glue-lumos-client`) are the library, `glue-showcase` is demos, and each module's `internal` sub-packages are not API. No library module references `glue-showcase`; keep client code out of the both-sides modules.
 2. **Reuse what exists.** Before adding helpers, check `client.utils`, the typed registries, `RenderEvents`, and the shader/pipeline infrastructure.
 3. **Know the build/launch path.** This is a Fabric library consumed by other mods; new dependencies end up in every consumer's runtime — justify them.
 
@@ -76,7 +76,7 @@ Structure every reply so the signal is up front and corrections are impossible t
 ## Running & Verifying
 
 - **Always verify before considering a task done:**
-  - Compile the touched source set(s): `.\gradlew.bat compileJava` (library) or `.\gradlew.bat compileTestmodJava` (library + testmod).
+  - Compile the touched module(s): `.\gradlew.bat compileJava` compiles every module. (`build`/`check` currently fail on a PMD snapshot in the `caldle` plugin — use `compileJava` + `test`.)
   - Run relevant tests: `.\gradlew.bat test`.
   - GLSL shaders and JSON resources have **no compile step** — they fail at runtime. Review them carefully and state explicitly when a change can only be verified in-game (the maintainer runs the client and reports back with screenshots/recordings).
 
