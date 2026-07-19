@@ -16,6 +16,7 @@
         "fabric-api": "*",
         "glue": "${version}",
         "glue-render": "${version}",
-        "glue-lumos": "${version}"
+        "glue-lumos": "${version}",
+        "glue-lumos-client": "${version}"
     }
 }

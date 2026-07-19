@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.client.render.light;
+package fr.lacaleche.glue.lumos;
 
 /**
  * An immutable description of a single real-time light source.
@@ -130,7 +130,12 @@ public final class Light {
                 cos(innerAngleDeg), cos(outerAngleDeg), goboTextureId, true);
     }
 
-    Light at(double x, double y, double z, float directionX, float directionY, float directionZ) {
+    /**
+     * A copy of this light repositioned (and, for a spot/gobo, re-aimed) at the given transform. The
+     * direction is ignored for a point light. This is how a frame-sampled attachment rebuilds its light
+     * each frame from the live block or entity it follows.
+     */
+    public Light at(double x, double y, double z, float directionX, float directionY, float directionZ) {
         requireFinite("position", x, y, z);
         float inverseLength = type == LightType.POINT ? 1f
                 : inverseDirectionLength(directionX, directionY, directionZ);

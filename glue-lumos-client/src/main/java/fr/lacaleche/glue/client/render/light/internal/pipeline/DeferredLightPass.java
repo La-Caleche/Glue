@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.client.render.light.internal.pipeline;
 
 import fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture;
-import fr.lacaleche.glue.client.render.light.Light;
+import fr.lacaleche.glue.lumos.Light;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlDeferredLightPass;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlGlassReflectionPass;
 import fr.lacaleche.glue.client.render.light.internal.gl.GlLightBloomPass;

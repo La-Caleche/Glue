@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.client.render.light.internal.context;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import fr.lacaleche.glue.client.render.light.Light;
+import fr.lacaleche.glue.lumos.Light;
 import fr.lacaleche.glue.client.render.light.LightAttachment;
 import fr.lacaleche.glue.client.render.light.LightHandle;
 import fr.lacaleche.glue.client.render.light.internal.scene.GlassSceneRenderer;

@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.client.render.light.internal.gl;
 
-import fr.lacaleche.glue.client.render.light.Light;
-import fr.lacaleche.glue.client.render.light.LightType;
+import fr.lacaleche.glue.lumos.Light;
+import fr.lacaleche.glue.lumos.LightType;
 import fr.lacaleche.glue.client.render.light.internal.shadow.ShadowParams;
 import fr.lacaleche.glue.client.render.internal.gl.SavedGlState;
 import org.jetbrains.annotations.Nullable;

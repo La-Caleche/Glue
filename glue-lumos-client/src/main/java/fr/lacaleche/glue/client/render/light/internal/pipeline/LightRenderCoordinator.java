@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.client.render.light.internal.pipeline;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import fr.lacaleche.glue.client.render.light.Light;
+import fr.lacaleche.glue.lumos.Light;
 import fr.lacaleche.glue.client.render.light.LightManager;
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
 import fr.lacaleche.glue.client.utils.FrameMatrices;

@@ -11,6 +11,7 @@ dependencies {
     implementation(project.project(":glue-core").sourceSets.getByName("main").output)
     implementation(project.project(":glue-render").sourceSets.getByName("main").output)
     implementation(project.project(":glue-lumos").sourceSets.getByName("main").output)
+    implementation(project.project(":glue-lumos-client").sourceSets.getByName("main").output)
 
     minecraft(libs.minecraft)
     mappings(loom.officialMojangMappings())

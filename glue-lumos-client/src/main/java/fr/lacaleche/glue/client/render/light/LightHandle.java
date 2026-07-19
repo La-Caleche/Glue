@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.client.render.light;
 
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
+import fr.lacaleche.glue.lumos.Light;
 
 /** Stable world-owned handle for a frame-sampled light attachment. */
 public final class LightHandle {

@@ -1,8 +1,8 @@
 package fr.lacaleche.glue.testmod.render;
 
-import fr.lacaleche.glue.client.render.light.Light;
+import fr.lacaleche.glue.lumos.Light;
 import fr.lacaleche.glue.client.render.light.LightManager;
-import fr.lacaleche.glue.client.render.light.LightType;
+import fr.lacaleche.glue.lumos.LightType;
 import fr.lacaleche.glue.testmod.registries.TestLighting;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
