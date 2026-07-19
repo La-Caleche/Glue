@@ -11,20 +11,27 @@ has never seen this codebase.
 
 ## 1. TL;DR
 
-Lumos needs a **material buffer**: a screen-sized texture holding, per pixel, the *linear
-albedo* and *geometric normal* of the opaque terrain surface. `glue-render` builds one by
-replaying Minecraft's opaque chunk VBOs (`TerrainMaterialBuffer`). Sodium replaces vanilla's
-chunk renderer wholesale, so that replay never runs, and Lumos silently falls back to
+Lumos needs **material data**: per pixel, the *linear albedo* and *geometric normal* of the opaque
+terrain surface, plus an id saying the pixel *is* terrain. On the vanilla chunk renderer it gets
+this by source-patching Minecraft's own `core/terrain` shader to write extra outputs during the
+terrain draw (`CoreShaderMaterialPatch`). Sodium replaces vanilla's chunk renderer wholesale, so
+`core/terrain` never runs and terrain would reach Lumos with no material at all — falling back to
 guessing albedo from the already-lit scene colour.
 
-The guess is not a small error. **It is the dominant visual defect in the mod.**
+The guess is not a small error. **It was the dominant visual defect in the mod.**
 
-The adapter in `client.render.internal.material` produces the same material-buffer contract
-when Sodium is the terrain renderer.
+The adapter in `client.render.internal.material` applies the same idea to Sodium's own chunk
+shaders, writing into the **same shared G-buffer** the vanilla path fills. Both terrain paths
+therefore hand consumers one identical contract.
 
 ---
 
 ## 2. The bug this fixes (measured, not asserted)
+
+Measured when the fallback still *lit* uncaptured surfaces from an estimated albedo. It no longer
+does — an uncaptured surface now takes no Lumos light at all (§11) — so these are a record of why
+the adapter exists, not of what a Sodium regression looks like today. The physics below is why no
+fallback was ever going to work, and that part has not changed.
 
 Test scene: a sealed white-concrete room, one white `POINT` light, identical camera.
 
@@ -50,54 +57,57 @@ is a ~45° average of both. That is the corner faceting.
 
 ## 3. The contract — what you must produce
 
-Match `glue-render/src/main/resources/assets/glue/shaders/internal/material/terrain_material.fsh`
-exactly.
-It is the reference implementation and the oracle you validate against.
+The oracle is `CoreShaderMaterialPatch.patchTerrainFragment` (the vanilla `core/terrain` patch) in
+`client.render.internal.gbuffer`. It is the reference implementation you validate against; the
+Sodium patch must produce numerically the same values from Sodium's equivalent inputs.
 
-A screen-sized `RGBA8` colour target, plus a depth snapshot:
+Write **three** fragment outputs into the shared G-buffer (`GBufferTargets`), whose attachments
+are already bound for you:
 
-| channel | contents |
+| output | contents |
 |---|---|
-| `RGB` | **linear** albedo — block texel × biome/model tint, with vanilla's AO/face-shade coefficient *divided out* |
-| `A` | geometric normal, octahedral-packed into 8 bits (4+4) |
+| `location = 1` (`RGBA16F`) | `RGB` = **linear** albedo — block texel × biome/model tint, with vanilla's AO/face-shade coefficient *divided out*; `A` = geometric normal, octahedral-packed into 8 bits (4+4) |
+| `location = 2` (`RGBA8`) | `R` = material id — **`1.0/255.0` for terrain**; `GBA` = this fragment's own `gl_FragCoord.z`, packed to 24 bits |
+| `location = 3` (`RGBA8`) | `R` = roughness `1.0`, `G` = metalness `0.0`, `B` = F0 `0.04`, `A` = `1.0` (the "props present" flag). Generic rough dielectric; water and metal overwrite the pixel from their own captures. |
 
-The AO/shade divide-out, verbatim from the vanilla path:
+The AO/shade divide-out, matching the vanilla path:
 
 ```glsl
 // Vanilla bakes a scalar AO/face-shade coefficient into vertex RGB. Divide out that
 // common magnitude while retaining biome/model tint ratios.
-float shade = max(vertexColor.r, max(vertexColor.g, vertexColor.b));
-vec3  tint  = shade > 1e-4 ? vertexColor.rgb / shade : vec3(1.0);
-fragColor = vec4(srgbToLinear(texel.rgb * tint), packNormal(normalize(vertexNormal)));
+float shade = max(rawColor.r, max(rawColor.g, rawColor.b));
+vec3  tint  = shade > 1e-4 ? rawColor.rgb / shade : vec3(1.0);
+glue_Material = vec4(srgbToLinear(texel.rgb * tint), packNormal(normalize(normal)));
 ```
 
-Copy `srgbToLinear`, `packNormal` and `signNotZero` from that file unchanged — the consumer
-(`internal/light/deferred.fsh:unpackNormal`) depends on the exact packing.
+Copy `glueSrgbToLinear`, `gluePackNormal`, `glueSignNotZero` and `gluePackDepth24` unchanged — the
+consumer (`internal/light/deferred.fsh:unpackNormal` / `unpackDepth24`) depends on the exact packing.
 
-Also required: a **depth snapshot** taken at capture time. The consumers gate on
-`abs(materialDepth - sceneDepth) < 1e-5` to confirm opaque terrain is still the frontmost
-surface at that pixel. See §7 — this tolerance is a trap.
+**No separate depth snapshot.** Ownership is established by the depth each fragment packs into its
+own id output: consumers reconstruct that depth and the scene depth to world space and compare with
+a distance-scaled tolerance. Because the material is written in the same draw as the colour, that
+depth is correct by construction — nothing has to be copied or matched afterwards.
 
 Consumers, for reference:
-- `internal/light/deferred.fsh` — `MaterialAlbedo` / `MaterialDepth` / `HasMaterial` (normals)
-- `internal/light/composite.fsh` — same uniforms (albedo)
+- `internal/light/deferred.fsh` — `GBufferAlbedo` / `GBufferId` / `HasGBuffer` (normals + ownership)
+- `internal/light/composite.fsh` — same uniforms (albedo + ownership)
 
 ---
 
-## 4. Why Sodium breaks it today
+## 4. Why Sodium needs its own adapter
 
-Before the adapter, `glue-render/.../TerrainMaterialBuffer.java` stopped here:
+The vanilla terrain capture is keyed to vanilla's chunk render path on both ends: the source patch
+targets Minecraft's `core/terrain` shader, and `GBufferCapture` arms the FBO redirect on the
+identity of `RenderPipelines.SOLID` / `CUTOUT_MIPPED` / `CUTOUT`. Sodium uses none of them — it
+compiles its own chunk shaders and drives its own render passes — so neither half fires and terrain
+would land in the G-buffer with no id.
 
-```java
-if (HAS_SODIUM) return;
-```
+`TerrainMaterialBuffer` therefore branches on `FabricLoader.isModLoaded("sodium")` and hands the
+frame to `SodiumTerrainMaterialCapture`, which owns the attach/detach around Sodium's opaque pass.
+That branch is the only terrain-renderer-specific code in the gate.
 
-The capture hooks `ChunkSectionsToRender.renderGroup` (`ChunkSectionsToRenderMixin`), which
-is vanilla's chunk render path. Sodium does not use it, so with Sodium installed there are no
-vanilla chunk VBOs to replay at all. The guard is honest, not lazy.
-
-Iris trips the same bail-out via `RenderCompat.isIrisShaderEnabled()` — but only when a
-shaderpack is *active*. See §9.
+Iris trips the whole gate via `RenderCompat.isIrisShaderEnabled()` — but only when a shaderpack is
+*active*. See §9.
 
 ---
 
@@ -139,9 +149,14 @@ v_Color = _vert_color * texture(u_LightTex, _vert_tex_light_coord);
 ```
 
 `_vert_color` (from the `a_Color` attribute) is the **raw vertex colour before the lightmap** —
-AO/face-shade × biome tint. That is *precisely* the `vertexColor` input the vanilla
-`terrain_material.fsh` consumes. You do not need to un-multiply anything. You just need to not
-multiply it in the first place.
+AO/face-shade × biome tint. That is *precisely* the signal the vanilla patch forwards as
+`glue_RawColor`. You do not need to un-multiply anything. You just need to not multiply it in the
+first place.
+
+Vanilla's `core/terrain` has the identical property, and for the identical reason — it also folds
+the lightmap into `vertexColor` in the **vertex** stage. Both patches therefore forward the raw
+pre-lightmap colour to the fragment stage rather than trying to recover albedo afterwards. This
+symmetry is why the two paths can share one contract.
 
 ### Vertex format — there is no normal
 
@@ -186,18 +201,20 @@ value). That removes the grain on block faces while staying correct for the rare
 Let Sodium draw terrain exactly once, but make its fragment shader write a *second* output
 into your material texture.
 
-1. `TerrainMaterialBuffer` selects `SodiumTerrainMaterialCapture`, which resizes and clears its
-   own material target once.
+1. `TerrainMaterialBuffer` routes the frame to `SodiumTerrainMaterialCapture`. It allocates
+   nothing: `GBufferCapture` already owns and cleared the material textures for this frame.
 2. A pseudo mixin injects after `ShaderChunkRenderer.begin`, after Sodium has bound its
-   framebuffer. For every non-translucent pass it attaches the material texture as
-   `GL_COLOR_ATTACHMENT1` and selects both draw buffers.
+   framebuffer. For every non-translucent pass it attaches the **shared G-buffer's** three
+   material textures as `GL_COLOR_ATTACHMENT1..3` on *Sodium's own* framebuffer and selects all
+   four draw buffers. It first checks that framebuffer is Minecraft's main target and that
+   attachment 1 is free, and bails out loudly if either is false.
 3. A second pseudo mixin patches `ShaderLoader.getShaderSource` for
-   `sodium:blocks/block_layer_opaque.{vsh,fsh}`, return patched source that adds:
-   - **vsh:** `out vec4 v_RawColor;` (= `_vert_color`, *unlit*) and `out vec3 v_WorldPos;`
-   - **fsh:** `layout(location = 1) out vec4 fragMaterial;` computing the §3 contract
+   `sodium:blocks/block_layer_opaque.{vsh,fsh}`, returning patched source that adds:
+   - **vsh:** `out vec4 glue_RawColor;` (= `_vert_color`, *unlit*) and `out vec3 glue_WorldPos;`
+   - **fsh:** the three `layout(location = 1..3)` outputs computing the §3 contract
 4. Before `ShaderChunkRenderer.end`, restore the previous draw-buffer state and detach
-   attachment 1. Copy the main target's opaque depth texture into the material target and
-   mark the capture available. Solid and cutout passes accumulate into the same color target.
+   attachments 1–3. Solid and cutout passes accumulate into the same shared attachments. No depth
+   copy is needed — the writes already targeted the main depth attachment.
 
 **Pros:** no additional geometry submission. No need to replicate Sodium's uniform setup,
 vertex-format binding, or draw-command construction — that stays Sodium's problem. This is the
@@ -225,18 +242,19 @@ assume it was overlooked.
 
 ## 7. Pitfalls that will cost you a day each
 
-**The depth tolerance.** Consumers gate on `abs(materialDepth - sceneDepth) < 1e-5`. This was
-`1e-7` (under two ULP of a 24-bit buffer), which is correct only when the material depth is a
-*bit-identical* copy of the scene depth. In practice the blit into the material target quantises
-by a quantum or two, so `1e-7` made `terrainMaterial` flicker on and off per pixel — the normal
-kept switching between the clean packed value and the noisy depth-reconstructed fallback, which
-read as grain. `1e-5` tolerates the copy while staying far below the depth gap between distinct
-surfaces at the near/mid ranges where lights actually reach. The MRT writes against the main depth
-attachment, then copies that opaque depth into the material target after each pass.
+**The depth tolerance — now historical, and worth knowing why.** An earlier design captured
+material into a *private* target and gated consumers on `abs(materialDepth - sceneDepth) < 1e-5`
+against a copied depth snapshot. That tolerance was a trap: at `1e-7` (under two ULP of a 24-bit
+buffer) the copy's quantisation made the match flicker on and off per pixel, so the normal kept
+switching between the clean packed value and the noisy depth-reconstructed fallback and read as
+grain. Widening it only traded one failure for another — no window can both tolerate a copy and
+separate a pane from a mob behind it. **Do not reintroduce depth-matching.** Ownership is now the
+world-space test of §3 against the depth the fragment itself packed, which needs no tolerance
+tuning because nothing is copied.
 
-**Clear once.** The material color target is cleared once at frame start, not once per layer.
-Otherwise cutout passes erase solid terrain; without any clear, stale material can occasionally
-survive when old and new geometry have the same depth.
+**Clear once.** The material attachments are cleared once at frame start by `GBufferCapture`, not
+once per layer. Otherwise cutout passes erase solid terrain; without any clear, stale material can
+occasionally survive when old and new geometry have the same depth.
 
 **Alpha cutout.** The opaque pass includes cutout layers. Sodium gates discard on
 `USE_FRAGMENT_DISCARD` / `_material_alpha_cutoff(v_Material)`. Your material output must
@@ -246,14 +264,18 @@ transparent in the colour buffer.
 **Fog.** Sodium's fsh applies `_linearFog(...)` to `fragColor`. Your `fragMaterial` must **not**
 be fogged — albedo is a surface property. Write it before/independently of the fog call.
 
-**Resize.** Each implementation owns a `MaterialCaptureTarget` that follows the main render
-target's size.
+**Resize.** The adapter allocates nothing. `GBufferTargets` follows the main render target's size
+and re-points its borrowed colour/depth every frame; the adapter just reads the current texture ids
+and bails out if any is unavailable (`<= 0`).
 
-**Frame publication.** Each implementation exposes its material color/depth texture ids only
-once the current frame's capture is complete. A failed or partial pass exposes nothing (-1).
+**Restore what you attached.** The adapter attaches to a framebuffer it does not own, so every exit
+path — including the one where the bound framebuffer changed mid-pass — must restore the previous
+draw-buffer set and detach attachments 1–3. `SodiumTerrainMaterialCapture` also force-restores at
+the start of the next frame if a pass ended without doing so, then disables itself.
 
-**Translucents.** Only the *opaque* passes feed this buffer. Stained glass has its own
-camera-space albedo buffer (`GlassSceneRenderer`). Don't touch it.
+**Translucents.** Only the *opaque* passes feed terrain material here. Glass, water and metal are
+separate material classes captured by their own post-world re-renders (`GlassSceneRenderer`,
+`WaterSceneRenderer`, `MetalSceneRenderer`) into the same shared attachments. Don't touch them.
 
 ---
 
@@ -273,9 +295,11 @@ inputs. Do not use exposure to hide a parity failure.
 Sodium adapter is what runs — so fixing Sodium fixes the Iris-installed-but-idle case for free.
 
 When a pack *is* active, the adapter does not attach its MRT because the pack owns an arbitrary,
-pack-defined `colortex` layout. Lumos does not run at all under an active Iris pack (or under
-Fabulous graphics); Iris support will be rebuilt separately. The Sodium adapter therefore covers
-the vanilla/Sodium **Fancy** path — the setup nearly every player runs.
+pack-defined `colortex` layout — attachments 1–3 are the pack's, not ours. Lumos does not run at all
+under an active Iris pack (or under Fabulous graphics), and that is a structural boundary rather
+than pending work; see [Dynamic Lights](lights.md#performance--limitations) for the reasoning. The
+Sodium adapter therefore covers the vanilla/Sodium **Fancy** path — the setup nearly every player
+runs.
 
 ---
 
@@ -291,25 +315,41 @@ Contain the blast radius:
   adapter, fall back. Never crash, never render garbage.
 - Pin the tested Sodium version in this document when you land it.
 
-> **Do not delete the vanilla path** (`VanillaTerrainMaterialCapture`,
-> `ChunkSectionsToRenderMixin`, `terrain_material.{vsh,fsh}`). It is the reference
-> implementation currently known to produce a correct image, and it is the oracle you validate
-> the adapter against (§11). Deleting your reference implementation while reimplementing it is
-> the worst available move.
+> **Keep the vanilla path intact** — today that is `CoreShaderMaterialPatch`'s `core/terrain`
+> patch, not a separate replay. It remains the oracle you validate the adapter against (§11), and
+> it is what runs for every player without Sodium. The two paths must keep writing byte-identical
+> values into the shared G-buffer; if you change one contract, change both.
+>
+> *(History: the vanilla path was originally a private second-draw replay of the chunk VBOs —
+> `VanillaTerrainMaterialCapture`, `ChunkSectionsToRenderMixin`, `terrain_material.{vsh,fsh}`.
+> Those are gone. The replay was Option B (§6) for vanilla: a second geometry submission whose
+> material lived in a separate target and had to be depth-matched back to the scene. Moving vanilla
+> terrain onto the same source-patch + MRT seam as Sodium removed that draw and the depth-matching
+> with it. The warning above survives the rewrite: whichever path is the reference, do not delete
+> it while reimplementing it.)*
 
 ---
 
 ## 11. Validation protocol
 
-The adapter logs `Sodium 0.7.3 terrain material adapter active` after its first successful
-opaque pass. This confirms capture, not image parity; the measurements below remain required.
+The adapter logs `Sodium 0.7.3 terrain material adapter active (routed to shared G-buffer)` after
+its first successful opaque pass. This confirms capture, not image parity; the measurements below
+remain required.
 
 **The vanilla path is ground truth.** Run the same scene with and without Sodium; the two
 images must converge.
 
-The showcase includes Sodium `0.7.3` at development runtime by default. Launch with
-`-Pglue.showcase.sodium=false` for the vanilla reference run (and ensure no manually installed
-Sodium jar remains in the selected run directory).
+The showcase's development runtime is selected by two Gradle properties (see
+`glue-showcase/build.gradle.kts`; defaults live in the root `gradle.properties`):
+
+| property | effect |
+|---|---|
+| `glue.showcase.sodium=false` | omit Sodium `0.7.3` — the vanilla reference run |
+| `glue.showcase.iris=true` | add Iris at runtime; **also forces Sodium in**, since Iris hard-depends on it |
+
+Pass them on the command line to override, e.g. `-Pglue.showcase.sodium=false`. Check the current
+default in `gradle.properties` before assuming which run you are getting, and ensure no manually
+installed Sodium jar remains in the selected run directory.
 
 Scene: sealed room, white concrete walls, wood plank floor, one white `POINT` light, fixed
 camera. Screenshot both. Sample an 11×11 average on each flat patch.
@@ -324,6 +364,8 @@ camera. Screenshot both. Sample an 11×11 average on each flat patch.
 Convergence on **all four** means the adapter is correct. Wall brightness alone is not
 sufficient — it was the one number the broken fallback got roughly right.
 
-A useful failure signature: if `HasMaterial` is never 1, the picture will look *exactly* like
-the current Sodium fallback rather than obviously broken. Assert the flag directly; do not
-trust your eyes for that one.
+A useful failure signature: if terrain never lands in the G-buffer, the picture does not look
+obviously broken — with the uncaptured-surface cap at 0, terrain simply receives **no Lumos light**
+and keeps its vanilla look. Do not trust your eyes for that one. Check it directly: the FBO debug
+HUD (**F8**) exposes `GBuffer MaterialID`, where captured terrain reads as a near-black red channel
+(id `1/255`) and unclaimed pixels as exact zero.
