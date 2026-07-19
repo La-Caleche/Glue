@@ -9,37 +9,64 @@ reconstructing world positions from the scene depth buffer after
 
 The subsystem is registered automatically by `GlueLumosClient`; there is nothing to
 initialize. Lumos runs only on the vanilla **Fancy** graphics path, reading Minecraft's main
-render target directly. Opaque terrain uses a captured material buffer — a vanilla chunk replay,
-or the Sodium `0.7.3` adapter when Sodium is installed. Lumos does **not** run under Fabulous
-graphics or an active Iris shaderpack (Iris support will be rebuilt separately).
+render target directly. What it lights, it identifies through a shared **material G-buffer** that
+the scene's own draws fill — vanilla's core shaders on the vanilla chunk renderer, the Sodium
+`0.7.3` adapter when Sodium is installed. Lumos does **not** run under Fabulous graphics or an
+active Iris shaderpack — see [Performance & limitations](#performance--limitations).
 
 Package: `fr.lacaleche.glue.client.render.light`.
 
 Add `fr.lacaleche.glue:glue-lumos` as a mod dependency. Lumos depends on `glue-render`, which owns
 the frame capture, render event, shader pipeline, scene renderer, and GL-state infrastructure.
 
-## Vanilla material buffer
+## The material G-buffer
 
-Iris is not required for material-aware lighting. While Lumos lights are active,
-`glue-render` replays Minecraft's already-visible opaque chunk VBOs into a private
-linear material buffer. The replay uses the original section transforms, atlas,
-cutout thresholds, and an `EQUAL` depth test, so it does not rescan blocks or draw
-hidden surfaces. A matching depth snapshot ensures the material is used only when
-opaque terrain is still the final visible surface at that pixel.
+Iris is not required for material-aware lighting. While Lumos lights are active, `glue-render`
+captures, per pixel, what the surface *is* — not just how far away it is. The buffer is filled by
+the scene's **own draws**, redirected into a multi-attachment framebuffer that borrows Minecraft's
+main colour and depth, so the material is depth-consistent with the scene by construction and the
+ordinary image is still produced by the same draw. Nothing is drawn twice for it.
 
-This removes the vanilla lightmap and fog from Lumos's albedo input. Vanilla bakes
-biome tint, directional shade, and ambient occlusion into one vertex color, so the
-fallback removes their common brightness while retaining tint ratios. The same pass
-packs the terrain vertex normal into the material buffer, avoiding depth-derived
-normal errors at room corners. Sodium `0.7.3` writes the same contract as a second
-opaque-terrain output without replaying its geometry.
+Three attachments sit alongside the main colour:
 
-Entities and translucent surfaces use the scene-color estimate for now. Stained
-glass additionally has its dedicated camera-space linear albedo buffer. Non-terrain fallback
-surfaces estimate reflectance from the already-lit scene and can inherit vanilla lightmap hue
-and AO. Sodium versions whose shader layout does not match the guarded `0.7.3` adapter fall
-back safely to the vanilla replay. Under Fabulous graphics or an active Iris shaderpack Lumos
-does not run at all.
+| Attachment | Contents |
+|---|---|
+| 1 (`RGBA16F`) | linear albedo (RGB) + octahedral-packed geometric normal (A) |
+| 2 (`RGBA8`) | material id (R) + the depth the capturing draw owned, packed to 24 bits (GBA) |
+| 3 (`RGBA8`) | roughness (R), metalness (G), dielectric F0 (B) |
+
+Material ids: `1` terrain, `2` entity, `3` particle, `4` glass, `5` water, `6` metal. `0` means no
+draw claimed the pixel.
+
+How each class gets in:
+
+- **Terrain, entities and particles** — vanilla's `core/terrain`, `core/entity` and `core/particle`
+  shaders are patched at Minecraft's shader-source seam to write the extra outputs, and their draws
+  are redirected into the G-buffer. Under Sodium, the `0.7.3` adapter patches Sodium's own chunk
+  shaders and attaches the same textures to Sodium's framebuffer for its opaque pass.
+- **Glass, water and metal** — re-rendered post-world into the material attachments only, leaving
+  the colour vanilla already blended untouched.
+
+This keeps the vanilla lightmap and fog out of Lumos's albedo input. Vanilla bakes biome tint,
+directional shade, and ambient occlusion into one vertex color, so the capture divides out their
+common brightness and retains the tint ratios. Terrain, entities and particles also store their
+real geometric normal, avoiding the depth-derived errors that facet room corners; glass, water and
+metal store albedo and properties but let the deferred pass derive their normal from depth.
+
+A pixel is only trusted if the capturing draw still **owns** it: the depth it packed into
+attachment 2 must still reconstruct to the scene surface, tested in world space with a
+distance-scaled tolerance. Otherwise something moved in front and the id is stale.
+
+**Uncaptured pixels** — anything no class claimed — have no stored albedo, and reflectance cannot
+be recovered from a single already-lit sample (`scene = albedo × light` is one equation with two
+unknowns). Rather than light a guess, Lumos leaves them at their untouched vanilla look. They keep
+a depth-derived normal for the passes that need one.
+
+The gate is all-or-nothing per frame. If a consumer wants material, the frame is Fancy (not
+Fabulous), no Iris shaderpack is active, and the terrain path can actually write material, the
+G-buffer opens; otherwise it stays shut and no capture runs. Sodium builds whose shader layout does
+not match the guarded `0.7.3` adapter, and a future Minecraft whose core-shader source drifts away
+from a patch anchor, both close the gate safely rather than render garbage.
 
 ## Quick start
 
@@ -171,7 +198,13 @@ they soften with distance from the caster.
   average), stacked panes multiply (red behind blue projects violet), and the
   colored pool diffuses the further it falls behind the glass. Opaque blocks
   behind glass still shadow normally.
-- Entities do not cast shadows (yet); only blocks are rasterized into the maps.
+- **Entity shadows:** entities move every frame, so they are not baked into the
+  cached block maps. A **shadowed** light re-renders nearby entities from its own
+  point of view each frame into a separate depth map that shares the block map's
+  view/projection, giving real model-shaped shadows. A light with `withShadow(false)`
+  (or one the shadow budget turned away) instead approximates each nearby living
+  entity as a vertical capsule the deferred pass occludes against analytically —
+  a cheap soft blob that grounds the entity without claiming a map.
 
 ## Culling
 
@@ -319,9 +352,11 @@ route is for shapes whose **geometry** differs, not whose silhouette does.
   + one screen-bounded accumulation pass per **visible** light (six for shadowed
   point lights, one per cube face) + one composite. Range affects bake cost (bigger
   region to rasterize), not accumulation cost.
-- On the vanilla chunk renderer, active lights add one opaque-terrain material
-  replay and one depth copy per frame. The replay uses the existing visible VBO
-  lists and early `EQUAL` depth rejection; no chunk rebuild or CPU block walk occurs.
+- The material G-buffer adds **no extra geometry pass** for terrain, entities or
+  particles: they are captured in the draw the scene already performs. Its cost is the
+  extra attachment writes and the three screen-sized textures. Glass, water and metal
+  do re-render their (nearby, limited) geometry post-world, into material attachments
+  only. When no light is active the whole capture is off and costs nothing.
 - Range has no API cap. Shadow and translucent-caster collection traverses loaded,
   non-empty chunk sections intersecting the light instead of scanning a fixed
   dense cube. Point-light casters are collected once and reused for all six faces.
@@ -337,11 +372,21 @@ route is for shapes whose **geometry** differs, not whose silhouette does.
   light as a glow on the pane (by design), but surfaces *behind* other
   translucents can't be lit independently.
 - **Fabulous graphics** disables Lumos entirely: translucents composite from a
-  separate target, so the captured material depth would not match the main scene
-  depth. Switch to Fancy graphics for dynamic lighting.
-- Opaque Vanilla and supported Sodium terrain use captured geometric normals.
-  Entities and translucent surfaces reconstruct normals from depth, so extremely
-  thin geometry (flowers, tripwire) lights approximately.
-- **Active Iris shaderpacks** disable Lumos entirely; the pack owns its own colortex
-  layout. Iris support will be rebuilt separately. Iris installed with shaders
-  disabled runs the normal vanilla Fancy path with full material capture.
+  separate target, so the material would not match the main scene depth Lumos
+  reconstructs from. Switch to Fancy graphics for dynamic lighting.
+- Terrain, entities and particles carry captured geometric normals on both the vanilla
+  and Sodium paths. Glass, water and metal carry real albedo but derive their normal
+  from depth, as does any surface the G-buffer never claimed — so extremely thin
+  geometry (flowers, tripwire) lights approximately.
+- Surfaces no material class captures receive **no Lumos light** and keep their vanilla
+  look, by design: their reflectance is unknowable from an already-lit sample, and
+  lighting the guess floods a pale surface to white and paints a dark one flat. Bringing
+  a surface class into the light is done by capturing it, not by tuning the fallback.
+- **Active Iris shaderpacks** disable Lumos entirely. This is a structural boundary, not
+  a missing feature: the pack owns the `colortex` layout Glue's G-buffer would have to
+  attach to, and it replaces the world-geometry draw seam the capture is armed at
+  (Iris's own injection cancels it before Glue's runs), so there is no scene colour or
+  depth Lumos could read that is the pack's actual output. An approximate
+  "Lumos over the pack's final image" path was built and withdrawn — it is not queued
+  work, and reproducing it is not an improvement. Iris **installed with shaders disabled**
+  is fully supported and runs the normal vanilla Fancy path with full material capture.

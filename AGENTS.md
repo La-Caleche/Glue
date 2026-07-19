@@ -45,7 +45,7 @@ The version lives in `gradle.properties` (`app.version`). User-facing documentat
 | Build | Gradle (Kotlin DSL), fabric-loom, in-house `fr.lacaleche.caldle` plugin |
 | Rendering | Blaze3D / OpenGL; some passes use raw GL (LWJGL) deliberately |
 | Shaders | GLSL under `src/main/resources/assets/glue/shaders/` (`core/`, `internal/`, `post/`) |
-| Optional compat | Iris (compileOnly; all access via reflection in `compat`/`IrisProxy` — must work without Iris installed) |
+| Optional compat | Iris (compileOnly; all access via `compat.RenderCompat`, guarded by `HAS_IRIS` — must work without Iris installed) |
 | Native dialogs | LWJGL-NFD |
 | Tests | JUnit 5 |
 
@@ -66,8 +66,8 @@ Three source sets:
 3. **GL state discipline.** Minecraft's `GlStateManager` *caches* GL state (blend func, texture bindings, FBOs…). Any raw-GL code must save/restore through the established helpers (`SavedGlState`, and restore FBO/texture bindings after blits) or it will corrupt later vanilla rendering in ways that surface far from the cause.
 4. **Depth-buffer reconstruction uses `FrameMatrices`.** Never rebuild a view matrix from `camera.rotation()` — it misses view bobbing and the reconstruction slides against the world.
 5. **Mixins are a last resort.** They exist to capture vanilla state or inject events, not to implement features. Keep them thin; put logic in plain classes.
-6. **Iris is optional.** Anything touching Iris goes through the `compat` reflection layer and must degrade gracefully when Iris is absent.
-7. **Material G-buffer, not depth-matching.** Lumos identifies what a pixel *is* (terrain / entity / particle / glass / water / metal) through a **material G-buffer** — real per-pixel material data written by the geometry pass — never by comparing a captured depth to the scene depth. Depth-matching cannot distinguish a pane from a mob and is being retired. New surface types (water, reflective metals, …) are added as material classes in this buffer, through the shared capture API — not as bespoke depth hacks. See `client.render.internal.material` and the G-buffer notes below.
+6. **Iris is optional.** Anything touching Iris goes through the `compat` layer (`RenderCompat`) and must degrade gracefully when Iris is absent. Its API classes are imported directly; every call site short-circuits on `HAS_IRIS` so they are never resolved without Iris. Iris *internals* (pipeline manager, render targets) are reached reflectively through `ModCompatManager`.
+7. **Material G-buffer, not depth-matching.** Lumos identifies what a pixel *is* (terrain / entity / particle / glass / water / metal) through a **material G-buffer** — real per-pixel material data written by the geometry pass — never by comparing a separately captured depth to the scene depth. Depth-matching could not distinguish a pane from a mob and is gone: every material class writes its id and its own owning depth in the same draw, and consumers confirm ownership with a world-space test against that packed depth. New surface types are added as material classes in this buffer, through the shared capture API — not as bespoke depth hacks. See `client.render.internal.gbuffer` (the MRT and the core-shader patch), `client.render.internal.material` (the per-frame gate and the Sodium adapter), and the G-buffer notes below.
 
 ---
 
@@ -77,10 +77,10 @@ Lumos is meant to be a **top-tier lighting engine** — proper static point ligh
 
 The foundation is a **G-buffer / material-capture subsystem** with a **clean, reusable API for creating render targets that do not conflict with Sodium or Iris**. Principles:
 
-- **Reuse the host's buffers when offered, own them when not.** If Sodium/Iris expose usable targets, adapt to them (as `SodiumTerrainMaterialCapture` already does); otherwise build our own with raw GL.
+- **Reuse the host's buffers when offered, own them when not.** `GBufferTargets` owns the material attachments with raw GL but borrows Minecraft's main colour and depth, so a redirected draw still produces the ordinary scene. When Sodium is the terrain renderer, `SodiumTerrainMaterialCapture` hangs those same owned textures off Sodium's own bound framebuffer for the opaque pass rather than duplicating them.
 - **The capture pass writes material data in the SAME draw as the geometry** (MRT), so material depth is inherently consistent with the scene — this is why the earlier separate-draw attempt failed. On MC 1.21.8 this requires bypassing Blaze3D's single-attachment `RenderPass` at the `com.mojang.blaze3d.opengl.GlCommandEncoder` level (the technique Iris uses; Iris source is available at `../../Iris` for reference — replicate only what's needed, not the whole shaderpack loader).
 - **Vanilla core shaders are patched at the source seam** (`ShaderManager$CompilationCache.getShaderSource`), mirroring the existing `SodiumMaterialShaderPatch`. Note `#version 150` core shaders need `GL_ARB_explicit_attrib_location` for a second `layout(location=1)` output.
-- **One material buffer, many consumers.** Entities/particles today; water and metals later — all as material classes, so shadow/glass/reflection passes read one coherent buffer.
+- **One material buffer, many consumers.** Terrain, entities, particles, glass, water and metal all land in it as material classes, so the deferred, shadow and reflection passes read one coherent buffer. A pixel no class claimed cannot have its albedo recovered — reflectance and illumination are one product in an already-lit sample — so `UNCAPTURED_LIGHT_CAP` bounds what Lumos may add there; at its current `0` those pixels keep their untouched vanilla look. The estimated albedo serves the different case where there is no material capability at all, and the cap never arms.
 
 Build it incrementally and verify each stage in-game (GLSL and MRT wiring have no compile-time safety net).
 
