@@ -14,10 +14,13 @@ the scene's own draws fill — vanilla's core shaders on the vanilla chunk rende
 `0.7.3` adapter when Sodium is installed. Lumos does **not** run under Fabulous graphics or an
 active Iris shaderpack — see [Performance & limitations](#performance--limitations).
 
-Package: `fr.lacaleche.glue.client.render.light`.
+Packages: the shared light model is `fr.lacaleche.glue.lumos` (`Light`, `LightType`); the renderer and
+its API (`LightManager`, `LightHandle`, …) are `fr.lacaleche.glue.client.render.light`.
 
-Add `fr.lacaleche.glue:glue-lumos` as a mod dependency. Lumos depends on `glue-render`, which owns
-the frame capture, render event, shader pipeline, scene renderer, and GL-state infrastructure.
+Add `fr.lacaleche.glue:glue-lumos-client` as a mod dependency to render lights — it pulls the shared
+model `glue-lumos` and the client infrastructure `glue-render` (frame capture, render events, shader
+pipeline, scene renderer, GL state). Server-side code that only needs to describe lights depends on the
+model module `glue-lumos` alone.
 
 ## The material G-buffer
 
@@ -71,7 +74,7 @@ from a patch anchor, both close the gate safely rather than render garbage.
 ## Quick start
 
 ```java
-import fr.lacaleche.glue.client.render.light.Light;
+import fr.lacaleche.glue.lumos.Light;
 import fr.lacaleche.glue.client.render.light.LightManager;
 
 // A warm point light hovering at (x, y, z), reaching 12 blocks.

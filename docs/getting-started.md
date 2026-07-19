@@ -19,9 +19,11 @@ Glue is a **Fabric 1.21.8** library mod that eliminates boilerplate when buildin
 
 ```
 glue/
-├── glue-core/                            # Registries, data, math, shapes, history, file dialogs
-├── glue-render/                          # Pipelines, post effects, scenes, cameras, outlines
-├── glue-lumos/                           # Deferred colored lights and shadow rendering
+├── glue-core/                            # Registries, data, math, shapes, history (both sides)
+├── glue-render/                          # Pipelines, post effects, scenes, outlines, file dialogs (client)
+├── glue-server/                          # Networking + world-save persistence (both sides)
+├── glue-lumos/                           # Shared light model: Light / LightType (both sides)
+├── glue-lumos-client/                    # Deferred colored-light renderer (client)
 └── glue-showcase/                        # Runnable feature demonstrations
 ```
 
@@ -35,12 +37,14 @@ dependencies {
 
     // Add only when the corresponding features are used.
     modImplementation("fr.lacaleche.glue:glue-render:${glueVersion}")
-    modImplementation("fr.lacaleche.glue:glue-lumos:${glueVersion}")
+    modImplementation("fr.lacaleche.glue:glue-lumos-client:${glueVersion}")
 }
 ```
 
-`glue-lumos` depends on `glue-render`, which depends on `glue-core`. Rendering consumers should depend
-on `glue-render`; dynamic-light consumers should depend on `glue-lumos`.
+Each module pulls its own dependencies transitively. Rendering consumers depend on `glue-render`;
+to render dynamic lights depend on `glue-lumos-client` (it pulls `glue-lumos` + `glue-render`).
+Server-side code that only describes lights depends on the model module `glue-lumos` alone, and
+`glue-server` provides the shared server infrastructure. `glue-core` underlies all of them.
 
 ## Mod Initialization
 
@@ -57,7 +61,7 @@ Declare the modules used by your mod in `fabric.mod.json`:
     "depends": {
         "glue": "*",
         "glue-render": "*",
-        "glue-lumos": "*"
+        "glue-lumos-client": "*"
     }
 }
 ```
