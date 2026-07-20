@@ -21,6 +21,7 @@ public final class GlueLumosClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         LightRenderer.init();
+        ClientPersistentLights.registerClient();
         TerrainMaterialBuffer.requestWhen(() -> !LightManager.getInstance().isEmpty());
         TerrainMaterialBuffer.releaseOnClose(LightRenderer::cleanup);
         switchWorld(Minecraft.getInstance().level);
@@ -56,6 +57,7 @@ public final class GlueLumosClient implements ClientModInitializer {
         WorldLightContext previous = manager.switchWorld(level);
         if (previous != null) previous.close();
         LightRenderer.configureWorld(manager.currentWorld());
+        ClientPersistentLights.onWorldSwitch(level);
     }
 
     private static void invalidateChunk(ClientLevel level, net.minecraft.world.level.ChunkPos chunk) {

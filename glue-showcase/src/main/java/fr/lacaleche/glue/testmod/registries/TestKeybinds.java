@@ -68,6 +68,11 @@ public class TestKeybinds {
             "key.categories.glue_test", GLFW.GLFW_KEY_F11,
             client -> TestLighting.toggle());
 
+    public static final KeyMapping ADD_PERSISTENT_LIGHT = KEYBINDINGS.register(
+            "add_persistent_light",
+            "key.categories.glue_test", GLFW.GLFW_KEY_P,
+            client -> TestLighting.addPersistentPoint());
+
     public static void registerKeybinds() {
     }
 }
