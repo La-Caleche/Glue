@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.testmod.registries;
 
 import fr.lacaleche.glue.lumos.Light;
+import fr.lacaleche.glue.client.render.light.ClientPersistentLights;
 import fr.lacaleche.glue.client.render.light.LightAttachments;
 import fr.lacaleche.glue.client.render.light.LightHandle;
 import fr.lacaleche.glue.client.render.light.LightManager;
@@ -37,6 +38,19 @@ public final class TestLighting {
         } else {
             removeAll();
         }
+    }
+
+    /**
+     * Requests a <b>persistent</b> point light at the player from the server. Unlike the other demo
+     * lights, it is stored in the world save and comes back on the next reload &mdash; the round trip
+     * that proves {@link ClientPersistentLights}. Rejected on a dedicated server for non-operators.
+     */
+    public static void addPersistentPoint() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) return;
+        Vec3 p = player.position();
+        ClientPersistentLights.requestAdd(Light.point(p.x, p.y + 0.9, p.z,
+                1.0f, 0.85f, 0.6f, 2.5f, 10.0f));
     }
 
     public static void addStaticSpot() {
