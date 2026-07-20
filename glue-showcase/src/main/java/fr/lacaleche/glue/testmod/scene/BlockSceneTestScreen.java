@@ -66,7 +66,6 @@ public class BlockSceneTestScreen extends AbstractViewportScreen {
 
     @Override
     protected void renderHud(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        var font = Minecraft.getInstance().font;
         guiGraphics.drawString(font,
                 "LMB: Rotate  RMB: Pan  Scroll: Zoom  +/-: Region  PgUp/Dn: Height  Home: Reset  ESC: Close",
                 4, 4, 0xFFFFFFFF);

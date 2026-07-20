@@ -147,7 +147,6 @@ public class GizmoTestScreen extends AbstractViewportScreen {
 
     @Override
     protected void renderHud(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        var font = Minecraft.getInstance().font;
 
         String opName = switch (gizmoController.getCurrentOperation()) {
             case TRANSLATE -> "Translate";

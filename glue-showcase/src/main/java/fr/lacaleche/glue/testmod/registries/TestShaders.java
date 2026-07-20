@@ -72,11 +72,7 @@ public class TestShaders {
     );
 
     public static void registerShaders() {
-        TestmodClient.LOGGER.info("Registering test shaders ({} raw pipelines, {} glue pipelines, {} post chains, {} timed effects)",
-                CORE.getPipelines().size(),
-                1, // HOLOGRAM
-                POST.getHandles().size(),
-                1  // CHROMATIC_TIMED
-        );
+        TestmodClient.LOGGER.info("Registering test shaders ({} raw pipelines, {} post chains)",
+                CORE.getPipelines().size(), POST.getHandles().size());
     }
 }

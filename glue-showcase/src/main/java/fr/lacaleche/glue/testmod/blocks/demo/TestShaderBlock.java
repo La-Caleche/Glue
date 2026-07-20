@@ -20,12 +20,9 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import java.util.stream.Stream;
 
 /**
  * Demonstrates cycling a rendered item through every registered {@link GluePipeline}.
@@ -36,9 +33,7 @@ public class TestShaderBlock extends BaseEntityBlock implements GlueBlock, IHave
 
     public static final MapCodec<TestShaderBlock> CODEC = simpleCodec(TestShaderBlock::new);
 
-    protected static final VoxelShape SHAPE = Stream.of(
-            Block.box(0, 4, 0, 16, 22, 16), Block.box(-3, 0, -3, 19, 4, 19)
-    ).reduce((v1, v2) -> Shapes.join(v1, v2, BooleanOp.OR)).get();
+    protected static final VoxelShape SHAPE = DemoShapes.PEDESTAL;
 
     public TestShaderBlock(Properties properties) {
         super(properties);

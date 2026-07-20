@@ -8,9 +8,10 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 /**
- * Client &rarr; server: request to add a persistent light to the sender's current dimension. The server
- * validates the request (always in singleplayer, operators only in multiplayer), assigns an id, persists
- * it, and broadcasts the new set. The requested light is advisory until the server accepts it.
+ * Client &rarr; server: request to add a persistent light to the sender's current dimension. Refused
+ * unless the server opened the request channel and its policy accepts the sender (see
+ * {@code PersistentLights.allowClientRequests}); when accepted the server assigns an id, persists the
+ * light, and broadcasts the new set. The requested light is advisory until the server accepts it.
  */
 public record LightAddRequestPayload(Light light) implements CustomPacketPayload {
 

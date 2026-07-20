@@ -6,7 +6,7 @@ import fr.lacaleche.glue.client.shader.ShadedBufferSource;
 import fr.lacaleche.glue.client.transform.GlueTransformStack;
 import fr.lacaleche.glue.compat.RenderCompat;
 import fr.lacaleche.glue.testmod.blocks.demo.TickingBlockEntity;
-import fr.lacaleche.glue.testmod.render.TestShaderPipelines;
+import fr.lacaleche.glue.testmod.registries.TestShaders;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -54,7 +54,7 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Tick
                        MultiBufferSource vertexConsumers, int light, int overlay, Vec3 cameraPos) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
-        GluePipeline activePipeline = TestShaderPipelines.get(2);
+        GluePipeline activePipeline = TestShaders.HOLOGRAM;
 
         float time = (entity.getTicks() + tickDelta) / 20f;
         float globalBob = (float) Math.sin(time * BOB_SPEED) * BOB_AMP;

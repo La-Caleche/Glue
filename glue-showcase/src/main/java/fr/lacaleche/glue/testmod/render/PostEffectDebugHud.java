@@ -261,7 +261,17 @@ public class PostEffectDebugHud {
         if (cursor >= scroll + maxVisible) scroll = cursor - maxVisible + 1;
         scroll = Math.max(0, scroll);
 
-        // Entries
+        // Entries. The cursor cannot move mid-loop, so it is read once for all rows.
+        long win = mc.getWindow().getWindow();
+        double guiMX = 0, guiMY = 0;
+        if (mouseUngrabbed) {
+            double[] mx = new double[1], my = new double[1];
+            GLFW.glfwGetCursorPos(win, mx, my);
+            double guiScale = mc.getWindow().getGuiScale();
+            guiMX = mx[0] / guiScale;
+            guiMY = my[0] / guiScale;
+        }
+
         int y = panelY + HEADER_H + 2;
         for (int i = scroll; i < entries.size() && i < scroll + maxVisible; i++) {
             EffectEntry entry = entries.get(i);
@@ -283,13 +293,6 @@ public class PostEffectDebugHud {
 
             // Click support when mouse is ungrabbed
             if (mouseUngrabbed) {
-                double[] mx = new double[1], my = new double[1];
-                long win = mc.getWindow().getWindow();
-                GLFW.glfwGetCursorPos(win, mx, my);
-                double guiScale = mc.getWindow().getGuiScale();
-                double guiMX = mx[0] / guiScale;
-                double guiMY = my[0] / guiScale;
-
                 if (guiMX >= panelX + 2 && guiMX <= panelX + PANEL_W - 2
                         && guiMY >= y - 1 && guiMY <= y + LINE_H - 2) {
                     // Highlight hovered entry

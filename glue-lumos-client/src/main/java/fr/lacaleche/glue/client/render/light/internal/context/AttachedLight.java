@@ -1,10 +1,12 @@
-package fr.lacaleche.glue.client.render.light;
+package fr.lacaleche.glue.client.render.light.internal.context;
 
-import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
 import fr.lacaleche.glue.lumos.Light;
+import fr.lacaleche.glue.lumos.LightAttachment;
+import fr.lacaleche.glue.lumos.LightHandle;
+import fr.lacaleche.glue.lumos.LightTransform;
 
-/** Stable world-owned handle for a frame-sampled light attachment. */
-public final class LightHandle {
+/** The client implementation of {@link LightHandle}: a frame-sampled light owned by one world. */
+public final class AttachedLight implements LightHandle {
 
     private final WorldLightContext owner;
     private final LightAttachment attachment;
@@ -13,24 +15,27 @@ public final class LightHandle {
     private Light resolved;
     private boolean removed;
 
-    public LightHandle(WorldLightContext owner, Light template, LightAttachment attachment) {
+    public AttachedLight(WorldLightContext owner, Light template, LightAttachment attachment) {
         this.owner = owner;
         this.template = template;
         this.attachment = attachment;
     }
 
+    @Override
     public LightHandle light(Light light) {
         if (light == null) throw new IllegalArgumentException("Light must not be null");
         owner.update(this, light);
         return this;
     }
 
+    @Override
     public void remove() {
         if (!removed) {
             owner.remove(this);
         }
     }
 
+    @Override
     public boolean isRemoved() {
         return removed;
     }

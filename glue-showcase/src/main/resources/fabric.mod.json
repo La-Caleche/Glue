@@ -5,6 +5,9 @@
     "name": "Glue Showcase",
     "description": "Development mod showcasing Glue features",
     "entrypoints": {
+        "main": [
+            "fr.lacaleche.glue.testmod.Testmod"
+        ],
         "client": [
             "fr.lacaleche.glue.testmod.TestmodClient"
         ]

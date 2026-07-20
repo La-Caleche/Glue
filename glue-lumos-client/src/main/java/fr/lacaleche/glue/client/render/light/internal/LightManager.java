@@ -1,5 +1,7 @@
-package fr.lacaleche.glue.client.render.light;
+package fr.lacaleche.glue.client.render.light.internal;
 
+import fr.lacaleche.glue.lumos.LightAttachment;
+import fr.lacaleche.glue.lumos.LightHandle;
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
 import fr.lacaleche.glue.lumos.Light;
 import java.util.List;
@@ -7,9 +9,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The mutable set of active {@link Light}s. Mods add and remove lights here; the
- * {@link LightRenderer} reads a {@link #snapshot()} once per frame so mutation
- * during rendering is safe.
+ * The mutable set of active {@link Light}s. Mods do not touch this directly &mdash; they go through
+ * {@link fr.lacaleche.glue.lumos.Lumos}. The
+ * {@link fr.lacaleche.glue.client.render.light.LightRenderer} reads a {@link #snapshot()} once per
+ * frame, so mutation during rendering is safe.
  *
  * <p>This is the path-independent "light list" stage of the deferred lighting
  * pipeline &mdash; it is unaware of vanilla vs Iris rendering.</p>

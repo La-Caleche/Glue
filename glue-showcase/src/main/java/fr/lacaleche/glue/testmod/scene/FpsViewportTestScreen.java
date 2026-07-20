@@ -96,7 +96,6 @@ public class FpsViewportTestScreen extends AbstractViewportScreen {
 
     @Override
     protected void renderHud(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        var font = Minecraft.getInstance().font;
 
         if (isCapturing()) {
             guiGraphics.drawString(font,

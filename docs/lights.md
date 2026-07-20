@@ -14,8 +14,10 @@ the scene's own draws fill — vanilla's core shaders on the vanilla chunk rende
 `0.7.3` adapter when Sodium is installed. Lumos does **not** run under Fabulous graphics or an
 active Iris shaderpack — see [Performance & limitations](#performance--limitations).
 
-Packages: the shared light model is `fr.lacaleche.glue.lumos` (`Light`, `LightType`); the renderer and
-its API (`LightManager`, `LightHandle`, …) are `fr.lacaleche.glue.client.render.light`.
+Everything you call lives in `fr.lacaleche.glue.lumos`: `Lumos` (the entry point), `Light`,
+`LightType`, `LightAttachment(s)`, `LightHandle`. It is a both-sides package, so the same code
+compiles and runs on a client, a server, or shared. `fr.lacaleche.glue.client.render.light` holds the
+renderer itself, which you never call to manage lights.
 
 Add `fr.lacaleche.glue:glue-lumos-client` as a mod dependency to render lights — it pulls the shared
 model `glue-lumos` and the client infrastructure `glue-render` (frame capture, render events, shader
@@ -73,23 +75,68 @@ from a patch anchor, both close the gate safely rather than render garbage.
 
 ## Quick start
 
+There are two kinds of light, and the difference is the same one vanilla draws
+between a **block** and a **particle**: does the world own it, or does this
+client just see it?
+
 ```java
 import fr.lacaleche.glue.lumos.Light;
-import fr.lacaleche.glue.client.render.light.LightManager;
+import fr.lacaleche.glue.lumos.Lumos;
 
-// A warm point light hovering at (x, y, z), reaching 12 blocks.
-Light lamp = LightManager.getInstance().add(
-        Light.point(x, y, z, 1.0f, 0.85f, 0.6f, /*intensity*/ 2.5f, /*range*/ 12.0f));
+Light lamp = Light.point(x, y, z, 1.0f, 0.85f, 0.6f, /*intensity*/ 2.5f, /*range*/ 12.0f);
 
-// Later:
-LightManager.getInstance().remove(lamp);
+// A world light: saved with the dimension, synced to everyone in it.
+long id = Lumos.place(level, lamp);
+Lumos.update(level, id, lamp.withShadow(false));  // replace in place, keeping the id
+Lumos.remove(level, id);
+
+// A visual light: this client only, gone at the end of the session.
+Lumos.spawn(level, lamp);
+Lumos.despawn(level, lamp);
 ```
 
-`add` returns the same instance for convenient field storage. `LightManager` is
-synchronized and snapshotted once per frame, so you may add/remove from client
-tick code freely. Lights belong to the active `ClientLevel`: changing dimensions,
-disconnecting, or replacing the world disposes its lights and GPU caches. Calling
-`add` or `attach` while no client world exists throws `IllegalStateException`.
+There is one API and it is side-agnostic. Pass the `Level` you have and Lumos
+does the right thing: `place` stores and syncs on the server and asks the server
+when called on a client, `spawn` renders on a client and is a no-op on a server.
+Client mod, server mod, or shared code — the call is identical.
+
+`spawn` returns the same instance for convenient field storage. The light list is
+synchronized and snapshotted once per frame, so you may spawn/despawn from client
+tick code freely. Visual lights belong to the active `ClientLevel`: changing
+dimensions, disconnecting, or replacing the world disposes them and their GPU
+caches. Spawning while no client world exists throws `IllegalStateException`.
+
+### World lights
+
+`Lumos.place` writes to `<dimension>/data/glue_lumos_lights.dat`, so world lights
+travel with the save folder and are per-dimension. The server assigns the id and
+is the only authority: clients receive the set and render it, they never decide it.
+
+A `GOBO` cannot be placed — its mask is a live GL texture id, which is meaningless
+on a server and unserializable. Gobos are visual lights only.
+
+Clients **cannot** touch world lights by default. Lumos ships a request channel
+for client-driven tooling (`Lumos.place`/`update`/`remove` called with a
+`ClientLevel`), but an open channel is a write path into the save for every
+connected client, so the server must opt in:
+
+```java
+// In a ModInitializer, i.e. on the logical server:
+PersistentLights.allowClientRequests(PersistentLights.OPERATORS);
+```
+
+`OPERATORS` accepts operators at permission level 4 — what `/op` grants under the
+default `op-permission-level`, and what the world owner has in singleplayer with
+cheats enabled. Pass your own `ClientRequestPolicy` for anything else. Even when
+open, a request must pass a well-formedness check on every field, must be within
+`MAX_REQUEST_DISTANCE` (64 blocks) of the requesting player, and cannot push the
+dimension past `MAX_LIGHTS_PER_DIMENSION` (4096). Server-side code calling
+`Lumos` directly is never subject to the channel gate.
+
+The showcase's light debug HUD (F12) demonstrates the whole channel: it lists
+world lights alongside visual ones (`W<id>` rows), and its place/edit/delete
+actions on them are `Lumos.place`/`update`/`remove` requests that only take
+effect once the server accepts and syncs back.
 
 ## Light types
 
@@ -122,9 +169,8 @@ disconnecting, or replacing the world disposes its lights and GPU caches. Callin
 swap it when its properties change:
 
 ```java
-LightManager manager = LightManager.getInstance();
-manager.remove(flashlight);
-flashlight = manager.add(Light.spot(eye.x, eye.y, eye.z,
+Lumos.despawn(level, flashlight);
+flashlight = Lumos.spawn(level, Light.spot(eye.x, eye.y, eye.z,
         look.x, look.y, look.z, 1.0f, 0.85f, 0.6f, 3.0f, 26.0f, 12.0f, 22.0f));
 ```
 
@@ -139,7 +185,7 @@ of replacing it from a client tick:
 Light definition = Light.spot(0, 0, 0, 0, -1, 0,
         1.0f, 0.85f, 0.6f, 3.0f, 26.0f, 12.0f, 22.0f);
 
-LightHandle flashlight = LightManager.getInstance().attach(
+LightHandle flashlight = Lumos.attach(level,
         definition, LightAttachments.entityEyes(player));
 
 // Change color/range/cone while retaining the attachment:
@@ -284,7 +330,7 @@ ResourceLocation mask = ResourceLocation.fromNamespaceAndPath("mymod", "textures
 int goboId = ((GlTexture) Minecraft.getInstance().getTextureManager()
         .getTexture(mask).getTexture()).glId();
 
-Light rose = LightManager.getInstance().add(Light.gobo(
+Light rose = Lumos.spawn(level, Light.gobo(
         x, y, z, 0f, -1f, 0f,          // aimed straight down
         1.0f, 0.2f, 0.3f, 3.0f, 20.0f,
         30.0f, 40.0f,                   // the cone still bounds the projection

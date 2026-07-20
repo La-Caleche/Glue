@@ -13,12 +13,12 @@ import java.util.List;
  * join and dimension change, and again after any add or removal &mdash; the client replaces its
  * persistent set with this list, so it is always the authoritative snapshot.
  */
-public record LightSyncPayload(List<IdLight> lights) implements CustomPacketPayload {
+public record LightSyncPayload(List<PlacedLight> lights) implements CustomPacketPayload {
 
     public static final Type<LightSyncPayload> ID = new Type<>(Glue.id("lumos_light_sync"));
     public static final StreamCodec<RegistryFriendlyByteBuf, LightSyncPayload> STREAM_CODEC =
             StreamCodec.composite(
-                    IdLight.STREAM_CODEC.apply(ByteBufCodecs.list()), LightSyncPayload::lights,
+                    PlacedLight.STREAM_CODEC.apply(ByteBufCodecs.list()), LightSyncPayload::lights,
                     LightSyncPayload::new);
 
     @Override

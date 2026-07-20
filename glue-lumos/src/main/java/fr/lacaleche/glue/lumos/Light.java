@@ -87,6 +87,41 @@ public final class Light {
                 r, g, b, intensity, range, cosInner, cosOuter, 0, castsShadow);
     }
 
+    /** Hard ceilings on a deserialized light, well above any sane authored value. */
+    private static final float MAX_RANGE = 256f;
+    private static final float MAX_INTENSITY = 64f;
+    /** Cosine of the widest cone the factories allow: an 89-degree half-angle. */
+    private static final float MIN_CONE_COS = (float) Math.cos(Math.toRadians(89.0));
+
+    /**
+     * Whether every field lies in the range the public factories enforce. Deserialization
+     * ({@link LightCodecs}) rebuilds a light through {@link #raw} and so bypasses those factories:
+     * anything arriving from disk or from the network is unvalidated until it is checked here, and a
+     * {@code NaN} or absurd value that reaches the renderer corrupts the frame for every player who
+     * receives it. The server checks incoming lights with this before storing or broadcasting them.
+     */
+    public boolean isWellFormed() {
+        if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) return false;
+        if (!inUnitRange(r) || !inUnitRange(g) || !inUnitRange(b)) return false;
+        if (!Float.isFinite(intensity) || intensity < 0f || intensity > MAX_INTENSITY) return false;
+        if (!Float.isFinite(range) || range <= 0.05f || range > MAX_RANGE) return false;
+        if (type == LightType.POINT) return true;
+        if (!Float.isFinite(directionX) || !Float.isFinite(directionY) || !Float.isFinite(directionZ)) {
+            return false;
+        }
+        float lengthSquared = directionX * directionX + directionY * directionY + directionZ * directionZ;
+        if (Math.abs(lengthSquared - 1f) > 1e-3f) return false;
+        return inCosineRange(cosInner) && cosOuter >= MIN_CONE_COS && cosInner > cosOuter;
+    }
+
+    private static boolean inUnitRange(float value) {
+        return Float.isFinite(value) && value >= 0f && value <= 1f;
+    }
+
+    private static boolean inCosineRange(float value) {
+        return Float.isFinite(value) && value >= -1f && value <= 1f;
+    }
+
     /**
      * A copy of this light with {@link #castsShadow} set ({@code this} if unchanged).
      * A non-shadowed light never claims a slot from the shadow budget, so it is the
