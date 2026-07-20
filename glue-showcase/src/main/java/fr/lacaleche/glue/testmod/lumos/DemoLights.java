@@ -1,6 +1,8 @@
 package fr.lacaleche.glue.testmod.lumos;
 
 import fr.lacaleche.glue.lumos.Light;
+import fr.lacaleche.glue.lumos.LightAttachments;
+import fr.lacaleche.glue.lumos.LightHandle;
 import fr.lacaleche.glue.lumos.Lumos;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -27,8 +29,16 @@ public final class DemoLights {
 
     public static final DemoLights INSTANCE = new DemoLights();
 
+    private static final float[][] FLASHLIGHT_COLORS = {
+            {1.0f, 0.92f, 0.75f},
+            {0.55f, 0.75f, 1.0f},
+            {1.0f, 0.3f, 0.25f},
+    };
+
     private final List<Light> spawned = new ArrayList<>();
     private boolean enabled;
+    private LightHandle flashlight;
+    private int flashlightColor;
 
     private DemoLights() {
     }
@@ -78,6 +88,37 @@ public final class DemoLights {
                 (float) direction.x, (float) direction.y, (float) direction.z,
                 0.95f, 0.921f, 0.77f,
                 3.0f, 22.0f, 20.0f, 32.0f));
+    }
+
+    /**
+     * K: the frame-sampled {@link Lumos#attach} path. First press attaches a spot to the player's
+     * eyes; each further press restyles it in place through {@link LightHandle#light} until the
+     * colors run out, which turns it off. The handle survives nothing the world doesn't &mdash; a
+     * dimension change removes it, and the next press starts fresh.
+     */
+    public void toggleFlashlight() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) return;
+        if (flashlight == null || flashlight.isRemoved()) {
+            flashlightColor = 0;
+            flashlight = Lumos.attach(player.level(), flashlightLight(0),
+                    LightAttachments.entityEyes(player));
+            return;
+        }
+        flashlightColor++;
+        if (flashlightColor >= FLASHLIGHT_COLORS.length) {
+            flashlight.remove();
+            flashlight = null;
+            return;
+        }
+        flashlight.light(flashlightLight(flashlightColor));
+    }
+
+    /** Position and aim are placeholders: the attachment re-samples them every rendered frame. */
+    private static Light flashlightLight(int color) {
+        float[] rgb = FLASHLIGHT_COLORS[color];
+        return Light.spot(0, 0, 0, 0f, -1f, 0f,
+                rgb[0], rgb[1], rgb[2], 3.0f, 26.0f, 12.0f, 22.0f);
     }
 
     private void spawnStaticLights(LocalPlayer player) {

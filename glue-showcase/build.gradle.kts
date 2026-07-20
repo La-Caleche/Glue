@@ -3,20 +3,11 @@ plugins {
     id("fr.lacaleche.caldle")
 }
 
-repositories {
-    maven("https://api.modrinth.com/maven")
-}
-
 dependencies {
-    implementation(project.project(":glue-core").sourceSets.getByName("main").output)
-    implementation(project.project(":glue-render").sourceSets.getByName("main").output)
-    implementation(project.project(":glue-lumos").sourceSets.getByName("main").output)
-    implementation(project.project(":glue-lumos-client").sourceSets.getByName("main").output)
-
-    minecraft(libs.minecraft)
-    mappings(loom.officialMojangMappings())
-    modImplementation(libs.fabric.loader)
-    modImplementation(libs.fabric.api)
+    implementation(project(path = ":glue-core", configuration = "namedElements"))
+    implementation(project(path = ":glue-render", configuration = "namedElements"))
+    implementation(project(path = ":glue-lumos", configuration = "namedElements"))
+    implementation(project(path = ":glue-lumos-client", configuration = "namedElements"))
 
     compileOnly(libs.iris)
 
@@ -31,15 +22,21 @@ dependencies {
         modRuntimeOnly(libs.iris)
     }
 
-    implementation("org.lwjgl:lwjgl-nfd:3.3.3")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-windows")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-linux")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-macos")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-macos-arm64")
+    implementation(libs.lwjgl.nfd)
+    val nfdVersion = libs.versions.lwjgl.nfd.get()
+    listOf("windows", "linux", "macos", "macos-arm64").forEach { platform ->
+        runtimeOnly("org.lwjgl:lwjgl-nfd:$nfdVersion:natives-$platform")
+    }
 }
 
 loom {
     runs {
+        configureEach {
+            // Loom's dev log4j config strips ANSI colors unless told otherwise; this survives
+            // run-config regeneration, unlike a flag added by hand in the IDE.
+            vmArg("-Dfabric.log.disableAnsi=false")
+        }
+
         named("client") {
             client()
             configName = "Glue Showcase"
@@ -61,25 +58,16 @@ loom {
             programArg("--userType")
             programArg("mojang")
         }
-    }
 
-    accessWidenerPath = project.project(":glue-render").file("src/main/resources/glue-render.accesswidener")
-
-}
-
-tasks {
-    processResources {
-        inputs.property("version", project.version)
-
-        filesMatching("fabric.mod.json") {
-            expand(mapOf("version" to project.version))
+        named("server") {
+            server()
+            configName = "Glue Showcase Server"
+            ideConfigGenerated(true)
+            runDir("../run-server")
         }
     }
 
-    remapJar {
-        archiveBaseName.set(project.name)
-        destinationDirectory.set(rootDir.resolve("build").resolve("libs"))
-    }
+    accessWidenerPath = project.project(":glue-render").file("src/main/resources/glue-render.accesswidener")
 }
 
 tasks.configureEach {

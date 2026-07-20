@@ -2,6 +2,7 @@ package fr.lacaleche.glue.lumos;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 /** Built-in frame-sampled attachment sources. */
@@ -27,13 +28,21 @@ public final class LightAttachments {
     }
 
     private static LightAttachment entity(Entity entity, boolean eyes) {
-        return (level, partialTick, result) -> {
-            if (entity.isRemoved() || entity.level() != level) return false;
-            Vec3 position = eyes ? entity.getEyePosition(partialTick) : entity.getPosition(partialTick);
-            Vec3 direction = entity.getViewVector(partialTick);
-            result.position(position.x, position.y, position.z)
-                    .direction((float) direction.x, (float) direction.y, (float) direction.z);
-            return true;
+        return new LightAttachment() {
+            @Override
+            public boolean sample(Level level, float partialTick, LightTransform result) {
+                if (entity.isRemoved() || entity.level() != level) return false;
+                Vec3 position = eyes ? entity.getEyePosition(partialTick) : entity.getPosition(partialTick);
+                Vec3 direction = entity.getViewVector(partialTick);
+                result.position(position.x, position.y, position.z)
+                        .direction((float) direction.x, (float) direction.y, (float) direction.z);
+                return true;
+            }
+
+            @Override
+            public Entity anchorEntity() {
+                return entity;
+            }
         };
     }
 }

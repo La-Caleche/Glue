@@ -4,12 +4,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project.project(":glue-core").sourceSets.getByName("main").output)
-
-    minecraft(libs.minecraft)
-    mappings(loom.officialMojangMappings())
-    modImplementation(libs.fabric.loader)
-    modImplementation(libs.fabric.api)
+    api(project(path = ":glue-core", configuration = "namedElements"))
 
     compileOnly(libs.iris)
     // Sodium is never a runtime requirement: the adapter is behind runtime detection and
@@ -17,34 +12,13 @@ dependencies {
     modCompileOnly(libs.sodium)
 
     // Native OS file dialogs (moved here from glue-core with the client file-dialog API).
-    implementation("org.lwjgl:lwjgl-nfd:3.3.3")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-windows")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-linux")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-macos")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-macos-arm64")
-
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    implementation(libs.lwjgl.nfd)
+    val nfdVersion = libs.versions.lwjgl.nfd.get()
+    listOf("windows", "linux", "macos", "macos-arm64").forEach { platform ->
+        runtimeOnly("org.lwjgl:lwjgl-nfd:$nfdVersion:natives-$platform")
+    }
 }
 
 loom {
     accessWidenerPath = file("src/main/resources/glue-render.accesswidener")
-}
-
-tasks.withType<Test> {
-    useJUnitPlatform()
-}
-
-tasks {
-    processResources {
-        inputs.property("version", project.version)
-        filesMatching("fabric.mod.json") {
-            expand("version" to project.version)
-        }
-    }
-
-    remapJar {
-        archiveBaseName.set(project.name)
-        destinationDirectory.set(rootDir.resolve("build").resolve("libs"))
-    }
 }

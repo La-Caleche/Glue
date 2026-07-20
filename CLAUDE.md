@@ -43,7 +43,7 @@ Structure every reply so the signal is up front and corrections are impossible t
 
 ### Before Writing Code
 
-1. **Identify the module** and respect its boundary (see `AGENTS.md` › Repository Structure): the feature modules (`glue-core`, `glue-render`, `glue-server`, `glue-lumos`, `glue-lumos-client`) are the library, `glue-showcase` is demos, and each module's `internal` sub-packages are not API. No library module references `glue-showcase`; keep client code out of the both-sides modules.
+1. **Identify the module** and respect its boundary (see `AGENTS.md` › Repository Structure): the feature modules (`glue-core`, `glue-render`, `glue-lumos`, `glue-lumos-client`) are the library, `glue-showcase` is demos, and each module's `internal` sub-packages are not API. No library module references `glue-showcase`; keep client code out of the both-sides modules.
 2. **Reuse what exists.** Before adding helpers, check `client.utils`, the typed registries, `RenderEvents`, and the shader/pipeline infrastructure.
 3. **Know the build/launch path.** This is a Fabric library consumed by other mods; new dependencies end up in every consumer's runtime — justify them.
 

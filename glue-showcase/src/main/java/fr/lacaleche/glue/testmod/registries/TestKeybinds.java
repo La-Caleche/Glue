@@ -18,7 +18,7 @@ import org.lwjgl.glfw.GLFW;
  *
  * <p>R = raycast debug, F6 = FPS scene, F7 = block scene, F8 = gizmo test, F9 = post-effect HUD,
  * F10 = file dialogs, F11 = demo lights, F12 = light HUD (visual and world lights alike),
- * mouse 5 = spawn a spot.</p>
+ * K = flashlight (eye-attached spot), mouse 5 = spawn a spot.</p>
  */
 public class TestKeybinds {
 
@@ -69,6 +69,11 @@ public class TestKeybinds {
             "toggle_stress_lights",
             "key.categories.glue_test", GLFW.GLFW_KEY_F11,
             client -> DemoLights.INSTANCE.toggleStaticLights());
+
+    public static final KeyMapping TOGGLE_FLASHLIGHT = KEYBINDINGS.register(
+            "toggle_flashlight",
+            "key.categories.glue_test", GLFW.GLFW_KEY_K,
+            client -> DemoLights.INSTANCE.toggleFlashlight());
 
     public static void registerKeybinds() {
     }

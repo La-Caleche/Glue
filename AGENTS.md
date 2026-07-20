@@ -57,7 +57,6 @@ A composite build of **feature modules**, each its own Fabric mod with its own i
 |---|---|---|---|
 | `glue-core` | `glue` | both | Environment-agnostic base: typed registries (`registries`), networking/codecs (`packets`), `math`, `shaper`, `history`. Entry point `fr.lacaleche.glue.Glue` (main). No client/blaze3d code. |
 | `glue-render` | `glue-render` | client | Client infrastructure: `client.shader` (+ `pipeline`, `effect`, `internal`), `client.render` (gbuffer, material, outline, scene), `client.events` (`RenderEvents`, `DebugEvents`), `client.debug`, `compat` (Iris), the client file dialogs and client registries (`KeybindingsRegistry`, `BlocksRendererRegistry`). Entry point `client.GlueClient`. Access widener `glue-render.accesswidener`. |
-| `glue-server` | `glue-server` | both | Server-side infrastructure (networking senders, world-save persistence) that runs on the logical server — integrated in singleplayer, dedicated in multiplayer. No client code. |
 | `glue-lumos` | `glue-lumos` | both | Shared light model: `fr.lacaleche.glue.lumos.Light` / `LightType` (and the light codecs/sync as they land). Loads on both sides so the renderer and server persistence share one definition. |
 | `glue-lumos-client` | `glue-lumos-client` | client | The deferred colored-light renderer: `client.render.light.*` (pipeline, shadow, scene, gl) + its GLSL. Depends on `glue-lumos` + `glue-render`. Entry point `client.render.light.GlueLumosClient`. |
 | `glue-showcase` | `glue-showcase` | dev only | Development/demo mod and the sole run config; not shipped. Doubles as living documentation — every feature has a demo (see `glue-showcase/README.md`). New features should get one. |
@@ -106,7 +105,8 @@ Build it incrementally and verify each stage in-game (GLSL and MRT wiring have n
 - Compile every module: `.\gradlew.bat compileJava`
 - Run tests: `.\gradlew.bat test`
 - Launch the demo client (interactive; usually the maintainer does this): `.\gradlew.bat :glue-showcase:runClient`
-- Build the distributable jars: `.\gradlew.bat remapJar` (one per module, in the workspace-root `build/libs/`)
+- Launch the demo dedicated server: `.\gradlew.bat :glue-showcase:runServer` (run dir `run-server/`; accept the EULA on first launch)
+- Build the library jars: `.\gradlew.bat libraryJars` (five library modules, in the workspace-root `build/libs/`); `remapJar` additionally builds the showcase jar
 
 Note: the `build`/`check` tasks currently fail resolving a PMD snapshot in the `caldle` plugin, unrelated to the code — verify with `compileJava` + `test`, not `build`.
 
@@ -116,7 +116,7 @@ Note: the `build`/`check` tasks currently fail resolving a PMD snapshot in the `
 
 ## Important Rules
 
-1. **Respect boundaries.** No library module references `glue-showcase`; `internal` packages are not API; keep client code out of the both-sides modules (`glue-core`, `glue-server`, `glue-lumos`).
+1. **Respect boundaries.** No library module references `glue-showcase`; `internal` packages are not API; keep client code out of the both-sides modules (`glue-core`, `glue-lumos`).
 2. **Reuse existing utilities.** Before creating helpers, check `client.utils`, the registries, and the shader/pipeline infrastructure.
 3. **Keep changes surgical.** No "just in case" features, no drive-by refactors.
 4. **No placeholder content.** No TODOs or stubs that will not be immediately acted on.
