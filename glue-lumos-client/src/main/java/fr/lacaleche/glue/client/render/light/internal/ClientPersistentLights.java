@@ -61,20 +61,19 @@ public final class ClientPersistentLights {
     }
 
     /**
-     * Re-homes the persistent set into the new world's light context: a full rebuild, since the old
-     * context died with its world and took the shown instances with it. The server resyncs the correct
-     * set on a dimension change, so a briefly-carried set is corrected within a tick; leaving a world
-     * ({@code level == null}) drops it entirely.
+     * Drops the persistent set on any world change. The old context died with its world and took the
+     * shown instances with it, and the desired set goes too: ids are assigned per dimension, so
+     * carrying the previous dimension's list over would expose ids that resolve to <em>different</em>
+     * lights here &mdash; enough for one edit or delete to hit a light the player never saw. The server
+     * sends the correct set on the dimension change, so showing nothing until it lands is the only
+     * safe state.
      */
     public static void onWorldSwitch(@Nullable ClientLevel level) {
         LightManager manager = LightManager.getInstance();
         tracked.values().forEach(manager::remove);
         tracked.clear();
-        if (level == null) {
-            desired = List.of();
-            return;
-        }
-        reconcile();
+        desired = List.of();
+        if (level != null) reconcile();
     }
 
     private static void apply(List<PlacedLight> lights) {

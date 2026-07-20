@@ -198,8 +198,12 @@ flashlight.remove();
 Built-in sources are `LightAttachments.entity(entity)`,
 `LightAttachments.entityEyes(entity)`, and `LightAttachments.block(pos)`.
 Entity sources interpolate position and view direction with the render partial
-tick. A custom `LightAttachment` writes into the supplied `LightTransform` and
-returns `false` while it cannot provide a light:
+tick, and report the entity as the attachment's **anchor**: the anchor is left
+out of that light's own shadow pass entirely — a light at its owner's eyes sits
+inside its own occluder and would blacken the whole map — while still casting
+shadows from every other light. A custom `LightAttachment` gets the same
+behavior by overriding `anchorEntity()`; it writes into the supplied
+`LightTransform` and returns `false` while it cannot provide a light:
 
 ```java
 LightAttachment attachment = (level, partialTick, result) -> {
