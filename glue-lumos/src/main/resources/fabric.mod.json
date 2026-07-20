@@ -12,6 +12,11 @@
         "homepage": "https://lacaleche.cc",
         "sources": "https://gitlab.lacaleche.cc/loccamy/java/glue"
     },
+    "entrypoints": {
+        "main": [
+            "fr.lacaleche.glue.lumos.GlueLumos"
+        ]
+    },
     "depends": {
         "fabricloader": ">=0.14.6",
         "minecraft": "~1.21.8",
