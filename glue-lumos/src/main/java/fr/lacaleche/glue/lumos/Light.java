@@ -75,6 +75,19 @@ public final class Light {
     }
 
     /**
+     * Reconstructs a light directly from its stored fields, bypassing the angle-to-cosine conversion the
+     * public factories apply. For serialization only ({@link LightCodecs}) &mdash; it trusts its inputs,
+     * so it takes the cone cosines as stored rather than re-deriving them from degrees.
+     */
+    static Light raw(LightType type, double x, double y, double z,
+                     float directionX, float directionY, float directionZ,
+                     float r, float g, float b, float intensity, float range,
+                     float cosInner, float cosOuter, boolean castsShadow) {
+        return new Light(type, x, y, z, directionX, directionY, directionZ,
+                r, g, b, intensity, range, cosInner, cosOuter, 0, castsShadow);
+    }
+
+    /**
      * A copy of this light with {@link #castsShadow} set ({@code this} if unchanged).
      * A non-shadowed light never claims a slot from the shadow budget, so it is the
      * cheap way to spawn many lights: no bake, no per-frame shadow sampling.
