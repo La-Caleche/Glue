@@ -2,6 +2,7 @@ package fr.lacaleche.glue.testmod.registries;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import fr.lacaleche.glue.registries.KeybindingsRegistry;
+import fr.lacaleche.glue.testmod.lumos.DemoLights;
 import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.file.FileDialogTestScreen;
 import fr.lacaleche.glue.testmod.render.LightDebugHud;
@@ -13,10 +14,11 @@ import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Demonstrates Glue's {@link KeybindingsRegistry}: registers keybinds
- * (R = toggle raycast debug, F9 = toggle the post-effect debug HUD,
- * F6 = FPS scene, F7 = block scene test, F8 = gizmo test,
- * F10 = file dialog test) with tick callbacks.
+ * Demonstrates Glue's {@link KeybindingsRegistry}: registers every demo keybind with a tick callback.
+ *
+ * <p>R = raycast debug, F6 = FPS scene, F7 = block scene, F8 = gizmo test, F9 = post-effect HUD,
+ * F10 = file dialogs, F11 = demo lights, F12 = light HUD (visual and world lights alike),
+ * mouse 5 = spawn a spot.</p>
  */
 public class TestKeybinds {
 
@@ -56,7 +58,7 @@ public class TestKeybinds {
             "add_spot",
             "key.categories.glue_test", GLFW.GLFW_MOUSE_BUTTON_5,
             InputConstants.Type.MOUSE,
-            client -> TestLighting.addStaticSpot());
+            client -> DemoLights.INSTANCE.spawnSpot());
 
     public static final KeyMapping TOGGLE_LIGHT_HUD = KEYBINDINGS.register(
             "toggle_light_hud",
@@ -66,12 +68,7 @@ public class TestKeybinds {
     public static final KeyMapping TOGGLE_STRESS_LIGHTS = KEYBINDINGS.register(
             "toggle_stress_lights",
             "key.categories.glue_test", GLFW.GLFW_KEY_F11,
-            client -> TestLighting.toggle());
-
-    public static final KeyMapping ADD_PERSISTENT_LIGHT = KEYBINDINGS.register(
-            "add_persistent_light",
-            "key.categories.glue_test", GLFW.GLFW_KEY_P,
-            client -> TestLighting.addPersistentPoint());
+            client -> DemoLights.INSTANCE.toggleStaticLights());
 
     public static void registerKeybinds() {
     }

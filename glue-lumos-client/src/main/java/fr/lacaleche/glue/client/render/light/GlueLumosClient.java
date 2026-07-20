@@ -2,7 +2,11 @@ package fr.lacaleche.glue.client.render.light;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
+import fr.lacaleche.glue.client.render.light.internal.ClientLightBridge;
+import fr.lacaleche.glue.client.render.light.internal.ClientPersistentLights;
+import fr.lacaleche.glue.client.render.light.internal.LightManager;
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
+import fr.lacaleche.glue.lumos.Lumos;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
@@ -21,6 +25,7 @@ public final class GlueLumosClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         LightRenderer.init();
+        Lumos.installClientBridge(new ClientLightBridge());
         ClientPersistentLights.registerClient();
         TerrainMaterialBuffer.requestWhen(() -> !LightManager.getInstance().isEmpty());
         TerrainMaterialBuffer.releaseOnClose(LightRenderer::cleanup);

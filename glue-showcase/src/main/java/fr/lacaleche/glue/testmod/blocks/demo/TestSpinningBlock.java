@@ -14,12 +14,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import java.util.stream.Stream;
 
 /**
  * Demonstrates animated block-entity rendering driven by a tick counter
@@ -30,9 +27,7 @@ public class TestSpinningBlock extends BaseEntityBlock implements GlueBlock, IHa
 
     public static final MapCodec<TestSpinningBlock> CODEC = simpleCodec(TestSpinningBlock::new);
 
-    protected static final VoxelShape SHAPE = Stream.of(
-            Block.box(0, 4, 0, 16, 22, 16), Block.box(-3, 0, -3, 19, 4, 19)
-    ).reduce((v1, v2) -> Shapes.join(v1, v2, BooleanOp.OR)).get();
+    protected static final VoxelShape SHAPE = DemoShapes.PEDESTAL;
 
     public TestSpinningBlock(Properties properties) {
         super(properties);

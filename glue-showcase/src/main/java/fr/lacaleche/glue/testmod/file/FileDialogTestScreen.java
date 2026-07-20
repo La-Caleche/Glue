@@ -9,6 +9,10 @@ import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
 /**
  * Test screen demonstrating the FileDialogs API.
  * Provides buttons for open file, save file, and open folder dialogs.
@@ -50,73 +54,46 @@ public class FileDialogTestScreen extends Screen {
                 .build());
     }
 
-    private void openFile() {
+    /**
+     * The envelope every dialog button shares: refuse while one is open, show progress, then apply the
+     * result back on the client thread. Only the dialog call and the label differ.
+     */
+    private void show(String label, Supplier<CompletableFuture<Optional<String>>> dialog) {
         if (waiting) return;
         waiting = true;
         lastResult = "Waiting for dialog...";
 
-        FileDialogs.showOpenDialog(null).thenAccept(result -> {
-            Minecraft.getInstance().execute(() -> {
-                lastResult = result.map(p -> "Opened: " + p).orElse("Cancelled");
-                waiting = false;
-                LOGGER.info("Open result: {}", lastResult);
-            });
-        });
+        dialog.get().thenAccept(result -> Minecraft.getInstance().execute(() -> {
+            lastResult = result.map(path -> label + ": " + path).orElse("Cancelled");
+            waiting = false;
+            LOGGER.info("{} result: {}", label, lastResult);
+        }));
+    }
+
+    private void openFile() {
+        show("Opened", () -> FileDialogs.showOpenDialog(null));
     }
 
     private void saveFile() {
-        if (waiting) return;
-        waiting = true;
-        lastResult = "Waiting for dialog...";
-
-        FileDialogs.showSaveDialog(null, "untitled.txt",
+        show("Save to", () -> FileDialogs.showSaveDialog(null, "untitled.txt",
                 new FileDialogs.FileFilter("Text Files", "txt", "md"),
-                new FileDialogs.FileFilter("All Files", "*")
-        ).thenAccept(result -> {
-            Minecraft.getInstance().execute(() -> {
-                lastResult = result.map(p -> "Save to: " + p).orElse("Cancelled");
-                waiting = false;
-                LOGGER.info("Save result: {}", lastResult);
-            });
-        });
+                new FileDialogs.FileFilter("All Files", "*")));
     }
 
     private void openFolder() {
-        if (waiting) return;
-        waiting = true;
-        lastResult = "Waiting for dialog...";
-
-        FileDialogs.showOpenFolderDialog(null).thenAccept(result -> {
-            Minecraft.getInstance().execute(() -> {
-                lastResult = result.map(p -> "Folder: " + p).orElse("Cancelled");
-                waiting = false;
-                LOGGER.info("Folder result: {}", lastResult);
-            });
-        });
+        show("Folder", () -> FileDialogs.showOpenFolderDialog(null));
     }
 
     private void openFiltered() {
-        if (waiting) return;
-        waiting = true;
-        lastResult = "Waiting for dialog...";
-
-        FileDialogs.showOpenDialog(null,
+        show("Opened", () -> FileDialogs.showOpenDialog(null,
                 new FileDialogs.FileFilter("Images", "png", "jpg", "jpeg", "gif", "bmp"),
-                new FileDialogs.FileFilter("JSON Files", "json")
-        ).thenAccept(result -> {
-            Minecraft.getInstance().execute(() -> {
-                lastResult = result.map(p -> "Opened: " + p).orElse("Cancelled");
-                waiting = false;
-                LOGGER.info("Filtered open result: {}", lastResult);
-            });
-        });
+                new FileDialogs.FileFilter("JSON Files", "json")));
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         super.render(guiGraphics, mouseX, mouseY, partialTick);
 
-        var font = Minecraft.getInstance().font;
         guiGraphics.drawCenteredString(font, this.title, this.width / 2, 20, 0xFFFFFF);
         guiGraphics.drawCenteredString(font, lastResult, this.width / 2, this.height / 2 + 50, 0xAAFFAA);
         guiGraphics.drawCenteredString(font, "ESC to close", this.width / 2, this.height - 20, 0x888888);

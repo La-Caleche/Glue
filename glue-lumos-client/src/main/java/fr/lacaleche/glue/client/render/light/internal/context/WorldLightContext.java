@@ -2,8 +2,7 @@ package fr.lacaleche.glue.client.render.light.internal.context;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import fr.lacaleche.glue.lumos.Light;
-import fr.lacaleche.glue.client.render.light.LightAttachment;
-import fr.lacaleche.glue.client.render.light.LightHandle;
+import fr.lacaleche.glue.lumos.LightAttachment;
 import fr.lacaleche.glue.client.render.light.internal.scene.GlassSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.scene.MaterialBlockScan.NearbyMaterials;
 import fr.lacaleche.glue.client.render.light.internal.scene.MetalSceneRenderer;
@@ -23,7 +22,7 @@ public final class WorldLightContext implements AutoCloseable {
 
     private final ClientLevel level;
     private final List<Light> lights = new ArrayList<>();
-    private final List<LightHandle> handles = new ArrayList<>();
+    private final List<AttachedLight> handles = new ArrayList<>();
 
     final ShadowBaker shadows = new ShadowBaker();
     final GlassSceneRenderer glass = new GlassSceneRenderer();
@@ -85,7 +84,7 @@ public final class WorldLightContext implements AutoCloseable {
 
     public synchronized void clear() {
         lights.clear();
-        handles.forEach(LightHandle::markRemoved);
+        handles.forEach(AttachedLight::markRemoved);
         handles.clear();
         materialBlocks.clear();
         shadows.clearOwners();
@@ -95,16 +94,16 @@ public final class WorldLightContext implements AutoCloseable {
         return lights.isEmpty() && handles.isEmpty();
     }
 
-    public synchronized LightHandle attach(Light light, LightAttachment attachment) {
+    public synchronized AttachedLight attach(Light light, LightAttachment attachment) {
         if (light == null || attachment == null) {
             throw new IllegalArgumentException("Light and attachment must not be null");
         }
-        LightHandle handle = new LightHandle(this, light, attachment);
+        AttachedLight handle = new AttachedLight(this, light, attachment);
         handles.add(handle);
         return handle;
     }
 
-    public synchronized void remove(LightHandle handle) {
+    public synchronized void remove(AttachedLight handle) {
         handles.remove(handle);
         Light resolved = handle.resolved();
         if (resolved != null) {
@@ -114,7 +113,7 @@ public final class WorldLightContext implements AutoCloseable {
         handle.markRemoved();
     }
 
-    public synchronized void update(LightHandle handle, Light light) {
+    public synchronized void update(AttachedLight handle, Light light) {
         if (handle.isRemoved() || !handles.contains(handle)) {
             throw new IllegalStateException("Cannot update a removed light handle");
         }
@@ -146,9 +145,9 @@ public final class WorldLightContext implements AutoCloseable {
     public synchronized List<Light> snapshot(float partialTick) {
         List<Light> resolvedLights = new ArrayList<>(lights.size() + handles.size());
         resolvedLights.addAll(lights);
-        Iterator<LightHandle> iterator = handles.iterator();
+        Iterator<AttachedLight> iterator = handles.iterator();
         while (iterator.hasNext()) {
-            LightHandle handle = iterator.next();
+            AttachedLight handle = iterator.next();
             Light previous = handle.resolved();
             Light resolved = handle.resolve(partialTick);
             if (resolved == null) {
@@ -186,7 +185,7 @@ public final class WorldLightContext implements AutoCloseable {
     public synchronized void close() {
         RenderSystem.assertOnRenderThread();
         lights.clear();
-        handles.forEach(LightHandle::markRemoved);
+        handles.forEach(AttachedLight::markRemoved);
         handles.clear();
         materialBlocks.clear();
         shadows.cleanup();

@@ -44,14 +44,6 @@ public class SceneTestController extends Abstract3DController {
         this.blockTransforms = new HashMap<>();
     }
 
-    public BlockPos getPlayerPos() {
-        return playerPos;
-    }
-
-    public Map<BlockPos, TransformationComponent> getBlockTransforms() {
-        return blockTransforms;
-    }
-
     public BlockPos getSelectedBlockPos() {
         return selectedBlockPos;
     }

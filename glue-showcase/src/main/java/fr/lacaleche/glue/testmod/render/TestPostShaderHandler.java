@@ -77,14 +77,6 @@ public class TestPostShaderHandler {
                 .register();
     }
 
-    public boolean toggleBlur() {
-        return renderer.toggle(TestShaders.BLUR);
-    }
-
-    public boolean toggleGrayscale() {
-        return renderer.toggle(TestShaders.GRAYSCALE);
-    }
-
     public boolean isToggled(PostShaderHandle handle) {
         return renderer.isToggled(handle);
     }

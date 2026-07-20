@@ -1,17 +1,18 @@
 package fr.lacaleche.glue.testmod.render;
 
 import fr.lacaleche.glue.lumos.Light;
-import fr.lacaleche.glue.client.render.light.LightManager;
+import fr.lacaleche.glue.math.Color;
+import fr.lacaleche.glue.lumos.Lumos;
 import fr.lacaleche.glue.lumos.LightType;
-import fr.lacaleche.glue.testmod.registries.TestLighting;
+import fr.lacaleche.glue.testmod.lumos.DemoLights;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -33,10 +34,17 @@ import java.util.Map;
  * expanded one.</p>
  *
  * <p>{@code Light} is immutable, so every edit builds a new instance and swaps
- * it into the {@link LightManager}. That is not a workaround &mdash; it is how
+ * it through {@link Lumos}. That is not a workaround &mdash; it is how
  * the pipeline is meant to be driven: the shadow and glass caches key on light
  * identity, so the swap is exactly what invalidates them and triggers a re-bake
  * with the new parameters.</p>
+ *
+ * <p>The panel handles both kinds of light. A visual light (rows labelled {@code #n}) swaps locally
+ * through {@link DemoLights}; a <b>world</b> light (rows labelled {@code W<id>}) is server-owned, so
+ * every edit, delete, and the "place" action go through the {@link Lumos} request channel &mdash; the
+ * server accepts them only from operators (permission level 4, the policy {@code Testmod} installs)
+ * and the change shows once it syncs back. Selection of a world light follows its id, because each
+ * sync replaces the local instance.</p>
  */
 @Environment(EnvType.CLIENT)
 public class LightDebugHud {
@@ -58,6 +66,10 @@ public class LightDebugHud {
 
     /** The expanded light, or null. Identity — an edited light is re-pointed on swap. */
     private Light selected;
+    /** The expanded light's server id when it is a world light, else -1; survives the sync swap. */
+    private long selectedWorldId = -1;
+    private Light paramsFor;
+    private Params paramsCache;
     private boolean previewEnabled = true;
 
     private int panelX = -1;
@@ -173,7 +185,7 @@ public class LightDebugHud {
             activate(row);
         }
         if (edge(win, GLFW.GLFW_KEY_BACKSPACE) && row.kind == Kind.LIGHT) {
-            deleteLight(row.light);
+            deleteLight(row);
         }
         if (row.kind == Kind.FIELD) {
             boolean coarse = GLFW.glfwGetKey(win, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
@@ -183,34 +195,35 @@ public class LightDebugHud {
         }
     }
 
-    // ------------------------------------------------------------------
-    // Rows
-    // ------------------------------------------------------------------
 
     private enum Kind { LIGHT, FIELD, ACTION }
 
-    private enum Action { TOGGLE_PREVIEW, ADD_POINT, ADD_SPOT }
+    private enum Action { TOGGLE_PREVIEW, ADD_POINT, ADD_SPOT, PLACE_WORLD }
 
-    private record Row(Kind kind, Light light, Field field, Action action, int lightIndex) {
-        static Row light(Light light, int index) {
-            return new Row(Kind.LIGHT, light, null, null, index);
+    private record Row(Kind kind, Light light, Field field, Action action, int lightIndex, long worldId) {
+        static Row light(Light light, int index, long worldId) {
+            return new Row(Kind.LIGHT, light, null, null, index, worldId);
         }
 
-        static Row field(Light light, Field field) {
-            return new Row(Kind.FIELD, light, field, null, -1);
+        static Row field(Light light, Field field, long worldId) {
+            return new Row(Kind.FIELD, light, field, null, -1, worldId);
         }
 
         static Row action(Action action) {
-            return new Row(Kind.ACTION, null, null, action, -1);
+            return new Row(Kind.ACTION, null, null, action, -1, -1);
         }
     }
 
     private List<Row> buildRows() {
-        List<Light> lights = LightManager.getInstance().snapshot();
+        ClientLevel level = Minecraft.getInstance().level;
+        List<Light> lights = level == null ? List.of() : Lumos.active(level);
+        Map<Long, Light> world = level == null ? Map.of() : Lumos.lights(level);
 
-        // The expanded light may have been removed (or swapped) behind our back.
+        // The expanded light may have been removed behind our back — or, for a world light,
+        // swapped for a fresh instance by a sync; its id finds the successor.
         if (selected != null && !containsIdentity(lights, selected)) {
-            selected = null;
+            selected = selectedWorldId >= 0 ? world.get(selectedWorldId) : null;
+            if (selected == null) selectedWorldId = -1;
         }
 
         List<Row> rows = new ArrayList<>();
@@ -218,17 +231,19 @@ public class LightDebugHud {
 
         int i = 0;
         for (Light light : lights) {
-            rows.add(Row.light(light, i++));
+            long worldId = worldIdOf(world, light);
+            rows.add(Row.light(light, i++, worldId));
             if (light == selected) {
                 for (Field field : Field.values()) {
                     if (field.spotOnly && light.type == LightType.POINT) continue;
-                    rows.add(Row.field(light, field));
+                    rows.add(Row.field(light, field, worldId));
                 }
             }
         }
 
         rows.add(Row.action(Action.ADD_POINT));
         rows.add(Row.action(Action.ADD_SPOT));
+        rows.add(Row.action(Action.PLACE_WORLD));
         return rows;
     }
 
@@ -239,23 +254,36 @@ public class LightDebugHud {
         return false;
     }
 
+    /**
+     * The server id of a synced world light, or -1 for a visual one. Identity comparison is exact:
+     * the mirror renders the very instances {@code Lumos.lights} exposes.
+     */
+    private static long worldIdOf(Map<Long, Light> world, Light light) {
+        for (Map.Entry<Long, Light> entry : world.entrySet()) {
+            if (entry.getValue() == light) return entry.getKey();
+        }
+        return -1;
+    }
+
     private void activate(Row row) {
         switch (row.kind) {
-            case LIGHT -> selected = (selected == row.light) ? null : row.light;
+            case LIGHT -> {
+                boolean deselect = (selected == row.light);
+                selected = deselect ? null : row.light;
+                selectedWorldId = deselect ? -1 : row.worldId;
+            }
             case ACTION -> {
                 switch (row.action) {
                     case TOGGLE_PREVIEW -> previewEnabled = !previewEnabled;
                     case ADD_POINT -> addLight(false);
                     case ADD_SPOT -> addLight(true);
+                    case PLACE_WORLD -> placeWorldLight();
                 }
             }
             default -> { }
         }
     }
 
-    // ------------------------------------------------------------------
-    // Editing
-    // ------------------------------------------------------------------
 
     /**
      * One editable property. Getter/setter work on a mutable {@link Params}
@@ -359,25 +387,37 @@ public class LightDebugHud {
         if (f == Field.OUTER) p.inner = Math.min(p.inner, p.outer - 0.5f);
         if (f == Field.YAW) p.yaw = Mth.wrapDegrees(p.yaw);
 
-        replaceLight(row.light, p.build());
+        replaceLight(row, p.build());
     }
 
     /**
-     * Swap the manager's instance. Identity-keyed caches (shadow slots, glass
-     * lists) see a new light and re-bake it &mdash; the intended invalidation path.
+     * A visual light swaps instances directly. A world light can only be changed by asking the server,
+     * so the swap arrives with the sync it broadcasts back &mdash; on a remote server the value trails
+     * the keypress by the round trip, and nothing moves at all if the server refuses (not an operator).
      */
-    private void replaceLight(Light oldLight, Light newLight) {
-        LightManager manager = LightManager.getInstance();
-        manager.remove(oldLight);
-        manager.add(newLight);
-        TestLighting.onLightReplaced(oldLight, newLight);
-        if (selected == oldLight) selected = newLight;
+    private void replaceLight(Row row, Light newLight) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) return;
+        if (row.worldId >= 0) {
+            Lumos.update(level, row.worldId, newLight);
+            return;
+        }
+        DemoLights.INSTANCE.replace(level, row.light, newLight);
+        if (selected == row.light) selected = newLight;
     }
 
-    private void deleteLight(Light light) {
-        LightManager.getInstance().remove(light);
-        TestLighting.onLightRemoved(light);
-        if (selected == light) selected = null;
+    private void deleteLight(Row row) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) return;
+        if (row.worldId >= 0) {
+            Lumos.remove(level, row.worldId);
+        } else {
+            DemoLights.INSTANCE.remove(level, row.light);
+        }
+        if (selected == row.light) {
+            selected = null;
+            selectedWorldId = -1;
+        }
     }
 
     private void addLight(boolean spot) {
@@ -393,15 +433,26 @@ public class LightDebugHud {
                 : Light.point(eye.x + look.x * 2.0, eye.y + look.y * 2.0, eye.z + look.z * 2.0,
                         1.0f, 1.0f, 1.0f, 2.5f, 10.0f);
 
-        LightManager.getInstance().add(light);
-        // Track it so TestLighting's toggle-off sweep removes HUD-added lights too.
-        TestLighting.track(light);
+        DemoLights.INSTANCE.spawn(mc.player.level(), light);
         selected = light;
+        selectedWorldId = -1;
     }
 
-    // ------------------------------------------------------------------
-    // Input helpers
-    // ------------------------------------------------------------------
+    /**
+     * Asks the server for a world light ahead of the player: stored with the dimension, synced to
+     * everyone in it, back on reload. It appears in the list once the server accepts and syncs it.
+     */
+    private void placeWorldLight() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 look = mc.player.getViewVector(1.0f);
+
+        Lumos.place(mc.player.level(), Light.point(
+                eye.x + look.x * 2.0, eye.y + look.y * 2.0, eye.z + look.z * 2.0,
+                1.0f, 0.85f, 0.6f, 2.5f, 10.0f));
+    }
+
 
     private void releaseMouseIfNeeded() {
         if (!mouseUngrabbed) return;
@@ -437,9 +488,6 @@ public class LightDebugHud {
         return holdTicks.merge(key, 1, Integer::sum);
     }
 
-    // ------------------------------------------------------------------
-    // Rendering
-    // ------------------------------------------------------------------
 
     public void render(GuiGraphics graphics) {
         if (!active) return;
@@ -572,8 +620,8 @@ public class LightDebugHud {
         graphics.fill(panelX + 7, y + 3, panelX + 13, y + 9, sw);
 
         String arrow = expanded ? "§e▾ " : "§7▸ ";
-        String label = arrow + "§f#" + row.lightIndex + " " + light.type;
-        graphics.drawString(font, label, panelX + 18, y + 2, 0xFFFFFFFF);
+        String name = row.worldId >= 0 ? "§bW" + row.worldId + "§f" : "§f#" + row.lightIndex;
+        graphics.drawString(font, arrow + name + " " + light.type, panelX + 18, y + 2, 0xFFFFFFFF);
 
         String status = String.format("§7%.1f× %.0fb", light.intensity, light.range);
         graphics.drawString(font, status, panelX + PANEL_W - font.width(status) - PADDING, y + 2, 0xFFAAAAAA);
@@ -581,7 +629,7 @@ public class LightDebugHud {
 
     private void renderFieldRow(GuiGraphics graphics, Font font, Row row, int y, boolean rowSelected) {
         Field field = row.field;
-        float value = field.getter.get(Params.of(row.light));
+        float value = field.getter.get(params(row.light));
 
         graphics.drawString(font, "§7" + field.label, panelX + 22, y + 2, 0xFFAAAAAA);
 
@@ -603,13 +651,24 @@ public class LightDebugHud {
             }
             case ADD_POINT -> graphics.drawString(font, "§a+ Add point light §7(ahead)", panelX + 6, y + 2, 0xFFFFFFFF);
             case ADD_SPOT -> graphics.drawString(font, "§a+ Add spot light §7(from view)", panelX + 6, y + 2, 0xFFFFFFFF);
+            case PLACE_WORLD -> graphics.drawString(font, "§b+ Place world light §7(saved, needs op)", panelX + 6, y + 2, 0xFFFFFFFF);
         }
     }
 
+    /**
+     * Every field row of a frame belongs to the one expanded light, and unpacking a light's direction
+     * and cone costs four transcendentals. An edit swaps in a new instance, so identity is the key.
+     */
+    private Params params(Light light) {
+        if (paramsFor != light) {
+            paramsFor = light;
+            paramsCache = Params.of(light);
+        }
+        return paramsCache;
+    }
+
     private static int swatchColor(Light light) {
-        int r = (int) (Math.clamp(light.r, 0f, 1f) * 255f);
-        int g = (int) (Math.clamp(light.g, 0f, 1f) * 255f);
-        int b = (int) (Math.clamp(light.b, 0f, 1f) * 255f);
-        return 0xFF000000 | r << 16 | g << 8 | b;
+        return Color.ofRGBA(Math.clamp(light.r, 0f, 1f), Math.clamp(light.g, 0f, 1f),
+                Math.clamp(light.b, 0f, 1f), 1f).getColor();
     }
 }

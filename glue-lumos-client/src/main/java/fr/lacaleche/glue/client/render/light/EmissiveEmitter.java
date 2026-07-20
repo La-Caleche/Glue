@@ -2,6 +2,9 @@ package fr.lacaleche.glue.client.render.light;
 
 import fr.lacaleche.glue.client.render.EmissiveMaterial;
 import fr.lacaleche.glue.lumos.Light;
+import fr.lacaleche.glue.lumos.LightAttachment;
+import fr.lacaleche.glue.lumos.LightHandle;
+import fr.lacaleche.glue.client.render.light.internal.LightManager;
 
 /** Pairs a caller-rendered emissive surface with optional world illumination. */
 public final class EmissiveEmitter implements AutoCloseable {

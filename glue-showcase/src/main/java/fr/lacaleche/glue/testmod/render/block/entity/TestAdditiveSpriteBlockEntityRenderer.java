@@ -87,21 +87,22 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
         float halfW = 0.5f;
         float halfH = 0.5f;
         int r = 255, g = 125, b = 185, a = 255;
+        int emissiveLight = EMISSIVE.packedLight();
 
-        vertex(consumer, pose, -halfW, -halfH, 0, 0f, 1f, r, g, b, a, EMISSIVE.packedLight());
-        vertex(consumer, pose, halfW, -halfH, 0, 1f, 1f, r, g, b, a, EMISSIVE.packedLight());
-        vertex(consumer, pose, halfW, halfH, 0, 1f, 0f, r, g, b, a, EMISSIVE.packedLight());
-        vertex(consumer, pose, -halfW, halfH, 0, 0f, 0f, r, g, b, a, EMISSIVE.packedLight());
+        vertex(consumer, pose, -halfW, -halfH, 0, 0f, 1f, r, g, b, a, emissiveLight);
+        vertex(consumer, pose, halfW, -halfH, 0, 1f, 1f, r, g, b, a, emissiveLight);
+        vertex(consumer, pose, halfW, halfH, 0, 1f, 0f, r, g, b, a, emissiveLight);
+        vertex(consumer, pose, -halfW, halfH, 0, 0f, 0f, r, g, b, a, emissiveLight);
 
         float core = 0.24f;
         vertex(emissiveConsumer, pose, -core, -core, 0.01f, 0f, 1f, 255, 255, 255, a,
-                EMISSIVE.packedLight());
+                emissiveLight);
         vertex(emissiveConsumer, pose, core, -core, 0.01f, 1f, 1f, 255, 255, 255, a,
-                EMISSIVE.packedLight());
+                emissiveLight);
         vertex(emissiveConsumer, pose, core, core, 0.01f, 1f, 0f, 255, 255, 255, a,
-                EMISSIVE.packedLight());
+                emissiveLight);
         vertex(emissiveConsumer, pose, -core, core, 0.01f, 0f, 0f, 255, 255, 255, a,
-                EMISSIVE.packedLight());
+                emissiveLight);
 
         poseStack.popPose();
 

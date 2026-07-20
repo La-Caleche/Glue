@@ -3,10 +3,11 @@ package fr.lacaleche.glue.lumos.server;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import fr.lacaleche.glue.lumos.Light;
-import fr.lacaleche.glue.lumos.net.IdLight;
+import fr.lacaleche.glue.lumos.net.PlacedLight;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -30,9 +31,9 @@ public final class PersistentLightState extends SavedData {
     PersistentLightState() {
     }
 
-    private PersistentLightState(long nextId, List<IdLight> entries) {
+    private PersistentLightState(long nextId, List<PlacedLight> entries) {
         this.nextId = nextId;
-        for (IdLight entry : entries) {
+        for (PlacedLight entry : entries) {
             lights.put(entry.id(), entry.light());
         }
     }
@@ -44,22 +45,38 @@ public final class PersistentLightState extends SavedData {
         return id;
     }
 
+    @Nullable
+    Light get(long id) {
+        return lights.get(id);
+    }
+
+    int size() {
+        return lights.size();
+    }
+
+    boolean update(long id, Light light) {
+        if (!lights.containsKey(id)) return false;
+        lights.put(id, light);
+        setDirty();
+        return true;
+    }
+
     boolean remove(long id) {
         boolean removed = lights.remove(id) != null;
         if (removed) setDirty();
         return removed;
     }
 
-    List<IdLight> entries() {
-        List<IdLight> result = new ArrayList<>(lights.size());
-        lights.forEach((id, light) -> result.add(new IdLight(id, light)));
+    List<PlacedLight> entries() {
+        List<PlacedLight> result = new ArrayList<>(lights.size());
+        lights.forEach((id, light) -> result.add(new PlacedLight(id, light)));
         return result;
     }
 
     private static Codec<PersistentLightState> codec() {
         return RecordCodecBuilder.create(instance -> instance.group(
                 Codec.LONG.fieldOf("nextId").forGetter(state -> state.nextId),
-                IdLight.CODEC.listOf().fieldOf("lights").forGetter(PersistentLightState::entries)
+                PlacedLight.CODEC.listOf().fieldOf("lights").forGetter(PersistentLightState::entries)
         ).apply(instance, PersistentLightState::new));
     }
 }

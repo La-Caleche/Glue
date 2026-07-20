@@ -1,14 +1,14 @@
-package fr.lacaleche.glue.client.render.light;
+package fr.lacaleche.glue.lumos;
 
 /** Mutable allocation-free target populated by a {@link LightAttachment}. */
 public final class LightTransform {
 
-    double x;
-    double y;
-    double z;
-    float directionX;
-    float directionY = -1f;
-    float directionZ;
+    public double x;
+    public double y;
+    public double z;
+    public float directionX;
+    public float directionY = -1f;
+    public float directionZ;
 
     public LightTransform position(double x, double y, double z) {
         this.x = x;

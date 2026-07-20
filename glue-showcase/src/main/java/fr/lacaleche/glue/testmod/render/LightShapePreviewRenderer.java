@@ -4,11 +4,13 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import fr.lacaleche.glue.client.debug.GlueDebugRenderer;
 import fr.lacaleche.glue.lumos.Light;
-import fr.lacaleche.glue.client.render.light.LightManager;
+import fr.lacaleche.glue.math.Color;
+import fr.lacaleche.glue.lumos.Lumos;
 import fr.lacaleche.glue.lumos.LightType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.debug.DebugRenderer;
@@ -35,14 +37,38 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
     private static final int SEGMENTS = 48;
     private static final int APEX_LINES = 8;
 
+    /** Every ring drawn uses the same angles, so the sines and cosines are table lookups. */
+    private static final float[] RING_COS = new float[SEGMENTS + 1];
+    private static final float[] RING_SIN = new float[SEGMENTS + 1];
+    private static final float[] APEX_COS = new float[APEX_LINES];
+    private static final float[] APEX_SIN = new float[APEX_LINES];
+
+    private static final Vector3f UNIT_X = new Vector3f(1, 0, 0);
+    private static final Vector3f UNIT_Y = new Vector3f(0, 1, 0);
+    private static final Vector3f UNIT_Z = new Vector3f(0, 0, 1);
+
+    static {
+        for (int i = 0; i <= SEGMENTS; i++) {
+            double angle = i * Math.PI * 2.0 / SEGMENTS;
+            RING_COS[i] = (float) Math.cos(angle);
+            RING_SIN[i] = (float) Math.sin(angle);
+        }
+        for (int i = 0; i < APEX_LINES; i++) {
+            double angle = i * Math.PI * 2.0 / APEX_LINES;
+            APEX_COS[i] = (float) Math.cos(angle);
+            APEX_SIN[i] = (float) Math.sin(angle);
+        }
+    }
+
     @Override
     public void render(PoseStack matrices, MultiBufferSource vertexConsumers, double cameraX, double cameraY,
                        double cameraZ) {
         LightDebugHud hud = LightDebugHud.INSTANCE;
         if (!hud.isActive() || !hud.isPreviewEnabled()) return;
-        if (Minecraft.getInstance().level == null) return;
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) return;
 
-        List<Light> lights = LightManager.getInstance().snapshot();
+        List<Light> lights = Lumos.active(level);
         if (lights.isEmpty()) return;
 
         PoseStack.Pose pose = matrices.last();
@@ -80,18 +106,12 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
         }
     }
 
-    // ------------------------------------------------------------------
-    // Shapes
-    // ------------------------------------------------------------------
 
     private void drawSphere(PoseStack.Pose pose, VertexConsumer vc,
                             float cx, float cy, float cz, float radius, int color) {
-        Vector3f ux = new Vector3f(1, 0, 0);
-        Vector3f uy = new Vector3f(0, 1, 0);
-        Vector3f uz = new Vector3f(0, 0, 1);
-        circle(pose, vc, cx, cy, cz, ux, uy, radius, color);
-        circle(pose, vc, cx, cy, cz, ux, uz, radius, color);
-        circle(pose, vc, cx, cy, cz, uy, uz, radius, color);
+        circle(pose, vc, cx, cy, cz, UNIT_X, UNIT_Y, radius, color);
+        circle(pose, vc, cx, cy, cz, UNIT_X, UNIT_Z, radius, color);
+        circle(pose, vc, cx, cy, cz, UNIT_Y, UNIT_Z, radius, color);
     }
 
     private void drawCone(PoseStack.Pose pose, VertexConsumer vc, Light light,
@@ -130,8 +150,7 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
 
         if (!apexLines) return;
         for (int i = 0; i < APEX_LINES; i++) {
-            float ang = (float) (i * Math.PI * 2.0 / APEX_LINES);
-            float cos = (float) Math.cos(ang), sin = (float) Math.sin(ang);
+            float cos = APEX_COS[i], sin = APEX_SIN[i];
             line(pose, vc, ax, ay, az,
                     cx + (u.x * cos + v.x * sin) * radius,
                     cy + (u.y * cos + v.y * sin) * radius,
@@ -144,8 +163,7 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
                         float cx, float cy, float cz, Vector3f u, Vector3f v, float radius, int color) {
         float px = 0, py = 0, pz = 0;
         for (int i = 0; i <= SEGMENTS; i++) {
-            float ang = (float) (i * Math.PI * 2.0 / SEGMENTS);
-            float cos = (float) Math.cos(ang), sin = (float) Math.sin(ang);
+            float cos = RING_COS[i], sin = RING_SIN[i];
             float x = cx + (u.x * cos + v.x * sin) * radius;
             float y = cy + (u.y * cos + v.y * sin) * radius;
             float z = cz + (u.z * cos + v.z * sin) * radius;
@@ -175,9 +193,6 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
         vc.addVertex(pose, x2, y2, z2).setColor(color).setNormal(pose, nx, ny, nz);
     }
 
-    // ------------------------------------------------------------------
-    // Colors
-    // ------------------------------------------------------------------
 
     /** The light's own color normalized to full brightness, dimmed unless selected. */
     private static int wireColor(Light light, boolean selected) {
@@ -185,8 +200,8 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
         float r = m < 0.01f ? 1f : light.r / m;
         float g = m < 0.01f ? 1f : light.g / m;
         float b = m < 0.01f ? 1f : light.b / m;
-        int a = selected ? 255 : 110;
-        return a << 24 | (int) (r * 255f) << 16 | (int) (g * 255f) << 8 | (int) (b * 255f);
+        float a = selected ? 1f : 110f / 255f;
+        return Color.ofRGBA(r, g, b, a).getColor();
     }
 
     private static int halfAlpha(int color) {

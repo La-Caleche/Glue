@@ -55,34 +55,17 @@ public class TestmodClient implements ClientModInitializer {
         TestBlockEntities.registerBlockEntities();
         TestBlocksRenderer.registerBlocksRenderer();
 
-
-
         TestShaders.registerShaders();
         TestPostShaderHandler.INSTANCE.register();
 
-
         PostEffectDebugHud.INSTANCE.init();
-
-        // Post-effect debug HUD lifecycle
-        RenderEvents.RENDER_HUD.register(guiGraphics -> {
-            if (PostEffectDebugHud.INSTANCE.isActive()) {
-                PostEffectDebugHud.INSTANCE.render(guiGraphics);
-            }
-        });
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            PostEffectDebugHud.INSTANCE.tick();
-        });
+        RenderEvents.RENDER_HUD.register(PostEffectDebugHud.INSTANCE::render);
+        ClientTickEvents.END_CLIENT_TICK.register(client -> PostEffectDebugHud.INSTANCE.tick());
 
         // Light debug HUD (F12): panel + in-world shape preview
         DebugManager.getInstance().register(new LightShapePreviewRenderer());
-        RenderEvents.RENDER_HUD.register(guiGraphics -> {
-            if (LightDebugHud.INSTANCE.isActive()) {
-                LightDebugHud.INSTANCE.render(guiGraphics);
-            }
-        });
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            LightDebugHud.INSTANCE.tick();
-        });
+        RenderEvents.RENDER_HUD.register(LightDebugHud.INSTANCE::render);
+        ClientTickEvents.END_CLIENT_TICK.register(client -> LightDebugHud.INSTANCE.tick());
 
         AdditiveSpriteRenderer.init();
     }

@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.client.render.light;
+package fr.lacaleche.glue.lumos;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
