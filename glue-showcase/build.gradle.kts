@@ -13,14 +13,17 @@ dependencies {
     compileOnly(libs.iris)
 
     val irisRuntime: Boolean = providers.gradleProperty("glue.showcase.iris").orNull == "true"
+    val sodiumRuntime: Boolean = providers.gradleProperty("glue.showcase.sodium").orNull == "true"
 
-    // Iris hard-depends on Sodium 0.7.x, so enabling it has to pull Sodium in even when the Sodium flag is off.
-    if (providers.gradleProperty("glue.showcase.sodium").orNull != "false" || irisRuntime) {
+    if (sodiumRuntime || irisRuntime) {
         modRuntimeOnly(libs.sodium)
     }
 
     if (irisRuntime) {
         modRuntimeOnly(libs.iris)
+        runtimeOnly("org.anarres:jcpp:1.4.14")
+        runtimeOnly("io.github.douira:glsl-transformer:3.0.0-pre3")
+        runtimeOnly("org.antlr:antlr4-runtime:4.13.1")
     }
 
     implementation(libs.lwjgl.nfd)
@@ -33,8 +36,6 @@ dependencies {
 loom {
     runs {
         configureEach {
-            // Loom's dev log4j config strips ANSI colors unless told otherwise; this survives
-            // run-config regeneration, unlike a flag added by hand in the IDE.
             vmArg("-Dfabric.log.disableAnsi=false")
         }
 
@@ -43,21 +44,6 @@ loom {
             configName = "Glue Showcase"
             ideConfigGenerated(true)
             runDir("../run")
-
-            if (providers.gradleProperty("lc.fabric.username").orNull == null ||
-                providers.gradleProperty("lc.fabric.uuid").orNull == null ||
-                providers.gradleProperty("lc.fabric.accesstoken").orNull == null
-            )
-                return@named
-
-            programArg("--username")
-            programArg(providers.gradleProperty("lc.fabric.username").get())
-            programArg("--uuid")
-            programArg(providers.gradleProperty("lc.fabric.uuid").get())
-            programArg("--accessToken")
-            programArg(providers.gradleProperty("lc.fabric.accesstoken").get())
-            programArg("--userType")
-            programArg("mojang")
         }
 
         named("server") {
