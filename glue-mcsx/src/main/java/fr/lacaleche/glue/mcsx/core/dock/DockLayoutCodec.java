@@ -41,8 +41,59 @@ public final class DockLayoutCodec {
             writeNode(out, f.node());
             out.append('}');
         }
-        out.append("]}");
+        out.append(']');
+        if (!layout.closed().isEmpty()) {
+            out.append(",\"closed\":{");
+            boolean firstEntry = true;
+            for (Map.Entry<String, DockClosed> entry : layout.closed().entrySet()) {
+                if (!firstEntry) {
+                    out.append(',');
+                }
+                firstEntry = false;
+                writeString(out, entry.getKey());
+                out.append(':');
+                writeClosed(out, entry.getValue());
+            }
+            out.append('}');
+        }
+        out.append('}');
         return out.toString();
+    }
+
+    private static void writeClosed(StringBuilder out, DockClosed ghost) {
+        switch (ghost.kind()) {
+            case TABBED -> {
+                out.append("{\"kind\":\"tabbed\",\"with\":");
+                writeString(out, ghost.withPane());
+                out.append(",\"index\":").append(ghost.tabIndex()).append('}');
+            }
+            case BESIDE -> {
+                out.append("{\"kind\":\"beside\",\"panes\":[");
+                for (int i = 0; i < ghost.besidePanes().size(); i++) {
+                    if (i > 0) {
+                        out.append(',');
+                    }
+                    writeString(out, ghost.besidePanes().get(i));
+                }
+                out.append("],\"zone\":\"").append(zoneName(ghost.zone()))
+                        .append("\",\"share\":").append(ghost.share()).append('}');
+            }
+            case ROOT -> out.append("{\"kind\":\"root\"}");
+            case FLOAT -> out.append("{\"kind\":\"float\",\"x\":").append(ghost.x())
+                    .append(",\"y\":").append(ghost.y())
+                    .append(",\"w\":").append(ghost.w())
+                    .append(",\"h\":").append(ghost.h()).append('}');
+        }
+    }
+
+    private static String zoneName(DropTarget.DropZone zone) {
+        return switch (zone) {
+            case LEFT -> "left";
+            case RIGHT -> "right";
+            case TOP -> "top";
+            case BOTTOM -> "bottom";
+            case CENTER -> "center";
+        };
     }
 
     private static void writeNode(StringBuilder out, DockNode node) {
@@ -133,7 +184,68 @@ public final class DockLayoutCodec {
                         readInt(obj, "z", floats.size() + 1)));
             }
         }
-        return new DockLayout(tree, floats);
+        return new DockLayout(tree, floats, readClosed(doc.get("closed")));
+    }
+
+    /**
+     * Closed-pane memory, absent in files written before it existed. Tolerant like the rest of the
+     * reader: an entry that cannot be understood is dropped, never fatal — losing one pane's
+     * remembered spot degrades to the cascaded window, which is what the old format always did.
+     */
+    private static Map<String, DockClosed> readClosed(Object raw) {
+        if (!(raw instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, DockClosed> closed = new java.util.LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (!(entry.getKey() instanceof String pane) || !(entry.getValue() instanceof Map<?, ?> obj)) {
+                continue;
+            }
+            DockClosed ghost = readGhost(obj);
+            if (ghost != null) {
+                closed.put(pane, ghost);
+            }
+        }
+        return closed;
+    }
+
+    private static DockClosed readGhost(Map<?, ?> obj) {
+        Object kind = obj.get("kind");
+        if ("tabbed".equals(kind) && obj.get("with") instanceof String with) {
+            return DockClosed.tabbed(with, readInt(obj, "index", 0));
+        }
+        if ("beside".equals(kind) && obj.get("panes") instanceof List<?> rawPanes) {
+            List<String> panes = new ArrayList<>();
+            for (Object pane : rawPanes) {
+                if (pane instanceof String s) {
+                    panes.add(s);
+                }
+            }
+            DropTarget.DropZone zone = readZone(obj.get("zone"));
+            double share = obj.get("share") instanceof Double d ? d : 0.34;
+            if (!panes.isEmpty() && zone != null) {
+                return DockClosed.beside(panes, zone, share);
+            }
+            return null;
+        }
+        if ("root".equals(kind)) {
+            return DockClosed.root();
+        }
+        if ("float".equals(kind)) {
+            return DockClosed.floating(readInt(obj, "x", 0), readInt(obj, "y", 0),
+                    readInt(obj, "w", 360), readInt(obj, "h", 260));
+        }
+        return null;
+    }
+
+    private static DropTarget.DropZone readZone(Object raw) {
+        return switch (raw instanceof String s ? s : "") {
+            case "left" -> DropTarget.DropZone.LEFT;
+            case "right" -> DropTarget.DropZone.RIGHT;
+            case "top" -> DropTarget.DropZone.TOP;
+            case "bottom" -> DropTarget.DropZone.BOTTOM;
+            default -> null;
+        };
     }
 
     private static DockNode readNode(Object raw, DockIds ids) {

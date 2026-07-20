@@ -1,0 +1,26 @@
+<import name="Button" from="mcsx:components/button"/>
+<import name="Separator" from="mcsx:components/separator"/>
+<import name="Switch" from="mcsx:components/switch"/>
+<div class="w-full h-full flex-col gap-1 p-2">
+    <div class="flex-row items-center gap-2">
+        <Switch checked={preview}><text class="text-sm">Preview</text></Switch>
+        <div class="grow"/>
+        <Button size="sm" variant="secondary" onClick={addPoint}>+Point</Button>
+        <Button size="sm" variant="secondary" onClick={addSpot}>+Spot</Button>
+        <Button size="sm" variant="secondary" onClick={placeWorld}>+World</Button>
+    </div>
+    <Separator/>
+    <scroll class="grow shrink w-full">
+        <div class="w-full flex-col gap-1 py-1">
+            <for each={rows} as="row" class="flex-col gap-1">
+                <div onClick={select} class="flex-row items-center gap-2 rounded px-2 py-1 {row.rowClasses}">
+                    <div class="w-3 h-3 rounded {row.swatch}"/>
+                    <text class="text-sm font-semibold">{{row.name}}</text>
+                    <text class="text-sm text-subtle">{{row.type}}</text>
+                    <div class="grow"/>
+                    <text class="text-sm text-muted">{{row.meta}}</text>
+                </div>
+            </for>
+        </div>
+    </scroll>
+</div>

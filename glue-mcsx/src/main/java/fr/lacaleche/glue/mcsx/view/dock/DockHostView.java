@@ -233,7 +233,7 @@ public final class DockHostView extends ViewGroup {
             scheduleFlush();
             return;
         }
-        apply(DockOps.toggleFloat(layout, ids, paneId, getWidth(), getHeight()), true);
+        apply(DockOps.togglePane(layout, ids, paneId, getWidth(), getHeight()), true);
         onMutated.accept(layout);
     }
 
@@ -258,19 +258,19 @@ public final class DockHostView extends ViewGroup {
         for (String paneId : queued) {
             // folded rather than applied one by one: each step sees the previous step's float list,
             // so the cascade advances and an open/close pair of the same pane still cancels out
-            next = DockOps.toggleFloat(next, ids, paneId, getWidth(), getHeight());
+            next = DockOps.togglePane(next, ids, paneId, getWidth(), getHeight());
         }
         apply(next, true);
         onMutated.accept(layout);
     }
 
     void closeTab(String paneId) {
-        apply(DockOps.detach(layout, paneId), true);
+        apply(DockOps.closePane(layout, paneId), true);
         onMutated.accept(layout);
     }
 
     void closeFloat(String floatId) {
-        apply(DockOps.removeFloat(layout, floatId), true);
+        apply(DockOps.closeFloatRemembering(layout, floatId), true);
         onMutated.accept(layout);
     }
 

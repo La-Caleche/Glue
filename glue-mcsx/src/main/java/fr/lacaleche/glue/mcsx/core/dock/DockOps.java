@@ -5,7 +5,9 @@ import fr.lacaleche.glue.mcsx.core.dock.DropTarget.DropZone;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 
@@ -139,10 +141,261 @@ public final class DockOps {
         if (openSet(layout).contains(paneId)) {
             return detach(layout, paneId);
         }
+        return openCascade(layout, ids, paneId, stageW, stageH);
+    }
+
+    /**
+     * The place-remembering toggle behind the menu bar's Views entries and every close affordance:
+     * {@link #closePane} when the pane is open, {@link #openPane} otherwise.
+     */
+    public static DockLayout togglePane(DockLayout layout, DockIds ids, String paneId,
+                                        int stageW, int stageH) {
+        return openSet(layout).contains(paneId)
+                ? closePane(layout, paneId)
+                : openPane(layout, ids, paneId, stageW, stageH);
+    }
+
+    /**
+     * Closes {@code paneId} but remembers where it was: the pane moves from the tree (or its
+     * float) into {@link DockLayout#closed()}, so the layout file keeps it and {@link #openPane}
+     * can put it back. Closing a pane that is not open is a no-op.
+     */
+    public static DockLayout closePane(DockLayout layout, String paneId) {
+        DockClosed ghost = ghostOf(layout, paneId);
+        if (ghost == null) {
+            return layout;
+        }
+        DockLayout detached = detach(layout, paneId);
+        Map<String, DockClosed> closed = new LinkedHashMap<>(detached.closed());
+        closed.put(paneId, ghost);
+        return detached.withClosed(closed);
+    }
+
+    /**
+     * Closes a floating window outright, remembering every pane it held as a float at the
+     * window's frame — reopening any of them restores a window there.
+     */
+    public static DockLayout closeFloatRemembering(DockLayout layout, String floatId) {
+        DockFloat window = findFloat(layout, floatId);
+        if (window == null) {
+            return layout;
+        }
+        Set<String> panes = new HashSet<>();
+        collectTabs(window.node(), panes);
+        DockLayout removed = removeFloat(layout, floatId);
+        Map<String, DockClosed> closed = new LinkedHashMap<>(removed.closed());
+        for (String pane : panes) {
+            closed.put(pane, DockClosed.floating(window.x(), window.y(), window.w(), window.h()));
+        }
+        return removed.withClosed(closed);
+    }
+
+    /**
+     * Opens {@code paneId} where it last was. The remembered placement is re-resolved against the
+     * current layout — pane anchors, since node ids don't persist — and degrades kind by kind:
+     * back into the leaf it shared, else split beside its old sibling subtree with its old share,
+     * else its old floating frame, and with no usable memory the cascaded window of
+     * {@link #toggleFloat}. Opening an already-open pane is a no-op.
+     */
+    public static DockLayout openPane(DockLayout layout, DockIds ids, String paneId,
+                                      int stageW, int stageH) {
+        if (openSet(layout).contains(paneId)) {
+            return layout;
+        }
+        DockClosed ghost = layout.closed().get(paneId);
+        if (ghost == null) {
+            return openCascade(layout, ids, paneId, stageW, stageH);
+        }
+        Map<String, DockClosed> closed = new LinkedHashMap<>(layout.closed());
+        closed.remove(paneId);
+        DockLayout base = layout.withClosed(closed);
+
+        if (ghost.kind() == DockClosed.Kind.TABBED && ghost.withPane() != null) {
+            DockLeaf host = leafContainingTab(base, ghost.withPane());
+            if (host != null) {
+                List<String> tabs = new ArrayList<>(host.tabs());
+                tabs.add(Math.min(Math.max(0, ghost.tabIndex()), tabs.size()), paneId);
+                return replace(base, host.id(), node -> new DockLeaf(node.id(), tabs, paneId));
+            }
+        }
+        if (ghost.kind() == DockClosed.Kind.BESIDE && ghost.zone() != null
+                && !ghost.besidePanes().isEmpty()) {
+            DockNode anchor = smallestNodeCovering(base, ghost.besidePanes());
+            if (anchor != null) {
+                DockLeaf reopened = DockLeaf.of(ids, List.of(paneId));
+                double share = Math.max(MIN_RATIO, Math.min(1 - MIN_RATIO, ghost.share()));
+                boolean row = ghost.zone() == DropZone.LEFT || ghost.zone() == DropZone.RIGHT;
+                boolean first = ghost.zone() == DropZone.LEFT || ghost.zone() == DropZone.TOP;
+                return replace(base, anchor.id(), node -> DockSplit.of(ids,
+                        row ? Dir.ROW : Dir.COL,
+                        first ? List.of(reopened, node) : List.of(node, reopened),
+                        first ? List.of(share, 1 - share) : List.of(1 - share, share)));
+            }
+        }
+        if (ghost.kind() == DockClosed.Kind.ROOT && base.tree() == null) {
+            return base.withTree(DockLeaf.of(ids, List.of(paneId)));
+        }
+        if (ghost.kind() == DockClosed.Kind.FLOAT && ghost.w() > 0 && ghost.h() > 0) {
+            return addFloat(base, ids, DockLeaf.of(ids, List.of(paneId)),
+                    ghost.x(), ghost.y(), ghost.w(), ghost.h());
+        }
+        return openCascade(base, ids, paneId, stageW, stageH);
+    }
+
+    /** The legacy open path: a window cascaded from the workspace centre. */
+    private static DockLayout openCascade(DockLayout layout, DockIds ids, String paneId,
+                                          int stageW, int stageH) {
         int cascade = layout.floats().size() * 26;
         int x = Math.max(20, stageW / 2 - MENU_FLOAT_W / 2 + cascade);
         int y = Math.max(20, stageH / 2 - MENU_FLOAT_H / 2 + cascade);
         return addFloat(layout, ids, DockLeaf.of(ids, List.of(paneId)), x, y, MENU_FLOAT_W, MENU_FLOAT_H);
+    }
+
+    /**
+     * The pane's placement, captured before it is detached. Null when the pane is not open.
+     * Anchors are pane ids — the only identity that survives the codec round trip.
+     */
+    private static DockClosed ghostOf(DockLayout layout, String paneId) {
+        DockLeaf leaf = leafContainingTab(layout, paneId);
+        if (leaf == null) {
+            return null;
+        }
+        if (leaf.tabs().size() > 1) {
+            int index = leaf.tabs().indexOf(paneId);
+            String neighbour = leaf.tabs().get(index == 0 ? 1 : index - 1);
+            return DockClosed.tabbed(neighbour, index);
+        }
+        for (DockFloat f : layout.floats()) {
+            if (f.node() == leaf) {
+                return DockClosed.floating(f.x(), f.y(), f.w(), f.h());
+            }
+        }
+        SplitSeat seat = seatOf(layout, leaf.id());
+        if (seat == null) {
+            return DockClosed.root();
+        }
+        List<String> beside = new ArrayList<>();
+        collectTabsOrdered(seat.sibling(), beside);
+        boolean row = seat.split().dir() == Dir.ROW;
+        boolean before = seat.index() < seat.siblingIndex();
+        DropZone zone = row ? (before ? DropZone.LEFT : DropZone.RIGHT)
+                : (before ? DropZone.TOP : DropZone.BOTTOM);
+        return DockClosed.beside(beside, zone, seat.split().sizes().get(seat.index()));
+    }
+
+    /** A leaf's position in its parent split: the split, the leaf's index, and its nearest sibling. */
+    private record SplitSeat(DockSplit split, int index, int siblingIndex, DockNode sibling) {
+    }
+
+    private static SplitSeat seatOf(DockLayout layout, String leafId) {
+        SplitSeat seat = seatOf(layout.tree(), leafId);
+        for (DockFloat f : layout.floats()) {
+            if (seat != null) {
+                break;
+            }
+            seat = seatOf(f.node(), leafId);
+        }
+        return seat;
+    }
+
+    private static SplitSeat seatOf(DockNode node, String leafId) {
+        if (!(node instanceof DockSplit split)) {
+            return null;
+        }
+        for (int i = 0; i < split.children().size(); i++) {
+            DockNode child = split.children().get(i);
+            if (child.id().equals(leafId)) {
+                int siblingIndex = i > 0 ? i - 1 : i + 1;
+                return new SplitSeat(split, i, siblingIndex, split.children().get(siblingIndex));
+            }
+            SplitSeat seat = seatOf(child, leafId);
+            if (seat != null) {
+                return seat;
+            }
+        }
+        return null;
+    }
+
+    private static DockLeaf leafContainingTab(DockLayout layout, String paneId) {
+        DockLeaf hit = leafContainingTab(layout.tree(), paneId);
+        for (DockFloat f : layout.floats()) {
+            if (hit != null) {
+                break;
+            }
+            hit = leafContainingTab(f.node(), paneId);
+        }
+        return hit;
+    }
+
+    private static DockLeaf leafContainingTab(DockNode node, String paneId) {
+        if (node instanceof DockLeaf leaf) {
+            return leaf.tabs().contains(paneId) ? leaf : null;
+        }
+        if (node instanceof DockSplit split) {
+            for (DockNode child : split.children()) {
+                DockLeaf hit = leafContainingTab(child, paneId);
+                if (hit != null) {
+                    return hit;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The deepest node whose panes cover all of {@code panes} — the old sibling subtree, found
+     * again by content. When the panes have scattered, the leaf holding the first survivor stands
+     * in; when none survive, null.
+     */
+    private static DockNode smallestNodeCovering(DockLayout layout, List<String> panes) {
+        DockNode covering = smallestNodeCovering(layout.tree(), panes);
+        for (DockFloat f : layout.floats()) {
+            if (covering != null) {
+                break;
+            }
+            covering = smallestNodeCovering(f.node(), panes);
+        }
+        if (covering != null) {
+            return covering;
+        }
+        for (String pane : panes) {
+            DockLeaf leaf = leafContainingTab(layout, pane);
+            if (leaf != null) {
+                return leaf;
+            }
+        }
+        return null;
+    }
+
+    private static DockNode smallestNodeCovering(DockNode node, List<String> panes) {
+        if (node == null || !tabsOf(node).containsAll(panes)) {
+            return null;
+        }
+        if (node instanceof DockSplit split) {
+            for (DockNode child : split.children()) {
+                DockNode deeper = smallestNodeCovering(child, panes);
+                if (deeper != null) {
+                    return deeper;
+                }
+            }
+        }
+        return node;
+    }
+
+    private static Set<String> tabsOf(DockNode node) {
+        Set<String> tabs = new HashSet<>();
+        collectTabs(node, tabs);
+        return tabs;
+    }
+
+    private static void collectTabsOrdered(DockNode node, List<String> into) {
+        if (node instanceof DockLeaf leaf) {
+            into.addAll(leaf.tabs());
+        } else if (node instanceof DockSplit split) {
+            for (DockNode child : split.children()) {
+                collectTabsOrdered(child, into);
+            }
+        }
     }
 
     /**
@@ -214,11 +467,20 @@ public final class DockOps {
     /**
      * Drops every tab the pane registry does not know, dedupes tabs open twice, and renormalizes
      * float z-orders to dense unique values — the shield between a stale or hand-edited layout
-     * file and the running workspace.
+     * file and the running workspace. Closed-pane memory is shielded the same way: an entry for an
+     * unknown pane, or for a pane that is also open, is dropped.
      */
     public static DockLayout sanitize(DockLayout layout, Set<String> knownPanes) {
         Set<String> seen = new HashSet<>();
-        return normalizeZ(mapAll(layout, node -> prune(retain(node, knownPanes, seen))));
+        DockLayout clean = normalizeZ(mapAll(layout, node -> prune(retain(node, knownPanes, seen))));
+        Map<String, DockClosed> closed = new LinkedHashMap<>();
+        Set<String> open = openSet(clean);
+        for (Map.Entry<String, DockClosed> entry : clean.closed().entrySet()) {
+            if (knownPanes.contains(entry.getKey()) && !open.contains(entry.getKey())) {
+                closed.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return closed.equals(clean.closed()) ? clean : clean.withClosed(closed);
     }
 
     /**
@@ -312,7 +574,7 @@ public final class DockOps {
                 floats.add(node == f.node() ? f : f.withNode(node));
             }
         }
-        return new DockLayout(tree, floats);
+        return new DockLayout(tree, floats, layout.closed());
     }
 
     /**
@@ -359,7 +621,7 @@ public final class DockOps {
             DockNode node = replace(f.node(), id, op);
             floats.add(node == f.node() ? f : f.withNode(node));
         }
-        return new DockLayout(tree, floats);
+        return new DockLayout(tree, floats, layout.closed());
     }
 
     private static DockNode replace(DockNode node, String id, UnaryOperator<DockNode> op) {

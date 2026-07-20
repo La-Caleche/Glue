@@ -133,7 +133,7 @@ open, a request must pass a well-formedness check on every field, must be within
 dimension past `MAX_LIGHTS_PER_DIMENSION` (4096). Server-side code calling
 `Lumos` directly is never subject to the channel gate.
 
-The showcase's light debug HUD (F12) demonstrates the whole channel: it lists
+The showcase's light debug workspace (F12) demonstrates the whole channel: it lists
 world lights alongside visual ones (`W<id>` rows), and its place/edit/delete
 actions on them are `Lumos.place`/`update`/`remove` requests that only take
 effect once the server accepts and syncs back.
@@ -306,12 +306,13 @@ emitter.close();
 
 ## Debug tooling
 
-The **showcase** module (not shipped with Glue itself) binds **F12** to a light
-inspector: it lists active lights with in-world wireframes (reach sphere for
-points, cone for spots), and lets you live-edit color / intensity / range /
-shadow on–off / position / yaw–pitch / cone angles, add and delete lights. If you are tuning
-light parameters, do it there and copy the numbers into your code. See
-`glue-showcase/src/main/java/.../render/LightDebugHud.java`.
+The **showcase** module (not shipped with Glue itself) binds **F12** to a debug
+workspace (an MCSX dockspace): a **Lights** pane lists active lights with
+in-world wireframes (reach sphere for points, cone for spots), and selecting one
+opens the **Properties** pane to live-edit color / intensity / range / shadow
+on–off / position / yaw–pitch / cone angles, add and delete lights. If you are
+tuning light parameters, do it there and copy the numbers into your code. See
+`glue-showcase/src/main/java/.../render/GlueDebugDock.java`.
 
 ## Creating new shapes
 

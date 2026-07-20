@@ -6,9 +6,8 @@ import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.testmod.mcsx.McsxDemos;
 import fr.lacaleche.glue.testmod.registries.*;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
-import fr.lacaleche.glue.testmod.render.LightDebugHud;
+import fr.lacaleche.glue.testmod.render.GlueDebugDock;
 import fr.lacaleche.glue.testmod.render.LightShapePreviewRenderer;
-import fr.lacaleche.glue.testmod.render.PostEffectDebugHud;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -59,14 +58,10 @@ public class TestmodClient implements ClientModInitializer {
         TestShaders.registerShaders();
         TestPostShaderHandler.INSTANCE.register();
 
-        PostEffectDebugHud.INSTANCE.init();
-        RenderEvents.RENDER_HUD.register(PostEffectDebugHud.INSTANCE::render);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> PostEffectDebugHud.INSTANCE.tick());
-
-        // Light debug HUD (F12): panel + in-world shape preview
+        // Debug dockspace (F12): MCSX panes fed by a per-tick snapshot pump, plus the
+        // in-world light shape preview the Lights pane drives.
         DebugManager.getInstance().register(new LightShapePreviewRenderer());
-        RenderEvents.RENDER_HUD.register(LightDebugHud.INSTANCE::render);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> LightDebugHud.INSTANCE.tick());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> GlueDebugDock.tick());
 
         AdditiveSpriteRenderer.init();
 

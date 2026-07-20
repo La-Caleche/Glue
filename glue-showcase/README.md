@@ -31,8 +31,9 @@ lights. The module runs on both sides: `:glue-showcase:runClient` and
 | `GluePipeline` + `ShadedBufferSource` (entity shader capture) | `TestShaderBlockEntityRenderer.java`, `TestAdditiveSpriteBlockEntityRenderer.java` |
 | Data-driven `GluePipeline` loading | `AdditiveSpriteRenderer.java` (+ `glue/pipelines/*.json`) |
 | Cycling all registered pipelines | `render/TestShaderPipelines.java` (used by the shader block) |
-| Post-processing effects (toggle + timed) | `render/TestPostShaderHandler.java`, `render/PostEffectDebugHud.java` |
-| Light inspector (list / edit / in-world preview) | `render/LightDebugHud.java`, `render/LightShapePreviewRenderer.java` |
+| Post-processing effects (toggle + timed) | `render/TestPostShaderHandler.java`, `render/PostEffectsPaneController.java` |
+| Light inspector (list / edit / in-world preview) | `render/LightsPaneController.java`, `render/LightShapePreviewRenderer.java` |
+| MCSX dockspace hosting the debug tools (F12) | `render/GlueDebugDock.java` (+ `assets/mcsx/dock/glue_debug.json`) |
 
 ## Demo blocks
 
@@ -79,8 +80,8 @@ in the same registry. The debug HUD shows one of each path:
   uniform writers and curve lambdas (the escape hatch JSON can't express).
 - **Blur / Grayscale** — plain on/off toggle handles (no timing).
 
-Open the HUD with **F9**; hold **ALT** to drag it, arrows to navigate,
-Enter to fire, Backspace to stop.
+Fire them from the **Post FX pane** of the debug dockspace (**F12**): click a
+row to fire or flip it, ✕ stops a running timed effect.
 
 ## Deferred lights (`glue-lumos`)
 
@@ -115,15 +116,18 @@ Light is tinted by the surface it lands on (the scene colour stands in for albed
 since the vanilla path has no albedo G-buffer), then exponentially rolled off in
 linear space so overlapping lights saturate in colour rather than blowing out.
 
-Open the **light inspector** with **F12**: it lists every active light with an
-in-world wireframe preview (reach sphere for points, cone for spots — the expanded
-light is highlighted). Expand a light with Enter to edit its colour, intensity,
-range, position and (for cones) yaw/pitch/cone angles with **←/→** (SHIFT =
-coarse steps, hold to scrub); Backspace deletes it, and the bottom rows add a
-visual point/spot or **place a world light** ahead of you. Every edit swaps a
-rebuilt `Light` through `Lumos` — the identity-keyed shadow/glass caches see a
-new instance and re-bake, which is the intended invalidation path. Hold **ALT**
-to drag the panel and click rows, like the post-effect HUD.
+Open the **debug dockspace** with **F12** — an MCSX workspace with the game
+embedded in the center pane and the **Lights** and **Post FX** inspectors docked
+beside it (`assets/mcsx/ui/debug/*.mcsx` + `LightsPaneController` /
+`PostEffectsPaneController` — the showcase dogfooding `glue-mcsx` instead of
+hand-drawn GLFW panels). The Lights pane lists every active light with an
+in-world wireframe preview (reach sphere for points, cone for spots — the
+selected light is highlighted); click a row to edit its colour, intensity,
+range, shadow flag and (for cones) yaw/pitch/cone angles with sliders, pull it
+to your view, delete it, or add visual points/spots and **place world lights**
+ahead of you. Every edit swaps a rebuilt `Light` through `Lumos` — the
+identity-keyed shadow/glass caches see a new instance and re-bake, which is the
+intended invalidation path.
 
 World lights show as cyan **`W<id>`** rows: server-owned, saved with the
 dimension, synced to every player, back on reload. The HUD edits them through

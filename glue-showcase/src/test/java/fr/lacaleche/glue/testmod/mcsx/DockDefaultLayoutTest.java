@@ -26,4 +26,13 @@ class DockDefaultLayoutTest {
                 DockOps.openSet(layout));
         assertInstanceOf(DockSplit.class, layout.tree());
     }
+
+    @Test
+    void debugDockLayoutAssetParses() throws IOException {
+        Path asset = Path.of("src/main/resources/assets/mcsx/dock/glue_debug.json");
+        DockLayout layout = DockLayoutCodec.read(Files.readString(asset), new DockIds());
+        assertEquals(Set.of("lights", "properties", "viewport", "effects"),
+                DockOps.openSet(layout));
+        assertInstanceOf(DockSplit.class, layout.tree());
+    }
 }

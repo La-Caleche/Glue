@@ -142,11 +142,13 @@ public final class McsxDockspace {
     }
 
     private View createRoot(DockHostView view, OverlayHost overlays) {
+        View menu = config.menuBar()
+                ? new DockMenuBarView(hostContext(), this, panes, overlays) : null;
         View header = config.header() != null
                 ? config.header().create(hostContext(), overlays) : null;
         View footer = config.footer() != null
                 ? config.footer().create(hostContext(), overlays) : null;
-        return new DockRootView(hostContext(), header, view, footer, overlays);
+        return new DockRootView(hostContext(), menu, header, view, footer, overlays);
     }
 
     private icyllis.modernui.core.Context hostContext() {
@@ -254,14 +256,16 @@ public final class McsxDockspace {
     /** Full-window chrome wrapper; unlike a generic linear layout it cannot collapse to wrap-content. */
     private static final class DockRootView extends ViewGroup {
 
+        private final View menu;
         private final View header;
         private final View host;
         private final View footer;
         private final OverlayHost overlays;
 
-        DockRootView(icyllis.modernui.core.Context context, View header, View host, View footer,
-                     OverlayHost overlays) {
+        DockRootView(icyllis.modernui.core.Context context, View menu, View header, View host,
+                     View footer, OverlayHost overlays) {
             super(context);
+            this.menu = menu;
             this.header = header;
             this.host = host;
             this.footer = footer;
@@ -269,6 +273,9 @@ public final class McsxDockspace {
             setFocusable(true);
             setFocusableInTouchMode(true);
             setOnKeyListener(overlays.keyBindings());
+            if (menu != null) {
+                addView(menu);
+            }
             if (header != null) {
                 addView(header);
             }
@@ -284,7 +291,8 @@ public final class McsxDockspace {
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
             int width = MeasureSpec.getSize(widthMeasureSpec);
             int height = MeasureSpec.getSize(heightMeasureSpec);
-            int chromeHeight = measureChrome(header, width, height) + measureChrome(footer, width, height);
+            int chromeHeight = measureChrome(menu, width, height)
+                    + measureChrome(header, width, height) + measureChrome(footer, width, height);
             host.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
                     MeasureSpec.makeMeasureSpec(Math.max(0, height - chromeHeight), MeasureSpec.EXACTLY));
             overlays.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
@@ -304,6 +312,10 @@ public final class McsxDockspace {
         @Override
         protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
             int y = 0;
+            if (menu != null) {
+                menu.layout(0, y, getWidth(), y + menu.getMeasuredHeight());
+                y += menu.getMeasuredHeight();
+            }
             if (header != null) {
                 header.layout(0, y, getWidth(), y + header.getMeasuredHeight());
                 y += header.getMeasuredHeight();

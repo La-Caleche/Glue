@@ -55,6 +55,7 @@ DockConfig.builder("workspace-id")   // names the workspace; the persisted layou
         .inputMode(ViewportInput.Mode.CLICK) // default CLICK
         .releaseKey(GLFW.GLFW_KEY_ESCAPE)    // default Escape
         .gameViewport(false)                 // optional; dock still owns input
+        .menuBar(false)                      // default true: the built-in File/Views menu
         .header(headerContent)               // optional fixed, non-dockable chrome
         .footer(footerContent)               // optional fixed, non-dockable chrome
         .onOpenPanesChanged(open -> refreshMenu(open))
@@ -62,6 +63,24 @@ DockConfig.builder("workspace-id")   // names the workspace; the persisted layou
         .persist(true)               // default true
         .build();
 ```
+
+## The menu bar
+
+Every workspace renders an ImGui-style menu bar above its chrome by default:
+
+- **File → Close** closes the workspace.
+- **Views** lists every registered pane with a ✓ on the open ones; clicking toggles it through the
+  place-remembering `togglePane` (below).
+
+The bar also claims the workspace shortcuts it advertises, shown next to each item: **Ctrl+Q**
+closes the workspace and **Ctrl+1**…**Ctrl+9** toggle the first nine panes in registration order.
+They live on the workspace-wide `KeyBindings`, so they fire wherever dock focus happens to be —
+never while the game holds input — and a pane document that tries to `<key>`-claim the same combo
+fails its bind with a message naming the conflict.
+
+Disable it with `.menuBar(false)` — and pass a `.header(...)` when the workspace should carry a
+custom menu instead (the shortcuts belong to the bar, so they go with it). The bar's dropdowns are
+overlay layers: an outside click or Esc dismisses them before Esc means anything else.
 
 ## The embedded game viewport
 
@@ -166,6 +185,27 @@ pane on screen, and a missing `viewport` pane is tolerated.
   (defaults 360×260 when absent).
 - The reader is tolerant: unknown fields are ignored, sizes renormalize, degenerate splits prune.
   Structurally broken JSON falls back a resolution level.
+
+### Closed panes keep their place
+
+Closing a pane does **not** drop it from the file. It moves into a `"closed"` section holding how
+it was placed, and reopening it (the Views menu, `togglePane`) puts it back there — same tab strip
+and index, same split side and share, or the same floating frame — instead of spawning a fresh
+cascaded window:
+
+```json
+"closed": {
+  "console":   {"kind": "tabbed", "with": "profiler", "index": 0},
+  "inspector": {"kind": "beside", "panes": ["viewport"], "zone": "right", "share": 0.21},
+  "profiler":  {"kind": "float", "x": 40, "y": 60, "w": 380, "h": 280}
+}
+```
+
+Anchors are **pane ids**, never node ids (node ids are re-minted on every load): a `tabbed` ghost
+names a pane it shared the leaf with, a `beside` ghost names the sibling subtree's panes and is
+re-resolved by content when it reopens. Each kind degrades to the next when its anchor is gone,
+and with no usable memory the pane opens as the cascaded window it always used to. Sanitizing
+drops a closed entry whose pane is unknown — or open, in which case the open pane wins.
 
 ## Public API — `McsxDockspace`
 

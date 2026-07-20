@@ -5,8 +5,7 @@ import fr.lacaleche.glue.registries.KeybindingsRegistry;
 import fr.lacaleche.glue.testmod.lumos.DemoLights;
 import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.file.FileDialogTestScreen;
-import fr.lacaleche.glue.testmod.render.LightDebugHud;
-import fr.lacaleche.glue.testmod.render.PostEffectDebugHud;
+import fr.lacaleche.glue.testmod.render.GlueDebugDock;
 import fr.lacaleche.glue.testmod.scene.BlockSceneTestScreen;
 import fr.lacaleche.glue.testmod.scene.FpsViewportTestScreen;
 import fr.lacaleche.glue.testmod.scene.GizmoTestScreen;
@@ -16,9 +15,9 @@ import org.lwjgl.glfw.GLFW;
 /**
  * Demonstrates Glue's {@link KeybindingsRegistry}: registers every demo keybind with a tick callback.
  *
- * <p>R = raycast debug, F6 = FPS scene, F7 = block scene, F8 = gizmo test, F9 = post-effect HUD,
- * F10 = file dialogs, F11 = demo lights, F12 = light HUD (visual and world lights alike),
- * K = flashlight (eye-attached spot), mouse 5 = spawn a spot.</p>
+ * <p>R = raycast debug, F6 = FPS scene, F7 = block scene, F8 = gizmo test, F10 = file dialogs,
+ * F11 = demo lights, F12 = the MCSX debug dockspace (Lights + Post FX panes around the embedded
+ * game), K = flashlight (eye-attached spot), mouse 5 = spawn a spot.</p>
  */
 public class TestKeybinds {
 
@@ -28,11 +27,6 @@ public class TestKeybinds {
             "toggle_raycast_debug",
             "key.categories.glue_test", GLFW.GLFW_KEY_R,
             client -> TestmodClient.getInstance().toggleRaycastDebug());
-
-    public static final KeyMapping TOGGLE_POST_EFFECT_HUD = KEYBINDINGS.register(
-            "toggle_post_effect_hud",
-            "key.categories.glue_test", GLFW.GLFW_KEY_F9,
-            client -> PostEffectDebugHud.INSTANCE.toggle());
 
     public static final KeyMapping OPEN_FPS_SCENE = KEYBINDINGS.register(
             "open_fps_scene",
@@ -60,10 +54,10 @@ public class TestKeybinds {
             InputConstants.Type.MOUSE,
             client -> DemoLights.INSTANCE.spawnSpot());
 
-    public static final KeyMapping TOGGLE_LIGHT_HUD = KEYBINDINGS.register(
-            "toggle_light_hud",
+    public static final KeyMapping TOGGLE_DEBUG_DOCK = KEYBINDINGS.register(
+            "toggle_debug_dock",
             "key.categories.glue_test", GLFW.GLFW_KEY_F12,
-            client -> LightDebugHud.INSTANCE.toggle());
+            client -> GlueDebugDock.toggle());
 
     public static final KeyMapping TOGGLE_STRESS_LIGHTS = KEYBINDINGS.register(
             "toggle_stress_lights",

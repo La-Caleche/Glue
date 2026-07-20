@@ -67,6 +67,23 @@ class ScreenLintTest {
         }
     }
 
+    /** The F12 debug dockspace panes: markup errors here would only surface when the dock opens. */
+    @Test
+    void debugPanesLintAgainstTheirControllers() {
+        Path debugDir = Path.of("src/main/resources/assets/mcsx/ui/debug");
+        Map<String, Class<?>> controllers = Map.of(
+                "lights", fr.lacaleche.glue.testmod.render.LightsPaneController.class,
+                "properties", fr.lacaleche.glue.testmod.render.LightsPaneController.class,
+                "effects", fr.lacaleche.glue.testmod.render.PostEffectsPaneController.class);
+        List<Path> files = filesIn(debugDir);
+        assertFalse(files.isEmpty(), "no debug panes under " + debugDir);
+        for (Path file : files) {
+            Class<?> controller = controllers.get(baseName(file));
+            assertTrue(controller != null, "no controller mapped for " + file);
+            assertNoProblems(file, McsxLinter.lint(parse(file), controller, Set.of()));
+        }
+    }
+
     @Test
     void everyDemoScreenLintsAgainstItsController() {
         List<Path> files = filesIn(SCREEN_DIR);

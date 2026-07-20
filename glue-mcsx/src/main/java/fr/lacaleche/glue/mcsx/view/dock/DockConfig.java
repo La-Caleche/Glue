@@ -24,6 +24,9 @@ import java.util.function.Consumer;
  * @param releaseKey         the key that hands input back to the dock while the game is captured
  * @param persist            whether layout mutations are written to the config dir
  * @param gameViewport       whether the workspace embeds the game as a dockable pane
+ * @param menuBar            whether the built-in menu bar renders above everything: File (Close)
+ *                           and Views (every registered pane, click to open/close). Disable it and
+ *                           pass a {@code header} to supply a custom menu instead
  * @param header             chrome above the workspace, or null
  * @param footer             chrome below the workspace, or null
  * @param onOpenPanesChanged fired with the open pane ids whenever they change; null defaults to
@@ -32,7 +35,7 @@ import java.util.function.Consumer;
  */
 public record DockConfig(String id, List<DockPane> panes, DockLayout defaultLayout,
                          String defaultLayoutAsset, ViewportInput.Mode inputMode,
-                         int releaseKey, boolean persist, boolean gameViewport,
+                         int releaseKey, boolean persist, boolean gameViewport, boolean menuBar,
                          DockPane.PaneContent header, DockPane.PaneContent footer,
                          Consumer<Set<String>> onOpenPanesChanged, Runnable onClose) {
 
@@ -78,6 +81,7 @@ public record DockConfig(String id, List<DockPane> panes, DockLayout defaultLayo
         private int releaseKey = GLFW.GLFW_KEY_ESCAPE;
         private boolean persist = true;
         private boolean gameViewport = true;
+        private boolean menuBar = true;
         private DockPane.PaneContent header;
         private DockPane.PaneContent footer;
         private Consumer<Set<String>> onOpenPanesChanged;
@@ -122,6 +126,12 @@ public record DockConfig(String id, List<DockPane> panes, DockLayout defaultLayo
             return this;
         }
 
+        /** Off, plus a {@link #header}, is how a workspace supplies its own menu. On by default. */
+        public Builder menuBar(boolean value) {
+            this.menuBar = value;
+            return this;
+        }
+
         public Builder header(DockPane.PaneContent content) {
             this.header = content;
             return this;
@@ -144,7 +154,7 @@ public record DockConfig(String id, List<DockPane> panes, DockLayout defaultLayo
 
         public DockConfig build() {
             return new DockConfig(id, panes, defaultLayout, defaultLayoutAsset,
-                    inputMode, releaseKey, persist, gameViewport, header, footer,
+                    inputMode, releaseKey, persist, gameViewport, menuBar, header, footer,
                     onOpenPanesChanged, onClose);
         }
     }

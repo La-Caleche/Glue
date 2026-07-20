@@ -20,14 +20,14 @@ import java.util.List;
 
 /**
  * In-world wireframe preview of every active {@link Light}, driven by
- * {@link LightDebugHud} (only draws while the HUD is open and its
- * "Shape preview" row is ON).
+ * {@link LightsPaneController} (only draws while the debug dockspace's Lights pane is open and
+ * its Preview switch is ON).
  *
  * <p>Point lights draw as three great circles at {@code range} (the reach
  * sphere); spots and gobos as their cone &mdash; apex lines of length exactly
  * {@code range} to the outer cap (so the wire is the true reach boundary, not
  * the axial distance), plus a dimmer inner-angle circle where full brightness
- * ends. The light expanded in the HUD renders at full opacity with a white
+ * ends. The light selected in the pane renders at full opacity with a white
  * center cross; the rest are dimmed. Wire color is the light's own color,
  * normalized so dark lights stay visible.</p>
  */
@@ -63,8 +63,8 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
     @Override
     public void render(PoseStack matrices, MultiBufferSource vertexConsumers, double cameraX, double cameraY,
                        double cameraZ) {
-        LightDebugHud hud = LightDebugHud.INSTANCE;
-        if (!hud.isActive() || !hud.isPreviewEnabled()) return;
+        if (!LightsPaneController.previewEnabled()) return;
+        Light selectedLight = LightsPaneController.selectedLight();
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) return;
 
@@ -79,7 +79,7 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
         // across a renderFloatingText call would be flushed mid-loop and throw "Not building!".
         VertexConsumer lines = vertexConsumers.getBuffer(RenderType.lines());
         for (Light light : lights) {
-            boolean selected = (light == hud.getSelectedLight());
+            boolean selected = (light == selectedLight);
             int color = wireColor(light, selected);
 
             float x = (float) (light.x - cameraX);
@@ -97,7 +97,7 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
 
         int index = 0;
         for (Light light : lights) {
-            boolean selected = (light == hud.getSelectedLight());
+            boolean selected = (light == selectedLight);
             DebugRenderer.renderFloatingText(matrices, vertexConsumers,
                     "#" + index + " " + light.type,
                     light.x, light.y + 0.5, light.z,
