@@ -9,7 +9,9 @@ import fr.lacaleche.glue.client.render.light.internal.scene.MetalSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.scene.WaterSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.shadow.ShadowBaker;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -41,6 +43,19 @@ public final class WorldLightContext implements AutoCloseable {
     /** Internal rendering state; not part of the light-management API. */
     public ShadowBaker shadows() {
         return shadows;
+    }
+
+    /**
+     * The entity a frame-sampled light is anchored to, or {@code null} for a free-standing light.
+     * The shadow bake leaves that entity out of this one light's shadow pass &mdash; a light at its
+     * anchor's eyes would otherwise sit inside its own occluder and blacken the whole map.
+     */
+    @Nullable
+    public synchronized Entity shadowAnchor(Light light) {
+        for (AttachedLight handle : handles) {
+            if (handle.resolved() == light) return handle.anchorEntity();
+        }
+        return null;
     }
 
     /** Internal rendering state; not part of the light-management API. */

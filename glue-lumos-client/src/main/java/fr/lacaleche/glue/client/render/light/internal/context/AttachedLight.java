@@ -4,6 +4,8 @@ import fr.lacaleche.glue.lumos.Light;
 import fr.lacaleche.glue.lumos.LightAttachment;
 import fr.lacaleche.glue.lumos.LightHandle;
 import fr.lacaleche.glue.lumos.LightTransform;
+import net.minecraft.world.entity.Entity;
+import org.jetbrains.annotations.Nullable;
 
 /** The client implementation of {@link LightHandle}: a frame-sampled light owned by one world. */
 public final class AttachedLight implements LightHandle {
@@ -56,6 +58,12 @@ public final class AttachedLight implements LightHandle {
 
     public Light resolved() {
         return resolved;
+    }
+
+    /** The entity this light follows, or null — excluded from its own shadow pass. */
+    @Nullable
+    public Entity anchorEntity() {
+        return attachment.anchorEntity();
     }
 
     public void markRemoved() {

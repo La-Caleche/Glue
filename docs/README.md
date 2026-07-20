@@ -2,9 +2,9 @@
 
 **Glue** is a Fabric utility library for Minecraft 1.21.8 that simplifies mod development by providing typed registry wrappers, rendering utilities, shader systems, and Iris/Oculus compatibility.
 
-The repository publishes `glue-core`, `glue-render`, `glue-server`, `glue-lumos`, and
-`glue-lumos-client`. Choose the narrowest module that provides the required feature; each module
-declares its own Fabric dependencies. `glue-core`, `glue-server`, and `glue-lumos` load on both
+The repository publishes `glue-core`, `glue-render`, `glue-lumos`, and `glue-lumos-client`.
+Choose the narrowest module that provides the required feature; each module declares its own
+dependencies, including the Glue modules it is built on. `glue-core` and `glue-lumos` load on both
 client and dedicated server; `glue-render` and `glue-lumos-client` are client-only.
 
 ## Table of Contents

@@ -60,7 +60,8 @@ public final class LightRenderCoordinator {
         List<Light> visible = cull(minecraft, all, viewProjection, camera);
         if (visible.isEmpty()) return;
 
-        context.shadows().bake(minecraft, deferredPass.tintBlur(), visible, partialTick);
+        context.shadows().bake(minecraft, deferredPass.tintBlur(), visible, partialTick,
+                context::shadowAnchor);
         materialPass.render(context, minecraft, frame, camera, all, visible);
         deferredPass.render(frame, viewProjection, inverseViewProjection, camera,
                 visible, context.shadows(), minecraft, partialTick);

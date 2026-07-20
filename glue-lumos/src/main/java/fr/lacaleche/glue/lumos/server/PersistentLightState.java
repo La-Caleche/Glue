@@ -22,8 +22,20 @@ import java.util.Map;
  */
 public final class PersistentLightState extends SavedData {
 
+    // DataFixTypes.LEVEL is an arbitrary but required label: vanilla has no fix type for mod data,
+    // and the level.dat fixers find nothing to rewrite under these keys. Format migration is
+    // handled by the codec's own version field, never by DFU.
     static final SavedDataType<PersistentLightState> TYPE = new SavedDataType<>(
             "glue_lumos_lights", PersistentLightState::new, codec(), DataFixTypes.LEVEL);
+
+    /**
+     * Bumped when the stored shape changes incompatibly. A codec parse failure silently wipes the
+     * dimension's lights (SavedData replaces an unreadable file with a fresh empty state on the next
+     * save), so a future format change must branch on this field rather than alter fields in place.
+     * {@code optionalFieldOf} omits the field while it equals the default, so on disk version 1 is
+     * represented by absence and the field only appears once this is bumped.
+     */
+    private static final int FORMAT_VERSION = 1;
 
     private final Map<Long, Light> lights = new LinkedHashMap<>();
     private long nextId = 1L;
@@ -31,7 +43,7 @@ public final class PersistentLightState extends SavedData {
     PersistentLightState() {
     }
 
-    private PersistentLightState(long nextId, List<PlacedLight> entries) {
+    private PersistentLightState(int version, long nextId, List<PlacedLight> entries) {
         this.nextId = nextId;
         for (PlacedLight entry : entries) {
             lights.put(entry.id(), entry.light());
@@ -75,6 +87,7 @@ public final class PersistentLightState extends SavedData {
 
     private static Codec<PersistentLightState> codec() {
         return RecordCodecBuilder.create(instance -> instance.group(
+                Codec.INT.optionalFieldOf("version", 1).forGetter(state -> FORMAT_VERSION),
                 Codec.LONG.fieldOf("nextId").forGetter(state -> state.nextId),
                 PlacedLight.CODEC.listOf().fieldOf("lights").forGetter(PersistentLightState::entries)
         ).apply(instance, PersistentLightState::new));

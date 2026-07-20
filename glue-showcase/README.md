@@ -3,8 +3,11 @@
 A runnable module (`glue-showcase`) that exercises every public Glue feature in-game. Its content
 continues to use the `glue-test` resource namespace to avoid an unrelated asset migration.
 Each demo is intentionally small and maps to one library feature so it can be
-read as living documentation. Entry point: **`TestmodClient`** — it registers
-everything in `onInitializeClient()`.
+read as living documentation. Entry points: **`TestmodClient`** registers every
+client demo in `onInitializeClient()`; **`Testmod`** (both sides) opens the Lumos
+client request channel to operators, which is what lets the light HUD edit world
+lights. The module runs on both sides: `:glue-showcase:runClient` and
+`:glue-showcase:runServer`.
 
 ## Feature → file index
 
@@ -19,7 +22,7 @@ everything in `onInitializeClient()`.
 | `KeybindingsRegistry` | `registries/TestKeybinds.java` |
 | `CoreShaderRegistry` (raw pipeline + `GluePipeline`) | `registries/TestShaders.java` |
 | `PostShaderRegistry` / `TimedEffectRegistry` | `registries/TestShaders.java` |
-| `LightManager` / `LightRenderer` (deferred colored lights) | `registries/TestLighting.java` |
+| `Lumos` (visual lights + server-owned world lights) | `lumos/DemoLights.java`, `Testmod.java` |
 | `GlueBlock` + data-driven outline | `blocks/demo/TestOutlineBlock.java` (+ `glue/outlines/example.json`) |
 | `GlueVoxelShape` | `blocks/demo/TestOutlineBlock.java` |
 | `VoxelShaper` (directional shapes) | `blocks/demo/TestShapeBlock.java` |
@@ -81,9 +84,13 @@ Enter to fire, Backspace to stop.
 
 ## Deferred lights (`glue-lumos`)
 
-Press **L** to create a 29-light test scene: three **static** shadowed point
-lights, a 24-light unshadowed stress ring, a point attached to a block, and a
-warm **spot** attached to the player's interpolated eye transform. They illuminate
+Press **F11** to spawn the demo scene: three **static** shadowed point lights
+plus a 24-light unshadowed stress ring (mouse button 5 spawns a warm **spot**
+along your view). **K** toggles a flashlight — a spot attached to the player's
+eyes via `Lumos.attach`, re-sampled every rendered frame; pressing again
+restyles it in place through `LightHandle.light()`, cycling colors before
+turning off. These are *visual* lights — `Lumos.spawn`, this client only,
+gone with the session. They illuminate
 existing world geometry via a screen-space deferred pass
 (`LightRenderer`, hung off `POST_WORLD_RENDER`): reconstruct world position from
 the scene depth buffer, derive edge-aware normals from depth (5-tap), accumulate
@@ -112,11 +119,18 @@ Open the **light inspector** with **F12**: it lists every active light with an
 in-world wireframe preview (reach sphere for points, cone for spots — the expanded
 light is highlighted). Expand a light with Enter to edit its colour, intensity,
 range, position and (for cones) yaw/pitch/cone angles with **←/→** (SHIFT =
-coarse steps, hold to scrub); Backspace deletes it, and the bottom rows add a new
-point/spot light at your position. Every edit swaps a rebuilt `Light` into the
-`LightManager` — the identity-keyed shadow/glass caches see a new instance and
-re-bake, which is the intended invalidation path. Hold **ALT** to drag the panel
-and click rows, like the post-effect HUD.
+coarse steps, hold to scrub); Backspace deletes it, and the bottom rows add a
+visual point/spot or **place a world light** ahead of you. Every edit swaps a
+rebuilt `Light` through `Lumos` — the identity-keyed shadow/glass caches see a
+new instance and re-bake, which is the intended invalidation path. Hold **ALT**
+to drag the panel and click rows, like the post-effect HUD.
+
+World lights show as cyan **`W<id>`** rows: server-owned, saved with the
+dimension, synced to every player, back on reload. The HUD edits them through
+the Lumos client request channel — every place/edit/delete is validated
+server-side (operator permission level 4, near the player, well-formed, under
+the dimension cap) and takes effect when the server syncs it back. `Testmod`
+opts the showcase server into that channel; it is closed by default.
 
 The additive sprite block-entity renderer also draws a white core through
 `EmissiveMaterial.unshaded`, demonstrating a self-lit custom material alongside

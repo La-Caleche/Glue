@@ -6,6 +6,8 @@ fabric = "0.136.1+1.21.8"
 imgui = "1.86.11"
 iris = "1.9.6+1.21.8-fabric"
 sodium = "mc1.21.8-0.7.3-fabric"
+junit = "5.10.1"
+lwjgl-nfd = "3.3.3"
 
 [libraries]
 minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
@@ -13,3 +15,6 @@ fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabric-l
 fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabric" }
 iris = { module = "maven.modrinth:iris", version.ref = "iris" }
 sodium = { module = "maven.modrinth:sodium", version.ref = "sodium" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+lwjgl-nfd = { module = "org.lwjgl:lwjgl-nfd", version.ref = "lwjgl-nfd" }

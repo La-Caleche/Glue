@@ -21,15 +21,30 @@ Glue is a **Fabric 1.21.8** library mod that eliminates boilerplate when buildin
 glue/
 ├── glue-core/                            # Registries, data, math, shapes, history (both sides)
 ├── glue-render/                          # Pipelines, post effects, scenes, outlines, file dialogs (client)
-├── glue-server/                          # Networking + world-save persistence (both sides)
-├── glue-lumos/                           # Shared light model: Light / LightType (both sides)
+├── glue-lumos/                           # Light model, persistence and sync (both sides)
 ├── glue-lumos-client/                    # Deferred colored-light renderer (client)
 └── glue-showcase/                        # Runnable feature demonstrations
 ```
 
 ## Adding Glue as a Dependency
 
-In your `build.gradle.kts`:
+Glue is published to the private La Calèche Reposilite. Add the repository with read credentials
+(from `~/.gradle/gradle.properties` or CI variables):
+
+```kotlin
+repositories {
+    maven {
+        name = "La Calèche Private"
+        url = uri("https://reposilite.lacaleche.cc/private")
+        credentials {
+            username = providers.gradleProperty("lc.reposilite.readonly.name").get()
+            password = providers.gradleProperty("lc.reposilite.readonly.token").get()
+        }
+    }
+}
+```
+
+Then in your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
@@ -43,14 +58,16 @@ dependencies {
 
 Each module pulls its own dependencies transitively. Rendering consumers depend on `glue-render`;
 to render dynamic lights depend on `glue-lumos-client` (it pulls `glue-lumos` + `glue-render`).
-Server-side code that only describes lights depends on the model module `glue-lumos` alone, and
-`glue-server` provides the shared server infrastructure. `glue-core` underlies all of them.
+Server-side code that only describes lights depends on the model module `glue-lumos` alone.
+`glue-core` underlies all of them.
 
 ## Mod Initialization
 
-The modules provide three entry points:
+The modules provide four entry points, all registered automatically by Fabric — your mod never
+calls them:
 
 - `Glue` (common) — registers data component types and internal registries
+- `GlueLumos` (common) — registers the light payload types and the server-side persistence
 - `GlueClient` (client) — registers outline renderers, deferred draw queue, FBO debug HUD, block selection events
 - `GlueLumosClient` (client) — registers the deferred-light pass and owns its GL cleanup
 

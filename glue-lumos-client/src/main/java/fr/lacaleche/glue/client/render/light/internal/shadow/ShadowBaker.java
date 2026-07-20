@@ -22,6 +22,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Renders and <strong>caches</strong> each light's shadow map(s).
@@ -106,6 +107,7 @@ public final class ShadowBaker {
     private final Map<Light, List<ShadowParams>> frame = new IdentityHashMap<>();
     private GlTintBlurPass tintBlur;
     private float partialTick;
+    private Function<Light, @Nullable Entity> anchors = light -> null;
 
     /**
      * Blur the freshly-baked transmittance map. Once, here, rather than per pixel per
@@ -134,10 +136,17 @@ public final class ShadowBaker {
         maxPointBakesPerFrame = Math.max(0, pointBakesPerFrame);
     }
 
-    /** Bake (or reuse) every shadow-casting light's maps. Call once per frame, before accumulation. */
-    public void bake(Minecraft mc, GlTintBlurPass tintBlur, List<Light> lights, float partialTick) {
+    /**
+     * Bake (or reuse) every shadow-casting light's maps. Call once per frame, before accumulation.
+     * {@code anchors} names the entity a light is attached to, if any &mdash; that entity is left out
+     * of that light's own entity shadow pass (a light inside its anchor would otherwise blacken its
+     * whole map), while still casting from every other light.
+     */
+    public void bake(Minecraft mc, GlTintBlurPass tintBlur, List<Light> lights, float partialTick,
+                     Function<Light, @Nullable Entity> anchors) {
         this.tintBlur = tintBlur;
         this.partialTick = partialTick;
+        this.anchors = anchors;
         frame.clear();
 
         List<Light> spots = new ArrayList<>();
@@ -378,7 +387,7 @@ public final class ShadowBaker {
      */
     private List<ShadowParams> renderEntityShadows(Minecraft mc, Slot slot, Light light) {
         if (slot.maps.isEmpty() || slot.faceView.size() < slot.maps.size()) return slot.maps;
-        List<Entity> entities = collectEntities(mc, light);
+        List<Entity> entities = collectEntities(mc, light, anchors.apply(light));
         if (entities.isEmpty()) return slot.maps;
 
         while (slot.entityRenderers.size() < slot.maps.size()) {
@@ -406,8 +415,11 @@ public final class ShadowBaker {
      * crossed the level's internal section boundaries. For a spot or gobo, entities outside the cone are
      * dropped first: the cone is convex from the light, so an occluder outside it cannot shadow any
      * receiver inside it, and rendering it would only waste a shadow slot.</p>
+     *
+     * <p>{@code anchor} is the entity this light is attached to, skipped unconditionally: the light
+     * usually sits inside it, and the near-light exception below would otherwise force it in.</p>
      */
-    private static List<Entity> collectEntities(Minecraft mc, Light light) {
+    private static List<Entity> collectEntities(Minecraft mc, Light light, @Nullable Entity anchor) {
         if (mc.level == null) return List.of();
         double reach = light.range;
         AABB box = new AABB(light.x - reach, light.y - reach, light.z - reach,
@@ -424,7 +436,7 @@ public final class ShadowBaker {
 
         List<Entity> entities = new ArrayList<>();
         for (LivingEntity entity : mc.level.getEntitiesOfClass(LivingEntity.class, box,
-                candidate -> !candidate.isSpectator() && !candidate.isInvisible())) {
+                candidate -> candidate != anchor && !candidate.isSpectator() && !candidate.isInvisible())) {
             if (cone) {
                 double dx = entity.getX() - light.x;
                 double dy = entity.getY() + entity.getBbHeight() * 0.5 - light.y;
