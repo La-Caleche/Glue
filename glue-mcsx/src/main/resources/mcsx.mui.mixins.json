@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "package": "fr.lacaleche.glue.mcsx.mui.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "mcsx.mui.refmap.json",
+  "client": [
+    "MixinGameRenderer",
+    "MixinGuiRenderer",
+    "MixinKeyboardHandler",
+    "MixinMouseHandler",
+    "MixinRenderSystem"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

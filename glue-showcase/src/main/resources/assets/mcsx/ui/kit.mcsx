@@ -1,0 +1,94 @@
+<!-- Component library demo — components are .mcsx files (mcsx:components/*), imported like shadcn.
+     Reuses DemoController (ping increments count; {{label}} reflects it; name backs the Input). -->
+<import name="Button" from="mcsx:components/button"/>
+<import name="Card" from="mcsx:components/card"/>
+<import name="CardHeader" from="mcsx:components/card-header"/>
+<import name="CardTitle" from="mcsx:components/card-title"/>
+<import name="CardDescription" from="mcsx:components/card-description"/>
+<import name="CardContent" from="mcsx:components/card-content"/>
+<import name="CardFooter" from="mcsx:components/card-footer"/>
+<import name="Badge" from="mcsx:components/badge"/>
+<import name="Alert" from="mcsx:components/alert"/>
+<import name="AlertTitle" from="mcsx:components/alert-title"/>
+<import name="AlertDescription" from="mcsx:components/alert-description"/>
+<import name="Separator" from="mcsx:components/separator"/>
+<import name="Label" from="mcsx:components/label"/>
+<import name="Input" from="mcsx:components/input"/>
+<div class="w-[560px] h-auto m-auto bg-base rounded-lg border p-4 gap-4">
+    <text size="20">MCSX Component Library</text>
+
+    <Card>
+        <CardHeader>
+            <CardTitle>Buttons</CardTitle>
+            <CardDescription>Six variants and four sizes, driven by cva-in-markup.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div class="flex-row items-center gap-2">
+                <Button onClick={ping}>Default</Button>
+                <Button variant="secondary" onClick={ping}>Secondary</Button>
+                <Button variant="destructive" onClick={ping}>Destructive</Button>
+            </div>
+            <div class="flex-row items-center gap-2">
+                <Button variant="outline" onClick={ping}>Outline</Button>
+                <Button variant="ghost" onClick={ping}>Ghost</Button>
+                <Button variant="link" onClick={ping}>Link</Button>
+            </div>
+            <Separator/>
+            <div class="flex-row items-center gap-2">
+                <Button size="sm" onClick={ping}>Small</Button>
+                <Button onClick={ping}>Default</Button>
+                <Button size="lg" onClick={ping}>Large</Button>
+            </div>
+            <text class="text-sm text-muted">{{label}}</text>
+        </CardContent>
+        <CardFooter class="justify-between">
+            <Button variant="ghost" onClick={ping}>Cancel</Button>
+            <Button onClick={ping}>Save</Button>
+        </CardFooter>
+    </Card>
+
+    <Card>
+        <CardHeader class="flex-row items-center justify-between">
+            <CardTitle>Form</CardTitle>
+            <Badge variant="info">flex</Badge>
+        </CardHeader>
+        <CardContent>
+            <Label>Display name</Label>
+            <Input value={name} placeholder="Steve"/>
+            <div class="flex-row items-center gap-2">
+                <Button variant="outline" size="sm" onClick={ping}>Reset</Button>
+                <div class="grow"/>
+                <Button size="sm" onClick={ping}>Apply</Button>
+            </div>
+        </CardContent>
+    </Card>
+
+    <Card>
+        <CardHeader>
+            <CardTitle>Badges</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div class="flex-row items-center gap-2">
+                <Badge>Default</Badge>
+                <Badge variant="secondary">Secondary</Badge>
+                <Badge variant="destructive">Destructive</Badge>
+                <Badge variant="outline">Outline</Badge>
+            </div>
+            <div class="flex-row items-center gap-2">
+                <Badge variant="success">Success</Badge>
+                <Badge variant="warning">Warning</Badge>
+                <Badge variant="info">Info</Badge>
+            </div>
+        </CardContent>
+    </Card>
+
+    <Alert variant="info">
+        <AlertTitle>Heads up</AlertTitle>
+        <AlertDescription>Alerts tint their background and border, and their body inherits the hue.</AlertDescription>
+    </Alert>
+
+    <Alert variant="destructive">
+        <AlertTitle>Something broke</AlertTitle>
+        <AlertDescription>The destructive variant carries the danger token through to its text.</AlertDescription>
+    </Alert>
+</div>

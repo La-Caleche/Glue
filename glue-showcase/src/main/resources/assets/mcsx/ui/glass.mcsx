@@ -1,0 +1,400 @@
+<!-- Ignis Glass — the in-game port of design-poc/index.html.
+     Still absent, blocked on a missing engine primitive rather than on effort: toasts. -->
+<import name="Button" from="mcsx:components/button"/>
+<import name="Badge" from="mcsx:components/badge"/>
+<import name="Alert" from="mcsx:components/alert"/>
+<import name="AlertTitle" from="mcsx:components/alert-title"/>
+<import name="AlertDescription" from="mcsx:components/alert-description"/>
+<import name="Separator" from="mcsx:components/separator"/>
+<import name="Panel" from="mcsx:components/panel"/>
+<import name="Avatar" from="mcsx:components/avatar"/>
+<import name="Kbd" from="mcsx:components/kbd"/>
+<import name="Tag" from="mcsx:components/tag"/>
+<import name="Spinner" from="mcsx:components/spinner"/>
+<import name="Skeleton" from="mcsx:components/skeleton"/>
+<import name="Checkbox" from="mcsx:components/checkbox"/>
+<import name="Switch" from="mcsx:components/switch"/>
+<import name="Radio" from="mcsx:components/radio"/>
+<import name="Select" from="mcsx:components/select"/>
+<import name="Progress" from="mcsx:components/progress"/>
+<import name="Slider" from="mcsx:components/slider"/>
+<import name="Label" from="mcsx:components/label"/>
+<import name="Dialog" from="mcsx:components/dialog"/>
+<import name="Popover" from="mcsx:components/popover"/>
+<import name="MenuItem" from="mcsx:components/menu-item"/>
+<import name="Input" from="mcsx:components/input"/>
+<div class="w-full h-full flex-row bg-base">
+    <key combo="ctrl+k" onPress={togglePalette}/>
+
+    <Dialog open={dialogOpen} onClose={closeDialog}>
+        <text class="text-xl font-semibold">Delete world?</text>
+        <text class="text-sm text-muted">This permanently removes Overworld and all its data.</text>
+        <div class="rounded-md border border-danger bg-danger-subtle p-3">
+            <text class="text-sm text-danger">This action cannot be undone.</text>
+        </div>
+        <div class="flex-row items-center justify-end gap-2">
+            <Button variant="ghost" onClick={closeDialog}>Cancel</Button>
+            <Button variant="destructive" onClick={closeDialog}>Delete</Button>
+        </div>
+    </Dialog>
+
+    <Popover open={menuOpen} onClose={closeMenu} anchor="menuTrigger" class="w-[200px]">
+        <MenuItem onClick={closeMenu}><icon name="user"/>Profile</MenuItem>
+        <MenuItem onClick={closeMenu}><icon name="settings"/>Settings</MenuItem>
+        <MenuItem onClick={closeMenu}><icon name="copy"/>Duplicate</MenuItem>
+        <Separator/>
+        <MenuItem variant="destructive" onClick={closeMenu}><icon name="trash"/>Delete</MenuItem>
+    </Popover>
+
+    <Dialog open={paletteOpen} onClose={closePalette} class="w-[520px]">
+        <text class="text-xs text-subtle">COMMAND PALETTE</text>
+        <text class="text-sm text-muted">Ctrl+K toggles this. Esc closes it.</text>
+        <Separator/>
+        <MenuItem onClick={closePalette}><icon name="plus"/>New world</MenuItem>
+        <MenuItem onClick={closePalette}><icon name="settings"/>Open settings</MenuItem>
+    </Dialog>
+
+
+    <div class="w-[232px] h-full flex-col gap-1 bg-surface p-4">
+        <div class="flex-row items-center gap-3 px-1 py-3">
+            <Avatar>IG</Avatar>
+            <div class="flex-col">
+                <text class="font-semibold">Ignis Glass</text>
+                <text class="text-xs text-subtle">design system</text>
+            </div>
+        </div>
+        <for each={nav} as="item" class="flex-col gap-1">
+            <div onClick={selectSection} class="flex-row items-center gap-2 rounded px-3 py-2 {item.rowClasses}">
+                <icon name={item.icon} size="16" class="{item.textClasses}"/>
+                <text class="text-sm {item.textClasses}">{{item.name}}</text>
+            </div>
+        </for>
+        <div class="grow"/>
+        <Separator/>
+        <div class="flex-row items-center gap-3 p-2">
+            <Avatar size="sm">MA</Avatar>
+            <div class="flex-col">
+                <text class="text-sm font-medium">malo</text>
+                <text class="text-xs text-subtle">online</text>
+            </div>
+        </div>
+    </div>
+
+    <Separator orientation="vertical"/>
+
+    <div class="grow shrink h-full flex-col">
+        <div class="flex-row items-center justify-between p-4">
+            <div class="flex-row items-center gap-3">
+                <text class="text-2xl font-semibold">Components</text>
+                <Badge>emerald</Badge>
+            </div>
+            <div class="flex-row items-center gap-2">
+                <icon name="search" size="14" class="text-muted"/>
+                <text class="text-sm text-muted">Toggle palette</text>
+                <Kbd>Ctrl</Kbd>
+                <Kbd>K</Kbd>
+            </div>
+        </div>
+        <Separator/>
+
+        <scroll class="h-0 grow">
+            <div class="flex-col gap-6 p-5">
+
+                <div class="flex-col gap-2">
+                    <text class="text-2xl font-semibold">Foundations</text>
+                    <text class="text-sm text-muted">Translucent surfaces, one emerald accent, hairline borders.</text>
+                </div>
+                <div class="flex-row items-stretch gap-4">
+                    <Panel class="grow shrink">
+                        <text class="text-xs text-subtle">SURFACES & ELEVATION</text>
+                        <div class="rounded-md border bg-surface p-4">
+                            <text class="text-sm">surface-1 · panels & cards</text>
+                        </div>
+                        <div class="rounded-md border bg-surface-2 p-4">
+                            <text class="text-sm">surface-2 · popovers & dialogs</text>
+                        </div>
+                        <div class="rounded-md border bg-surface-3 p-4">
+                            <text class="text-sm">surface-3 · inset inputs & tracks</text>
+                        </div>
+                    </Panel>
+                    <Panel class="grow shrink">
+                        <text class="text-xs text-subtle">PALETTE</text>
+                        <div class="flex-row items-center gap-3">
+                            <div class="w-11 h-11 rounded-md bg-accent"/>
+                            <div class="w-11 h-11 rounded-md bg-success"/>
+                            <div class="w-11 h-11 rounded-md bg-warning"/>
+                            <div class="w-11 h-11 rounded-md bg-danger"/>
+                            <div class="w-11 h-11 rounded-md bg-info"/>
+                        </div>
+                        <Separator/>
+                        <text class="text-2xl font-semibold">Display 20 · Aa</text>
+                        <text class="text-xl font-semibold">Title 16 · Aa</text>
+                        <text class="text-base">Body 13 — the quick brown fox</text>
+                        <text class="text-xs text-subtle">OVERLINE 11</text>
+                    </Panel>
+                </div>
+
+                <Separator/>
+
+                <div class="flex-col gap-2">
+                    <text class="text-2xl font-semibold">Buttons</text>
+                    <text class="text-sm text-muted">Six variants, four sizes, hover and pressed states.</text>
+                </div>
+                <Panel>
+                    <text class="text-xs text-subtle">VARIANTS</text>
+                    <div class="flex-row flex-wrap items-center gap-2">
+                        <Button onClick={bumpProgress}>Primary</Button>
+                        <Button variant="secondary" onClick={bumpProgress}>Secondary</Button>
+                        <Button variant="outline" onClick={bumpProgress}>Outline</Button>
+                        <Button variant="ghost" onClick={bumpProgress}>Ghost</Button>
+                        <Button variant="destructive" onClick={bumpProgress}>Delete</Button>
+                        <Button variant="link" onClick={bumpProgress}>Link</Button>
+                    </div>
+                    <text class="text-xs text-subtle">SIZES</text>
+                    <div class="flex-row items-center gap-2">
+                        <Button size="sm" onClick={bumpProgress}>Small</Button>
+                        <Button onClick={bumpProgress}>Medium</Button>
+                        <Button size="lg" onClick={bumpProgress}>Large</Button>
+                    </div>
+                    <text class="text-xs text-subtle">ICONS</text>
+                    <div class="flex-row items-center gap-2">
+                        <Button size="icon" tooltip="Add" onClick={bumpProgress}><icon name="plus"/></Button>
+                        <Button size="icon" variant="secondary" tooltip="Settings" onClick={bumpProgress}><icon name="settings"/></Button>
+                        <Button size="icon" variant="outline" tooltip="Download" onClick={bumpProgress}><icon name="download"/></Button>
+                        <Button size="icon" variant="ghost" tooltip="Duplicate" onClick={bumpProgress}><icon name="copy"/></Button>
+                        <Button variant="secondary" onClick={bumpProgress}><icon name="layout"/>New</Button>
+                    </div>
+                    <text class="text-xs text-subtle">THE SET</text>
+                    <for each={iconNames} as="ic" class="flex-row flex-wrap items-center gap-3">
+                        <icon name={ic} size="20" class="text-muted"/>
+                    </for>
+                    <text class="text-xs text-subtle">STATES</text>
+                    <div class="flex-row items-center gap-2">
+                        <Button class="disabled:bg-surface-3 disabled:text-subtle" disabled="true">Disabled</Button>
+                        <Button variant="secondary" class="disabled:bg-surface-3 disabled:text-subtle" disabled="true">Saving</Button>
+                    </div>
+                </Panel>
+
+                <Separator/>
+
+                <div class="flex-col gap-2">
+                    <text class="text-2xl font-semibold">Forms</text>
+                    <text class="text-sm text-muted">Native controls, themed; the field wrapper is composition.</text>
+                </div>
+                <div class="flex-row items-stretch gap-4">
+                    <Panel class="grow shrink">
+                        <text class="text-xs text-subtle">TEXT FIELDS</text>
+                        <Label>Username</Label>
+                        <Input value={username} placeholder="Steve"/>
+                        <text class="text-sm text-subtle">Visible to other players.</text>
+                        <Label>Server address</Label>
+                        <Input value={server} class="border-danger"/>
+                        <text class="text-sm text-danger">Enter a valid host:port.</text>
+                        <Label>Game mode</Label>
+                        <Select value={mode} options={modes} anchor="modeSelect" class="self-start w-[220px]"/>
+                    </Panel>
+                    <Panel class="grow shrink">
+                        <text class="text-xs text-subtle">CHOICES</text>
+                        <Checkbox checked={autoSave} class="self-start">
+                            <text class="text-sm">Auto-save</text>
+                        </Checkbox>
+                        <Switch checked={autoSave} class="self-start">
+                            <text class="text-sm">Autosave</text>
+                        </Switch>
+                        <Switch checked={notifications} class="self-start">
+                            <text class="text-sm">Notifications</text>
+                        </Switch>
+                        <Label>Difficulty</Label>
+                        <div class="flex-row items-center gap-4">
+                            <Radio group={difficulty} value="a"><text class="text-sm">Peaceful</text></Radio>
+                            <Radio group={difficulty} value="b"><text class="text-sm">Normal</text></Radio>
+                            <Radio group={difficulty} value="c"><text class="text-sm">Hard</text></Radio>
+                        </div>
+                        <div class="flex-row items-center justify-between">
+                            <Label>Master volume</Label>
+                            <text class="text-sm text-muted">{{volumeLabel}}</text>
+                        </div>
+                        <Slider value={volume} fraction={volumeFraction} min="0" max="100"/>
+                        <Label>View</Label>
+                        <div class="flex-row items-center self-start rounded-md border bg-surface-3 p-1">
+                            <for each={segments} as="seg" class="flex-row gap-1">
+                                <div onClick={selectView} class="rounded px-4 py-1 {seg.classes}">
+                                    <text class="text-sm">{{seg.name}}</text>
+                                </div>
+                            </for>
+                        </div>
+                    </Panel>
+                </div>
+
+                <Separator/>
+
+                <div class="flex-col gap-2">
+                    <text class="text-2xl font-semibold">Disclosure</text>
+                    <text class="text-sm text-muted">Tabs and an accordion, driven by reactive classes.</text>
+                </div>
+                <div class="flex-row items-stretch gap-4">
+                    <Panel class="grow shrink w-1/2">
+                        <text class="text-xs text-subtle">TABS</text>
+                        <div class="flex-row items-end">
+                            <for each={tabs} as="item" class="flex-row">
+                                <div onClick={selectTab} class="flex-col">
+                                    <div class="px-4 py-2">
+                                        <text class="text-base {item.textClasses}">{{item.name}}</text>
+                                    </div>
+                                    <div class="h-[2px] rounded-full {item.underlineClasses}"/>
+                                </div>
+                            </for>
+                        </div>
+                        <Separator/>
+                        <for each={tabs} as="item" class="flex-col">
+                            <if cond={item.active}>
+                                <text class="text-sm text-muted">{{item.content}}</text>
+                            </if>
+                        </for>
+                    </Panel>
+                    <Panel class="grow shrink w-1/2">
+                        <text class="text-xs text-subtle">ACCORDION</text>
+                        <for each={faq} as="item" class="flex-col">
+                            <div class="flex-col">
+                                <div onClick={toggleFaq} class="flex-row items-center justify-between py-3">
+                                    <text class="text-sm font-medium">{{item.question}}</text>
+                                </div>
+                                <if cond={item.open}>
+                                    <text class="text-sm text-muted pb-3">{{item.answer}}</text>
+                                </if>
+                                <Separator/>
+                            </div>
+                        </for>
+                    </Panel>
+                </div>
+
+                <Separator/>
+
+                <div class="flex-col gap-2">
+                    <text class="text-2xl font-semibold">Overlays</text>
+                    <text class="text-sm text-muted">One overlay primitive: dialog, anchored menu, palette.</text>
+                </div>
+                <Panel>
+                    <text class="text-xs text-subtle">TRIGGERS</text>
+                    <div class="flex-row items-center gap-2">
+                        <Button onClick={openDialog}>Open dialog</Button>
+                        <div id="menuTrigger">
+                            <Button variant="secondary" onClick={toggleMenu}>Open menu</Button>
+                        </div>
+                        <Button variant="outline" onClick={togglePalette}>Command palette</Button>
+                    </div>
+                </Panel>
+
+                <Separator/>
+
+                <div class="flex-col gap-2">
+                    <text class="text-2xl font-semibold">Feedback</text>
+                    <text class="text-sm text-muted">Badges, tags, alerts and progress.</text>
+                </div>
+                <Panel>
+                    <text class="text-xs text-subtle">BADGES & TAGS</text>
+                    <div class="flex-row items-center gap-2">
+                        <Badge>Active</Badge>
+                        <Badge class="flex-row items-center gap-2"><icon name="layout"/>With icon</Badge>
+                        <Badge variant="secondary">Draft</Badge>
+                        <Badge variant="success">Synced</Badge>
+                        <Badge variant="warning">Beta</Badge>
+                        <Badge variant="destructive">Error</Badge>
+                        <Badge variant="info">Info</Badge>
+                    </div>
+                    <div class="flex-row items-center gap-2">
+                        <Tag>survival</Tag>
+                        <Tag>hardcore</Tag>
+                        <Tag>modded</Tag>
+                    </div>
+                    <text class="text-xs text-subtle">PROGRESS</text>
+                    <Progress fraction={progressFraction}/>
+                    <text class="text-xs text-subtle">SPINNER and SKELETON</text>
+                    <div class="flex-row items-center gap-3">
+                        <Spinner/>
+                        <text class="text-sm text-muted">Loading chunks...</text>
+                    </div>
+                    <div class="flex-row items-center gap-3">
+                        <Skeleton class="w-9 h-9 rounded-full"/>
+                        <div class="flex-col gap-2">
+                            <Skeleton class="w-[140px] h-[10px]"/>
+                            <Skeleton class="w-[90px] h-[10px]"/>
+                        </div>
+                    </div>
+                </Panel>
+
+                <Alert variant="info">
+                    <div class="flex-row items-center gap-2"><icon name="info" size="16"/><AlertTitle>Heads up</AlertTitle></div>
+                    <AlertDescription>A new version of the pack is available.</AlertDescription>
+                </Alert>
+                <Alert variant="success">
+                    <div class="flex-row items-center gap-2"><icon name="check-circle" size="16"/><AlertTitle>Saved</AlertTitle></div>
+                    <AlertDescription>Your layout was saved to disk.</AlertDescription>
+                </Alert>
+                <Alert variant="warning">
+                    <div class="flex-row items-center gap-2"><icon name="alert-triangle" size="16"/><AlertTitle>Unsaved changes</AlertTitle></div>
+                    <AlertDescription>Leaving now will discard edits.</AlertDescription>
+                </Alert>
+                <Alert variant="destructive">
+                    <div class="flex-row items-center gap-2"><icon name="alert-triangle" size="16"/><AlertTitle>Connection lost</AlertTitle></div>
+                    <AlertDescription>Reconnecting to the server…</AlertDescription>
+                </Alert>
+
+                <Separator/>
+
+                <div class="flex-col gap-2">
+                    <text class="text-2xl font-semibold">Data</text>
+                    <text class="text-sm text-muted">Stats and a table, laid out with flex rows.</text>
+                </div>
+                <div class="flex-row items-stretch gap-4">
+                    <Panel class="grow shrink">
+                        <text class="text-sm text-muted">Players online</text>
+                        <text class="text-2xl font-semibold">1,204</text>
+                        <Badge variant="success" class="self-start">+12%</Badge>
+                    </Panel>
+                    <Panel class="grow shrink">
+                        <text class="text-sm text-muted">Avg. FPS</text>
+                        <text class="text-2xl font-semibold">60</text>
+                        <Badge variant="success" class="self-start">stable</Badge>
+                    </Panel>
+                    <Panel class="grow shrink">
+                        <text class="text-sm text-muted">Draw calls</text>
+                        <text class="text-2xl font-semibold">1</text>
+                        <Badge variant="success" class="self-start">batched</Badge>
+                    </Panel>
+                </div>
+
+                <Panel>
+                    <text class="text-xs text-subtle">TABLE</text>
+                    <div class="flex-row items-center gap-3 pb-2">
+                        <text class="grow text-xs text-subtle">PLAYER</text>
+                        <text class="w-24 text-xs text-subtle">MODE</text>
+                        <text class="w-20 text-xs text-subtle">STATUS</text>
+                        <text class="w-16 text-xs text-subtle text-right">PING</text>
+                    </div>
+                    <Separator/>
+                    <div class="flex-row items-center gap-3 py-2">
+                        <div class="grow flex-row items-center gap-2">
+                            <Avatar size="sm">MA</Avatar>
+                            <text class="text-sm">malo</text>
+                        </div>
+                        <text class="w-24 text-sm text-muted">Survival</text>
+                        <div class="w-20"><Badge variant="success" class="self-start">Active</Badge></div>
+                        <text class="w-16 text-sm text-muted text-right">12ms</text>
+                    </div>
+                    <Separator/>
+                    <div class="flex-row items-center gap-3 py-2">
+                        <div class="grow flex-row items-center gap-2">
+                            <Avatar size="sm">JD</Avatar>
+                            <text class="text-sm">jade</text>
+                        </div>
+                        <text class="w-24 text-sm text-muted">Creative</text>
+                        <div class="w-20"><Badge variant="warning" class="self-start">Idle</Badge></div>
+                        <text class="w-16 text-sm text-muted text-right">34ms</text>
+                    </div>
+                </Panel>
+
+            </div>
+        </scroll>
+    </div>
+</div>

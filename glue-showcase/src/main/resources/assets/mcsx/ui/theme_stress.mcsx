@@ -1,0 +1,93 @@
+<import name="ThemeSwitch" from="mcsx:components/theme-switch"/>
+<import name="Button" from="mcsx:components/button"/>
+<import name="Dialog" from="mcsx:components/dialog"/>
+<import name="Input" from="mcsx:components/input"/>
+<import name="Switch" from="mcsx:components/switch"/>
+
+<scroll class="w-[760px] h-[620px] m-auto bg-base rounded-lg border">
+    <div class="p-5 gap-5">
+        <div class="flex-row items-center justify-between">
+            <div class="gap-1">
+                <text class="text-2xl font-bold">Theme and Tailwind Stress Lab</text>
+                <text class="text-sm text-muted">Live repaint across built-in and selectively overridden palettes.</text>
+            </div>
+            <ThemeSwitch theme={themeName} onToggle={cycleTheme} tooltip="Cycle Obsidian, Frost, Aurora"/>
+        </div>
+
+        <div class="bg-surface rounded-lg border p-4 gap-3">
+            <text class="text-lg font-semibold">Theme surfaces and token borders</text>
+            <div class="flex-row flex-wrap gap-2">
+                <div class="w-28 h-12 rounded bg-base border"><text class="text-xs">base</text></div>
+                <div class="w-28 h-12 rounded-md bg-surface border"><text class="text-xs">surface</text></div>
+                <div class="w-28 h-12 rounded-lg bg-surface-2 border-strong"><text class="text-xs">surface-2</text></div>
+                <div class="w-28 h-12 rounded-t-lg rounded-br-sm bg-surface-3 border-accent"><text class="text-xs">surface-3</text></div>
+                <div class="w-28 h-12 rounded-full bg-accent-subtle border-accent"><text class="text-xs text-accent">accent</text></div>
+            </div>
+        </div>
+
+        <div class="bg-surface rounded-lg border p-4 gap-3">
+            <text class="text-lg font-semibold">Status palette</text>
+            <div class="flex-row flex-wrap gap-2">
+                <div class="w-40 p-3 rounded-md bg-success-subtle border-success"><text class="text-success font-semibold">Success</text></div>
+                <div class="w-40 p-3 rounded-md bg-warning-subtle border-warning"><text class="text-warning font-semibold">Warning</text></div>
+                <div class="w-40 p-3 rounded-md bg-danger-subtle border-danger"><text class="text-danger font-semibold">Danger</text></div>
+                <div class="w-40 p-3 rounded-md bg-info-subtle border-info"><text class="text-info font-semibold">Information</text></div>
+            </div>
+        </div>
+
+        <div class="bg-surface rounded-lg border p-4 gap-3">
+            <text class="text-lg font-semibold">Flex, sizing, and spacing</text>
+            <div class="h-20 flex-row items-center justify-evenly gap-2 bg-surface-2 rounded-md p-2">
+                <div class="w-1/4 min-w-16 max-w-[140px] h-12 bg-accent rounded"/>
+                <div class="w-1/2 h-8 self-start bg-info rounded-md opacity-50"/>
+                <div class="grow h-10 self-end bg-warning rounded-full"/>
+            </div>
+            <div class="relative h-16 bg-surface-2 rounded-md border">
+                <div class="absolute left-2 top-2 w-20 h-6 bg-accent rounded"/>
+                <div class="absolute right-2 bottom-2 w-20 h-6 bg-danger rounded"/>
+            </div>
+        </div>
+
+        <div class="bg-surface rounded-lg border p-4 gap-3">
+            <text class="text-lg font-semibold">Typography and interaction states</text>
+            <div class="flex-row items-center gap-4">
+                <text class="text-xs font-normal text-subtle">XS normal</text>
+                <text class="text-sm font-medium text-muted">SM medium</text>
+                <text class="text-base font-semibold">Base semibold</text>
+                <text class="text-xl font-bold text-accent">XL bold</text>
+            </div>
+            <div class="flex-row items-center gap-2">
+                <Button>Hover / press</Button>
+                <Button variant="outline">Focus border</Button>
+                <Button variant="destructive" disabled="true">Disabled</Button>
+                <div class="w-8 h-8 rounded-full bg-accent animate-pulse"/>
+                <icon name="loader" size="18" class="text-accent animate-spin"/>
+            </div>
+        </div>
+
+        <div class="bg-surface rounded-lg border p-4 gap-3">
+            <text class="text-lg font-semibold">State retention and fixed colors</text>
+            <Input value={input} placeholder="Type before switching themes"/>
+            <Switch checked={enabled}><text class="text-sm">Writable signal remains intact</text></Switch>
+            <div class="flex-row gap-2">
+                <div class="grow h-8 rounded-md bg-[#151A2E]"/>
+                <div class="grow h-8 rounded-md bg-[#5BE49B]"/>
+                <div class="grow h-8 rounded-md bg-[#F97316]"/>
+            </div>
+            <text class="text-xs text-muted text-center">Arbitrary hex colors intentionally do not change with the theme.</text>
+        </div>
+
+        <div class="bg-surface rounded-lg border p-4 gap-3">
+            <text class="text-lg font-semibold">Modal scrim</text>
+            <text class="text-sm text-muted">Open it, then cycle the theme with the dialog still up: the wash behind it must repaint with everything else.</text>
+            <Button onClick={openScrim}>Open a modal</Button>
+            <Dialog open={scrimOpen} onClose={closeScrim}>
+                <text class="text-xl font-semibold">The scrim follows the theme</text>
+                <text class="text-sm text-muted">Cycle the theme from the header while this stays open. Obsidian washes dark, Frost washes light.</text>
+                <div class="flex-row items-center justify-end gap-2">
+                    <Button variant="ghost" onClick={closeScrim}>Close</Button>
+                </div>
+            </Dialog>
+        </div>
+    </div>
+</scroll>

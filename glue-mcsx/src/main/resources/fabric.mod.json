@@ -1,0 +1,37 @@
+{
+    "schemaVersion": 1,
+    "id": "glue-mcsx",
+    "version": "${version}",
+    "name": "Glue MCSX",
+    "description": "MCSX: declarative ModernUI-based UI library for Glue",
+    "authors": [
+        "Malo <malo@lacaleche.cc>",
+        "Theo <theo@lacaleche.cc>"
+    ],
+    "contact": {
+        "homepage": "https://lacaleche.cc",
+        "sources": "https://gitlab.lacaleche.cc/loccamy/java/glue"
+    },
+    "icon": "assets/mcsx/icon.png",
+    "environment": "client",
+    "mixins": [
+        "mcsx.mixins.json",
+        "mcsx.client.mixins.json",
+        "mcsx.mui.mixins.json"
+    ],
+    "accessWidener": "mcsx.accesswidener",
+    "depends": {
+        "fabricloader": ">=0.14.6",
+        "minecraft": "~1.21.8",
+        "java": ">=21",
+        "fabric-api": "*"
+    },
+    "entrypoints": {
+        "main": [
+            "fr.lacaleche.glue.mcsx.Mcsx"
+        ],
+        "client": [
+            "fr.lacaleche.glue.mcsx.mui.fabric.McsxModernUI"
+        ]
+    }
+}

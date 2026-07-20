@@ -3,6 +3,7 @@ package fr.lacaleche.glue.testmod;
 import fr.lacaleche.glue.client.debug.DebugManager;
 import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
 import fr.lacaleche.glue.client.events.RenderEvents;
+import fr.lacaleche.glue.testmod.mcsx.McsxDemos;
 import fr.lacaleche.glue.testmod.registries.*;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
 import fr.lacaleche.glue.testmod.render.LightDebugHud;
@@ -68,6 +69,8 @@ public class TestmodClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> LightDebugHud.INSTANCE.tick());
 
         AdditiveSpriteRenderer.init();
+
+        McsxDemos.register();
     }
 
     public void toggleRaycastDebug() {

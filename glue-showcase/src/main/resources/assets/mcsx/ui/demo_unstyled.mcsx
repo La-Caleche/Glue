@@ -1,0 +1,25 @@
+<!-- Reference demo: base tags + the standard primitives + hover: state variants (box + text).
+     progress is bound to the same signal as the slider, and select to the same signal as
+     the radios, so they stay in sync. -->
+<import name="Checkbox" from="mcsx:components/checkbox"/>
+<import name="Radio" from="mcsx:components/radio"/>
+<import name="Select" from="mcsx:components/select"/>
+<import name="Progress" from="mcsx:components/progress"/>
+<import name="Slider" from="mcsx:components/slider"/>
+<div>
+    <text>MCSX on ModernUI</text>
+    <text>{{label}}</text>
+    <button onClick={ping}>
+        <text>Increment</text>
+    </button>
+    <Checkbox checked={enabled}><text>Enabled</text></Checkbox>
+    <Slider value={volume} fraction={volumeFraction} min="0" max="100"/>
+    <Progress fraction={volumeFraction}/>
+    <Radio group={choice} value="a"><text>Option A</text></Radio>
+    <Radio group={choice} value="b"><text>Option B</text></Radio>
+    <Select value={choice} options={choices} anchor="choiceSelect"/>
+    <div>
+        <text>Hover me</text>
+    </div>
+    <text>Hover my text color</text>
+</div>

@@ -1,0 +1,8 @@
+<!-- MCSX Dialog — a modal panel centred over a scrim. Built on the <overlay> primitive, so it is
+     ordinary markup: copy it, or override at mcsx:components/dialog.
+     Esc and a scrim click both call onClose. Props: open = a Boolean signal, onClose = a handler,
+     class = extra classes merged last. -->
+<overlay open={open} onClose={onClose} modal="true" placement="center"
+         class="w-[440px] flex-col gap-4 rounded-lg border bg-surface-2 p-5 {class}">
+    <slot/>
+</overlay>

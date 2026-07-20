@@ -33,6 +33,7 @@ publish:
         :glue-render:publish
         :glue-lumos:publish
         :glue-lumos-client:publish
+        :glue-mcsx:publish
         :glue-showcase:remapJar
   artifacts:
     paths:

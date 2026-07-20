@@ -1,0 +1,4 @@
+<!-- MCSX CardFooter — a trailing action row. Override at mcsx:components/card-footer. Props: class. -->
+<div class="flex-row items-center gap-2 p-4 pt-0 {class}">
+    <slot/>
+</div>

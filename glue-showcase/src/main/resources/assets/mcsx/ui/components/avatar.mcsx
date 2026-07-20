@@ -1,0 +1,10 @@
+<!-- MCSX Avatar — an accent-filled circle holding initials. Images are not supported (no image
+     primitive yet). Override at mcsx:components/avatar. Props: size = sm | default | lg, class. -->
+<div class="flex-row items-center justify-center rounded-full bg-accent text-contrast font-semibold {size} {class}">
+    <slot/>
+    <variants on="size" default="default">
+        <case is="sm" class="w-6 h-6 text-xs"/>
+        <case is="default" class="w-8 h-8 text-sm"/>
+        <case is="lg" class="w-11 h-11 text-lg"/>
+    </variants>
+</div>

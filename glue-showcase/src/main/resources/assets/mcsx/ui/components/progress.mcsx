@@ -1,0 +1,6 @@
+<!-- MCSX Progress — a track and a fill whose width follows a signal. `transition` animates the fill
+     as the value changes. Override at mcsx:components/progress.
+     Props: fraction = a Float signal/computed in 0..1, class. -->
+<div class="w-full h-2 flex-row items-center rounded-full bg-surface-2 transition {class}">
+    <div class="h-2 rounded-full bg-accent" w={fraction}/>
+</div>

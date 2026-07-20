@@ -1,0 +1,13 @@
+<!-- MCSX Alert — shadcn's Alert: a tinted, bordered callout. Compose with AlertTitle and
+     AlertDescription. Override at mcsx:components/alert.
+     Props: variant = default | destructive | success | warning | info, class. -->
+<div class="flex-col gap-1 w-full rounded-lg border p-4 {variant} {class}">
+    <slot/>
+    <variants on="variant" default="default">
+        <case is="default" class="bg-surface text-default"/>
+        <case is="destructive" class="bg-danger-subtle border-danger text-danger"/>
+        <case is="success" class="bg-success-subtle border-success text-success"/>
+        <case is="warning" class="bg-warning-subtle border-warning text-warning"/>
+        <case is="info" class="bg-info-subtle border-info text-info"/>
+    </variants>
+</div>

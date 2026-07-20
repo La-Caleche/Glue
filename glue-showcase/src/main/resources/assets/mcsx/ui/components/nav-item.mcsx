@@ -1,0 +1,10 @@
+<!-- MCSX NavItem — a sidebar row. Active reads as an accent-tinted fill with accent text, per
+     DESIGN.md §4.8. Override at mcsx:components/nav-item.
+     Props: active = "true" | "false" (a static string, not a signal), onClick, class. -->
+<div onClick={onClick} class="flex-row items-center gap-2 rounded px-3 py-2 text-sm {active} {class}">
+    <slot/>
+    <variants on="active" default="false">
+        <case is="false" class="text-muted hover:bg-hover"/>
+        <case is="true" class="bg-accent-subtle text-accent font-medium"/>
+    </variants>
+</div>

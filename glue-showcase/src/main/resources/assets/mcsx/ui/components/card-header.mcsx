@@ -1,0 +1,4 @@
+<!-- MCSX CardHeader — title + description block. Override at mcsx:components/card-header. Props: class. -->
+<div class="flex-col gap-1 p-4 {class}">
+    <slot/>
+</div>

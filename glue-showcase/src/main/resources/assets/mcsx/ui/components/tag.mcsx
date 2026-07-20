@@ -1,0 +1,5 @@
+<!-- MCSX Tag — an inset chip. The POC's remove button needs an icon primitive, so it is omitted
+     rather than faked. Override at mcsx:components/tag. Props: class. -->
+<div class="flex-row items-center rounded border bg-surface-3 px-2 py-1 text-sm text-default {class}">
+    <slot/>
+</div>

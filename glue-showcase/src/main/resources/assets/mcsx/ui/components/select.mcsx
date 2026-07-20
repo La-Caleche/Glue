@@ -1,0 +1,27 @@
+<!-- MCSX Select — a trigger plus an anchored menu, built entirely from <state>, <overlay> and
+     select={}. It replaced a 116-line native Spinner wrapper, which is why it follows the theme.
+     Override at mcsx:components/select.
+     Props: value = a String signal (two-way), options = a List<String>, anchor = a unique id for
+            this instance, class. -->
+<div class="flex-col {class}">
+    <state name="open" initial="false"/>
+
+    <div id={anchor} toggle={open}
+         class="flex-row items-center justify-between gap-2 h-9 w-full rounded-md border bg-surface-3 px-3 hover:border-strong">
+        <text class="text-sm text-default">{{value}}</text>
+        <icon name="chevron-down" size="14" class="text-muted"/>
+    </div>
+
+    <overlay open={open} anchor={anchor}
+             class="flex-col gap-1 min-w-[180px] rounded-md border bg-surface-2 p-1">
+        <for each={options} as="option" class="flex-col gap-1">
+            <div select={value} value={option} toggle={open}
+                 class="flex-row items-center justify-between gap-2 rounded px-3 py-2 hover:bg-hover">
+                <text class="text-sm text-default">{{option}}</text>
+                <if cond={selected} class="transition">
+                    <icon name="check" size="14" class="text-accent"/>
+                </if>
+            </div>
+        </for>
+    </overlay>
+</div>

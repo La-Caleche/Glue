@@ -13,6 +13,7 @@ boilerplate: typed registries, rendering pipelines and post effects, a deferred 
 | `glue-render` | client | Shader pipelines, post effects, scenes, outlines, file dialogs, Iris compat |
 | `glue-lumos` | both | Light model, persistence and sync (`Lumos` entry point) |
 | `glue-lumos-client` | client | The deferred colored-light renderer |
+| `glue-mcsx` | client | MCSX: declarative ModernUI-based UI library (`.mcsx` documents, docking, theming) |
 | `glue-showcase` | dev only | Runnable demos of every feature — never published as a library |
 
 Each module is its own Fabric mod; consumers depend on the narrowest set they need.
@@ -72,6 +73,7 @@ dependencies {
     modImplementation("fr.lacaleche.glue:glue-render:<version>")        // rendering APIs
     modImplementation("fr.lacaleche.glue:glue-lumos:<version>")         // light model, both sides
     modImplementation("fr.lacaleche.glue:glue-lumos-client:<version>")  // light renderer
+    modImplementation("fr.lacaleche.glue:glue-mcsx:<version>")          // MCSX UI library
 }
 ```
 

@@ -1,0 +1,8 @@
+<!-- Presentation-only theme selector. The controller owns selection and persistence.
+     Props: theme = current theme name, onToggle = selection handler, class, tooltip. -->
+<button onClick={onToggle} tooltip={tooltip}
+        class="h-8 flex-row items-center gap-2 px-3 rounded-full border border-strong bg-surface-2
+               text-default font-medium hover:bg-surface-3 active:bg-active {class}">
+    <icon name="palette" size="14"/>
+    <text class="text-xs font-semibold">{{theme}}</text>
+</button>

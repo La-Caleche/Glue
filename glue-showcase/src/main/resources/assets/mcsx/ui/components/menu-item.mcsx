@@ -1,0 +1,9 @@
+<!-- MCSX MenuItem — one row of a Popover menu. Override at mcsx:components/menu-item.
+     Props: onClick, variant = default | destructive, class. -->
+<div onClick={onClick} class="flex-row items-center gap-2 rounded px-3 py-2 text-sm {variant} {class}">
+    <slot/>
+    <variants on="variant" default="default">
+        <case is="default" class="text-default hover:bg-hover"/>
+        <case is="destructive" class="text-danger hover:bg-danger-subtle"/>
+    </variants>
+</div>

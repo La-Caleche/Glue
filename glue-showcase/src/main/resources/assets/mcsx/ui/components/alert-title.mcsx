@@ -1,0 +1,5 @@
+<!-- MCSX AlertTitle — sets weight only; the colour is inherited from the Alert's variant.
+     Override at mcsx:components/alert-title. Props: class. -->
+<div class="font-medium {class}">
+    <slot/>
+</div>

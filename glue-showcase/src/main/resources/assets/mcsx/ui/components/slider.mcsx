@@ -1,0 +1,9 @@
+<!-- MCSX Slider — drag={} turns pointer position into the value; the fill's width follows it back.
+     The thumb is a real flex child between fill and remainder, so nothing has to escape its parent's
+     bounds. Override at mcsx:components/slider.
+     Props: value = an Integer signal (two-way), fraction = a Float computed in 0..1, min, max, class. -->
+<div drag={value} min={min} max={max} class="w-full h-4 flex-row items-center gap-0 {class}">
+    <div class="h-1 rounded-full bg-accent" w={fraction}/>
+    <div class="w-3 h-3 rounded-full bg-[#FFFFFF]"/>
+    <div class="h-1 grow rounded-full bg-surface-2"/>
+</div>
