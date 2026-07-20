@@ -301,7 +301,9 @@ public class LightDebugHud {
         POS_Z("Pos Z", 0.25f, -3.0e7f, 3.0e7f, false, p -> (float) p.z, (p, v) -> p.z = v),
         YAW("Yaw", 2.5f, -1.0e6f, 1.0e6f, true, p -> p.yaw, (p, v) -> p.yaw = v),
         PITCH("Pitch", 2.5f, -89.9f, 89.9f, true, p -> p.pitch, (p, v) -> p.pitch = v),
-        INNER("Inner °", 1f, 0.5f, 88.5f, true, p -> p.inner, (p, v) -> p.inner = v),
+        // Inner stops 0.5 short of outer's ceiling: adjust() pushes outer to inner + 0.5, and
+        // Light.spot rejects outer >= 89, so an inner of 88.5 would build an illegal cone.
+        INNER("Inner °", 1f, 0.5f, 88.0f, true, p -> p.inner, (p, v) -> p.inner = v),
         OUTER("Outer °", 1f, 0.5f, 88.5f, true, p -> p.outer, (p, v) -> p.outer = v);
 
         final String label;
