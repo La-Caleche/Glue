@@ -10,7 +10,9 @@ import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Optional;
@@ -65,6 +67,12 @@ public final class GBufferCapture {
     // is known), consumed at trySetup RETURN -- the last point before the draw, after Iris'
     // own framebuffer management, so our bind is the one that sticks.
     private static int pendingFbo;
+
+    // True while the immediate draw in flight is the block-atlas particle sheet (break/run
+    // particles). Its opaque block texels deserve capture, but it shares the blended
+    // TRANSLUCENT_PARTICLE pipeline with the translucent particle atlas, so pipeline identity at
+    // the arm seam cannot tell them apart -- the RenderType draw wrapping that seam flags it.
+    private static boolean terrainParticleDraw;
 
     private GBufferCapture() {
     }
@@ -175,6 +183,16 @@ public final class GBufferCapture {
         pendingFbo = redirectFboFor(pipeline);
     }
 
+    /** Called at {@code CompositeRenderType.draw} HEAD, before its {@code setPipeline}. */
+    public static void beginRenderTypeDraw(RenderType type) {
+        terrainParticleDraw = type == ParticleRenderType.TERRAIN_SHEET.renderType();
+    }
+
+    /** Called at {@code CompositeRenderType.draw} RETURN. */
+    public static void endRenderTypeDraw() {
+        terrainParticleDraw = false;
+    }
+
     /** Called at {@code trySetup} RETURN: the FBO to bind for this draw (0 = leave alone). */
     public static int consumePendingRedirect() {
         int fbo = pendingFbo;
@@ -263,9 +281,12 @@ public final class GBufferCapture {
         // Particles keep the stricter unblended gate that ownsItsPixels no longer applies. A
         // translucent billboard (smoke, spell, glow) has no single albedo or normal to capture, so
         // the deferred cap is the right answer for it; and TRANSLUCENT_PARTICLE / WEATHER_DEPTH_WRITE
-        // do write depth with LEQUAL, so ownsItsPixels alone would pull the whole sheet in.
+        // do write depth with LEQUAL, so ownsItsPixels alone would pull the whole sheet in. The one
+        // blended exception is the block-atlas TERRAIN_SHEET (break/run particles): opaque block
+        // texels behind vanilla's 0.1-alpha discard, depth-written -- flagged per draw by its
+        // RenderType because it shares this pipeline with the translucent particle atlas.
         boolean particle = CoreShaderMaterialPatch.isParticleReady()
-                && pipeline.getBlendFunction().isEmpty()
+                && (pipeline.getBlendFunction().isEmpty() || terrainParticleDraw)
                 && PARTICLE_SHADER.equals(pipeline.getVertexShader())
                 && PARTICLE_SHADER.equals(pipeline.getFragmentShader())
                 && pipeline.getVertexFormat() == DefaultVertexFormat.PARTICLE;

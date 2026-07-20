@@ -99,7 +99,7 @@ public final class EntityShadowRenderer extends AbstractSceneRenderer {
                 double ex = Mth.lerp(partialTick, entity.xOld, entity.getX());
                 double ey = Mth.lerp(partialTick, entity.yOld, entity.getY());
                 double ez = Mth.lerp(partialTick, entity.zOld, entity.getZ());
-                if (!inFace(ex, ey, ez, entity.getBbHeight())) continue;
+                if (!inFace(ex, ey, ez, entity.getBbWidth() * 0.5f, entity.getBbHeight())) continue;
                 // Render through vanilla's inner LevelRenderer.renderEntity, with the LIGHT as the
                 // "camera", so the entity is placed light-relative (matching the light view already on
                 // the RenderSystem model-view stack) and gets vanilla's interpolation, view yaw, packed
@@ -114,22 +114,44 @@ public final class EntityShadowRenderer extends AbstractSceneRenderer {
         }
     }
 
+    /** Render models (limbs mid-swing, a wither's side heads) can poke past the collision AABB. */
+    private static final double FACE_PADDING = 0.5;
+
     /**
-     * Whether this entity should render into the current cube face. A spot (faceAxis -1) takes every
-     * entity; a point face takes an entity whose feet, middle OR head fall in that face's 90-degree
-     * pyramid (three samples so a tall entity at a seam is not dropped by both faces), and always
-     * takes one very near the light where the dominant-axis test is unreliable.
+     * Whether this entity should render into the current cube face. A spot (faceAxis -1) takes
+     * every entity; a point face takes an entity whose padded bounding box intersects that face's
+     * 90-degree pyramid. The faces tile the sphere with no overlap, so an entity straddling a seam
+     * must land in <em>every</em> face it touches or the shadow it casts is cut along the 45-degree
+     * boundary; sampling points on the vertical centre axis missed the body's horizontal extent.
+     * A false positive only draws an entity the face frustum then clips.
      */
-    private boolean inFace(double ex, double ey, double ez, double height) {
+    private boolean inFace(double ex, double ey, double ez, float halfWidth, float height) {
         if (faceAxis < 0) return true;
-        double dx = ex - lightX;
-        double dy = ey - lightY;
-        double dz = ez - lightZ;
-        if (dx * dx + dy * dy + dz * dz < LightDepthSceneRenderer.NEAR_LIGHT * LightDepthSceneRenderer.NEAR_LIGHT) {
-            return true;
-        }
-        return LightDepthSceneRenderer.dominantFace(dx, dy, dz) == faceAxis
-                || LightDepthSceneRenderer.dominantFace(dx, dy + height * 0.5, dz) == faceAxis
-                || LightDepthSceneRenderer.dominantFace(dx, dy + height, dz) == faceAxis;
+        double minX = ex - halfWidth - FACE_PADDING - lightX;
+        double maxX = ex + halfWidth + FACE_PADDING - lightX;
+        double minY = ey - FACE_PADDING - lightY;
+        double maxY = ey + height + FACE_PADDING - lightY;
+        double minZ = ez - halfWidth - FACE_PADDING - lightZ;
+        double maxZ = ez + halfWidth + FACE_PADDING - lightZ;
+        // Exact box-vs-pyramid: the pyramid is {d : towardFace >= |offAxisA|, |offAxisB|}, and the
+        // best witness in an axis-aligned box takes each axis independently -- the largest reach
+        // toward the face against the smallest magnitude on each off axis.
+        double towardFace = switch (faceAxis) {
+            case 0 -> maxX;
+            case 1 -> -minX;
+            case 2 -> maxY;
+            case 3 -> -minY;
+            case 4 -> maxZ;
+            default -> -minZ;
+        };
+        double offA = faceAxis <= 1 ? minAbs(minY, maxY) : minAbs(minX, maxX);
+        double offB = faceAxis >= 4 ? minAbs(minY, maxY) : minAbs(minZ, maxZ);
+        return towardFace >= offA && towardFace >= offB;
+    }
+
+    /** Smallest |v| over {@code [min, max]}: zero when the interval straddles zero. */
+    private static double minAbs(double min, double max) {
+        if (min <= 0 && max >= 0) return 0;
+        return Math.min(Math.abs(min), Math.abs(max));
     }
 }
