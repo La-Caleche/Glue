@@ -37,6 +37,16 @@ public record SavedGlState(
      */
     private static final int TEXTURE_UNITS = 13;
 
+    /**
+     * How many texture units {@link GlStateManager} mirrors in its redundancy cache (indices
+     * 0..11). Higher units exist at the GL level and Glue binds one &mdash; {@code MaterialProps}
+     * at unit 12 &mdash; but the manager's texture-state array has exactly this many slots, so
+     * binding a higher unit <em>through</em> it indexes past the array
+     * ({@link ArrayIndexOutOfBoundsException}). {@link #restore()} routes those units through raw
+     * GL instead, where there is no cache to keep truthful anyway.
+     */
+    private static final int MANAGED_TEXTURE_UNITS = 12;
+
     /** Compatibility accessor for operations that use one combined framebuffer binding. */
     public int fbo() {
         return drawFbo;
@@ -163,11 +173,19 @@ public record SavedGlState(
         GlStateManager._colorMask(colorRed, colorGreen, colorBlue, colorAlpha);
         GL11.glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
 
+        // Units beyond GlStateManager's cache: restore with raw GL. Routing them through the
+        // manager would index past its texture-state array. Done first so the managed loop below
+        // runs last and leaves the manager's active-unit cache and the context in agreement.
+        for (int unit = MANAGED_TEXTURE_UNITS; unit < textures.length; unit++) {
+            GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, textures[unit]);
+        }
+
         // The context's actual active unit may have drifted from the cache's idea of it; realign
         // the context to the cache first so _activeTexture's redundancy skip is trustworthy and
         // each _bindTexture below lands on the unit the cache records it against.
         GL13.glActiveTexture(GlStateManager._getActiveTexture());
-        for (int unit = 0; unit < textures.length; unit++) {
+        for (int unit = 0; unit < MANAGED_TEXTURE_UNITS; unit++) {
             GlStateManager._activeTexture(GL13.GL_TEXTURE0 + unit);
             GlStateManager._bindTexture(textures[unit] == 0 ? scratchTexture() : 0);
             GlStateManager._bindTexture(textures[unit]);
