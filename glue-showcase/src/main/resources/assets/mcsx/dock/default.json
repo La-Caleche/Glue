@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "tree": {
+    "type": "split", "dir": "row", "sizes": [0.19, 0.60, 0.21],
+    "children": [
+      {"type": "leaf", "tabs": ["hierarchy"], "active": "hierarchy"},
+      {
+        "type": "split", "dir": "col", "sizes": [0.72, 0.28],
+        "children": [
+          {"type": "leaf", "tabs": ["viewport"], "active": "viewport"},
+          {"type": "leaf", "tabs": ["console", "profiler"], "active": "console"}
+        ]
+      },
+      {"type": "leaf", "tabs": ["inspector"], "active": "inspector"}
+    ]
+  },
+  "floats": []
+}

@@ -1,0 +1,6 @@
+<!-- MCSX AlertDescription — sets size only. Unlike shadcn it does NOT force a muted colour: on a
+     tinted Alert the body should keep the variant hue. Pass class="text-muted" on a default Alert if
+     you want the shadcn look. Override at mcsx:components/alert-description. Props: class. -->
+<div class="text-sm {class}">
+    <slot/>
+</div>

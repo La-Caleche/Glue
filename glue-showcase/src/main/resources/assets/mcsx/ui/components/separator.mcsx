@@ -1,0 +1,8 @@
+<!-- MCSX Separator — a one-pixel hairline in the border colour.
+     Override at mcsx:components/separator. Props: orientation = horizontal | vertical, class. -->
+<div class="bg-border {orientation} {class}">
+    <variants on="orientation" default="horizontal">
+        <case is="horizontal" class="w-full h-px"/>
+        <case is="vertical" class="w-px h-full"/>
+    </variants>
+</div>

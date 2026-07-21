@@ -1,0 +1,4 @@
+<!-- A reusable component: wraps whatever the caller passes into its <slot/>. -->
+<div class="rounded bg-surface p-2">
+    <slot/>
+</div>

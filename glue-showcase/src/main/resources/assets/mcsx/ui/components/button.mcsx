@@ -1,0 +1,25 @@
+<!-- MCSX Button — shadcn's Button in Ignis Glass colours. This file IS the component: read it, copy
+     it, or override it by shipping your own mcsx:components/button. The variant→class maps live
+     right here (the cva analogue).
+     Props: variant = default | secondary | destructive | outline | ghost | link,
+            size = default | sm | lg | icon, onClick = a handler, disabled = "true" | "false",
+            tooltip = hover label, class = extra classes merged last (caller wins).
+     Note: `disabled:` styling must be a BOX variant (bg/border) — opacity is not state-aware. -->
+<button onClick={onClick} disabled={disabled} tooltip={tooltip}
+        class="flex-row items-center justify-center gap-2 rounded-md font-medium {variant} {size} {class}">
+    <slot/>
+    <variants on="variant" default="default">
+        <case is="default" class="bg-accent text-contrast hover:bg-accent-hover active:bg-accent-active"/>
+        <case is="secondary" class="bg-surface-2 text-default hover:bg-surface-3"/>
+        <case is="destructive" class="bg-danger text-danger-contrast"/>
+        <case is="outline" class="border border-strong text-default hover:bg-hover active:bg-active"/>
+        <case is="ghost" class="text-default hover:bg-hover active:bg-active"/>
+        <case is="link" class="text-accent hover:text-accent-hover"/>
+    </variants>
+    <variants on="size" default="default">
+        <case is="default" class="h-9 px-4 text-sm"/>
+        <case is="sm" class="h-8 px-3 text-xs"/>
+        <case is="lg" class="h-10 px-6 text-base"/>
+        <case is="icon" class="w-9 h-9"/>
+    </variants>
+</button>

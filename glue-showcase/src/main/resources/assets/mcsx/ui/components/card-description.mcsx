@@ -1,0 +1,5 @@
+<!-- MCSX CardDescription — muted secondary text under a CardTitle.
+     Override at mcsx:components/card-description. Props: class. -->
+<div class="text-sm text-muted {class}">
+    <slot/>
+</div>

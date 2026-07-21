@@ -1,64 +1,59 @@
+import net.fabricmc.loom.api.LoomGradleExtensionAPI
+import net.fabricmc.loom.task.RemapJarTask
+
 plugins {
-    id("fabric-loom")
-    id("fr.lacaleche.caldle")
+    id("fabric-loom") apply false
+    id("fr.lacaleche.caldle") apply false
 }
 
-repositories {
-    maven("https://api.modrinth.com/maven")
-}
+// Everything identical across modules lives here; module build files declare only what is
+// genuinely module-specific (extra dependencies, access wideners, run configs).
+subprojects {
+    apply(plugin = "fabric-loom")
+    apply(plugin = "fr.lacaleche.caldle")
 
-val testmod: SourceSet by sourceSets.creating {
-    compileClasspath += sourceSets.main.get().compileClasspath
-    runtimeClasspath += sourceSets.main.get().runtimeClasspath
-}
-
-loom {
-    runs {
-        register("testmodClient") {
-            client()
-            name("Testmod Client")
-            source(testmod)
-        }
+    repositories {
+        maven("https://api.modrinth.com/maven")
     }
-    createRemapConfigurations(testmod)
-    accessWidenerPath = file("src/main/resources/glue.accesswidener")
-}
 
-dependencies {
-    minecraft(libs.minecraft)
-    mappings(loom.officialMojangMappings())
-    modImplementation(libs.fabric.loader)
-    modImplementation(libs.fabric.api)
+    val libs = rootProject.extensions.getByType<VersionCatalogsExtension>().named("libs")
+    val loom = extensions.getByType<LoomGradleExtensionAPI>()
 
-    compileOnly(libs.iris)
+    dependencies {
+        "minecraft"(libs.findLibrary("minecraft").get())
+        "mappings"(loom.officialMojangMappings())
+        "modImplementation"(libs.findLibrary("fabric-loader").get())
+        "modImplementation"(libs.findLibrary("fabric-api").get())
+        "testImplementation"(libs.findLibrary("junit-jupiter").get())
+        "testRuntimeOnly"(libs.findLibrary("junit-platform-launcher").get())
+    }
 
-    // LWJGL Native File Dialog - for OS file open/save dialogs
-    implementation("org.lwjgl:lwjgl-nfd:3.3.3")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-windows")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-linux")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-macos")
-    runtimeOnly("org.lwjgl:lwjgl-nfd:3.3.3:natives-macos-arm64")
+    tasks.withType<Test>().configureEach {
+        useJUnitPlatform()
+    }
 
-    "testmodImplementation"(sourceSets.main.get().output)
-
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-tasks.withType<Test> {
-    useJUnitPlatform()
-}
-
-tasks {
-    processResources {
+    tasks.named<ProcessResources>("processResources") {
         inputs.property("version", project.version)
         filesMatching("fabric.mod.json") {
             expand("version" to project.version)
         }
     }
 
-    remapJar {
-        archiveBaseName.set("${rootProject.name}-${project.name}")
+    tasks.withType<RemapJarTask>().configureEach {
+        archiveBaseName.set(project.name)
         destinationDirectory.set(rootDir.resolve("build").resolve("libs"))
     }
+}
+
+tasks.matching { it.name == "publish" }.configureEach {
+    enabled = false
+}
+
+// The publishable modules — everything but the showcase demo mod.
+val libraryModules = listOf("glue-core", "glue-render", "glue-lumos", "glue-lumos-client", "glue-mcsx")
+
+tasks.register("libraryJars") {
+    group = "build"
+    description = "Builds the remapped jar of every library module into build/libs/"
+    libraryModules.forEach { dependsOn(":$it:remapJar") }
 }

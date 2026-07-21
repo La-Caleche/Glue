@@ -53,4 +53,5 @@ When Iris is active, the HUD uses `RenderCompat` to query Iris's render pipeline
 - `RenderCompat.getIrisTargetTextures(target, name)` — extracts main + alt texture IDs with dimensions
 - `RenderCompat.getIrisSceneDepthGlId()` — gets the scene depth texture for linearization
 
-All reflection is centralized in `IrisProxy` and safe to call without Iris installed.
+These are `RenderCompat` calls and are safe without Iris installed — each returns null/-1 when Iris
+is absent. See [Iris Compatibility](iris-compat.md#implementation-details).

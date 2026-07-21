@@ -1,0 +1,38 @@
+<import name="Button" from="mcsx:components/button"/>
+<import name="Input" from="mcsx:components/input"/>
+<import name="Separator" from="mcsx:components/separator"/>
+<import name="Switch" from="mcsx:components/switch"/>
+<div class="w-full h-full flex-col gap-1 p-2">
+    <div class="flex-row items-center gap-2">
+        <Switch checked={autoScroll}><text class="text-xs">Auto-scroll</text></Switch>
+        <text class="text-xs text-subtle">{{messageCount}}</text>
+        <div class="grow"/>
+        <Button size="sm" variant="secondary" onClick={addLine}>Add</Button>
+        <Button size="sm" variant="secondary" onClick={removeLine}>Remove</Button>
+        <Button size="sm" variant="secondary" onClick={toggleTheme}>Theme</Button>
+    </div>
+    <Separator/>
+    <scroll class="grow shrink w-full">
+        <div class="w-full flex-col gap-1 py-1">
+            <for each={logLines} as="line" class="flex-col gap-1">
+                <!-- The pin is per-row <state>: pin a line, press Add — the pin survives because
+                     the unchanged row is reused, not rebuilt. -->
+                <div class="flex-col">
+                    <state name="marked" initial="false"/>
+                    <div toggle={marked} class="flex-row items-center gap-2">
+                        <if cond={marked}>
+                            <text class="text-xs text-accent">★</text>
+                        </if>
+                        <text class="text-xs text-subtle">{{line.time}}</text>
+                        <text class="text-xs font-semibold {line.color}">{{line.tag}}</text>
+                        <text class="text-xs">{{line.message}}</text>
+                    </div>
+                </div>
+            </for>
+        </div>
+    </scroll>
+    <div class="flex-row items-center gap-1 pt-1">
+        <Input value={command} placeholder="Run a client command..." class="grow shrink"/>
+        <Button size="sm" variant="secondary" onClick={clearCommand}>Clear</Button>
+    </div>
+</div>

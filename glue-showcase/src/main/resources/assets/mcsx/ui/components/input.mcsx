@@ -1,0 +1,6 @@
+<!-- MCSX Input — shadcn's Input over the <input> base tag: inset surface, hairline border, accent
+     border on focus (ModernUI has no outer ring, so the border carries the focus signal).
+     Override at mcsx:components/input.
+     Props: value = a Signal to two-way bind (REQUIRED — this is a signals toolkit, there is no
+            uncontrolled mode), placeholder, class. -->
+<input value={value} placeholder={placeholder} class="w-full h-9 rounded-md border bg-surface-3 px-3 text-sm text-default hover:border-strong focus:border-accent {class}"/>

@@ -51,8 +51,9 @@ Iris's `redirectIrisProgram` mixin intercepts pipeline compilation. `withIrisByp
 ### GL State Preservation
 
 `apply()` uses the shared `SavedGlState` utility to save and restore comprehensive GL state:
-program, FBO, bound array buffer, VAO, texture bindings for units 0–2, blend (with per-channel
-src/dst), depth test/func/mask, cull, scissor, active texture, and viewport.
+program, read/draw FBOs, the complete MRT draw-buffer vector and read buffer, bound array buffer,
+VAO, texture bindings for units 0–12, blend (with per-channel src/dst), depth test/func/mask,
+cull, scissor, color mask, active texture, and viewport.
 
 ## 5. Deferred Draw Queue
 
@@ -61,6 +62,19 @@ Raw GL draws issued by `GluePipeline` / `ShadedBufferSource` are dispatched thro
 - **Iris active:** Draws are deferred to `WorldRenderEvents.LAST` (after all world compositing)
 - **Iris shadow pass:** Draws are silently dropped
 - **Vanilla:** Draws execute immediately
+
+## 6. Lumos does not run under an active shaderpack
+
+`glue-lumos` (deferred colored lights) is **entirely disabled while a shaderpack is loaded**, and
+that is an architectural boundary, not a gap waiting to be filled — the pack owns its own
+`colortex` layout and its own composite chain, so Glue's G-buffer has nothing coherent to attach to
+or to composite over. See
+[Dynamic Lights](lights.md#performance--limitations) for the reasoning.
+
+Iris **installed with shaders switched off** is the common case and is fully supported: Iris is
+dormant, `isIrisShaderEnabled()` returns false, and Lumos runs its normal vanilla Fancy path with
+full material capture. Everything else on this page (pipeline registration, shadow-pass detection,
+the capture pipeline, post-shader compat) is independent of Lumos and works under an active pack.
 
 ## API Reference
 
@@ -81,6 +95,11 @@ Raw GL draws issued by `GluePipeline` / `ShadedBufferSource` are dispatched thro
 ## Implementation Details
 
 - `RenderCompat` — public API, safe to call without Iris
-- `IrisProxy` — package-private, isolated Iris class loading (only loaded when Iris is present)
-- All Iris reflection is centralized in `IrisProxy` and memoized
+- Iris's **API** classes (`IrisApi`, `IrisProgram`, `ImmediateState`) are imported directly by
+  `RenderCompat`. There is no proxy class: every call site short-circuits on `HAS_IRIS`, so the JVM
+  never resolves them when Iris is absent. Do not add a call that touches them before that check.
+- Iris **internals** (pipeline manager, render targets, texture ids) have no API and are reached
+  reflectively through `ModCompatManager` — see [Mod Compatibility](mod-compat.md).
+- The only memoization is a per-frame cache of the two Iris depth texture ids. `resetFrameCache()`
+  must be called once per frame (e.g. `WorldRenderEvents.START`) or those ids go stale.
 - `FramebufferHelper.getFramebufferId()` — gets GL FBO ID via `GlTexture.getFbo()`, same mechanism as Iris's `iris$bindFramebuffer()`

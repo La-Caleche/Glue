@@ -1,0 +1,6 @@
+<!-- MCSX Card — the shadcn Card root: a bordered glass surface with no padding of its own. Padding
+     belongs to CardHeader / CardContent / CardFooter, so a full-bleed child (a table, an image) can
+     reach the edges. Override at mcsx:components/card. Props: onClick, class. -->
+<div onClick={onClick} class="flex-col rounded-lg border bg-surface {class}">
+    <slot/>
+</div>

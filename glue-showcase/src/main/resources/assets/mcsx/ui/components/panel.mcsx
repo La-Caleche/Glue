@@ -1,0 +1,5 @@
+<!-- MCSX Panel — the POC's `.demo glass` box: a padded translucent surface used to frame an example.
+     Override at mcsx:components/panel. Props: class. -->
+<div class="flex-col gap-3 rounded-lg border bg-surface p-4 {class}">
+    <slot/>
+</div>

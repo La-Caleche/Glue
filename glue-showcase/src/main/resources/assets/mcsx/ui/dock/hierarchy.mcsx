@@ -1,0 +1,22 @@
+<import name="Button" from="mcsx:components/button"/>
+<import name="Input" from="mcsx:components/input"/>
+<import name="Separator" from="mcsx:components/separator"/>
+<div class="w-full h-full flex-col gap-2 p-2">
+    <div class="flex-row items-center gap-1">
+        <Input value={search} placeholder="Filter scene..." class="grow shrink"/>
+        <Button size="icon" variant="ghost" tooltip="Clear filter" onClick={clearSearch}>
+            <icon name="close"/>
+        </Button>
+    </div>
+    <Separator/>
+    <scroll class="grow shrink w-full">
+        <div class="w-full flex-col gap-1">
+            <for each={sceneRows} as="row" class="flex-col gap-1">
+                <div class="flex-row items-center rounded px-2 py-1 {row.classes}">
+                    <text class="text-xs {row.color}">{{row.name}}</text>
+                </div>
+            </for>
+        </div>
+    </scroll>
+    <text class="text-xs text-subtle">9 objects · type to test focus while docked</text>
+</div>

@@ -1,0 +1,28 @@
+{
+    "schemaVersion": 1,
+    "id": "glue-showcase",
+    "version": "${version}",
+    "name": "Glue Showcase",
+    "description": "Development mod showcasing Glue features",
+    "entrypoints": {
+        "main": [
+            "fr.lacaleche.glue.testmod.Testmod"
+        ],
+        "client": [
+            "fr.lacaleche.glue.testmod.TestmodClient"
+        ]
+    },
+    "depends": {
+        "fabricloader": ">=0.17",
+        "minecraft": "~1.21.8",
+        "java": ">=21",
+        "fabric-api": "*",
+        "glue": "${version}",
+        "glue-lumos": "${version}"
+    },
+    "recommends": {
+        "glue-render": "${version}",
+        "glue-lumos-client": "${version}",
+        "glue-mcsx": "${version}"
+    }
+}

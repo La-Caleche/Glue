@@ -1,0 +1,32 @@
+{
+    "required": true,
+    "glyphs": {
+        "check": "F00C",
+        "loader": "F110",
+        "chevron-down": "F078",
+        "chevron-right": "F054",
+        "chevron-left": "F053",
+        "chevron-up": "F077",
+        "search": "F002",
+        "close": "F00D",
+        "plus": "F067",
+        "minus": "F068",
+        "settings": "F013",
+        "user": "F007",
+        "trash": "F1F8",
+        "copy": "F0C5",
+        "info": "F05A",
+        "alert-triangle": "F071",
+        "check-circle": "F058",
+        "bell": "F0F3",
+        "sun": "F185",
+        "moon": "F186",
+        "folder": "F07B",
+        "terminal": "F120",
+        "sliders": "F1DE",
+        "layout": "F0DB",
+        "box": "F1B2",
+        "download": "F019",
+        "palette": "F53F"
+    }
+}

@@ -37,6 +37,12 @@ This event fires at different points depending on whether Iris is active:
 
 This ensures post-process effects see both vanilla and custom shader content.
 
+Listeners run in **phase order**, not registration order, so a post effect sees the final lit frame no
+matter which mod initialized first: `PHASE_CAPTURE` (material-capture teardown) → `PHASE_LIGHTING`
+(Lumos deferred lighting) → default phase. Register a post-processing effect on the default phase (the
+plain `register(listener)`) and it runs after Lumos has composited. Use `PHASE_CAPTURE` / `PHASE_LIGHTING`
+only to slot work into those earlier stages.
+
 ## DebugEvents
 
 `fr.lacaleche.glue.client.events.DebugEvents`

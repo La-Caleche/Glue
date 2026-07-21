@@ -1,0 +1,15 @@
+<!-- MCSX Checkbox — markup, not a native widget: a box, a check icon, and toggle={} to flip the
+     signal on click. `transition` fades the check in and out. Override at mcsx:components/checkbox.
+     Props: checked = a Boolean signal (two-way), class. Label goes in the slot. -->
+<div toggle={checked} class="flex-row items-center gap-2 {class}">
+    <div class="w-4 h-4 rounded border items-center justify-center transition {checked}">
+        <variants on="checked" default="false">
+            <case is="false" class="border-strong bg-surface-3"/>
+            <case is="true" class="border-accent bg-accent"/>
+        </variants>
+        <if cond={checked} class="transition">
+            <icon name="check" size="12" class="text-contrast"/>
+        </if>
+    </div>
+    <slot/>
+</div>

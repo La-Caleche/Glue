@@ -1,0 +1,74 @@
+<import name="Button" from="mcsx:components/button"/>
+<import name="Separator" from="mcsx:components/separator"/>
+<import name="Slider" from="mcsx:components/slider"/>
+<import name="Switch" from="mcsx:components/switch"/>
+<div class="w-full h-full flex-col gap-1 p-2">
+    <if cond={noSelection}>
+        <text class="text-sm text-subtle">Select a light in the Lights pane.</text>
+    </if>
+    <if cond={hasSelection} class="grow shrink w-full flex-col gap-1">
+        <div class="flex-row items-center gap-2">
+            <text class="text-sm font-semibold">{{selectionTitle}}</text>
+            <div class="grow"/>
+            <Button size="sm" variant="secondary" onClick={pullToView}>Pull here</Button>
+            <Button size="sm" variant="secondary" onClick={deleteSelected}>Delete</Button>
+        </div>
+        <Separator/>
+        <scroll class="grow shrink w-full">
+            <div class="w-full flex-col gap-1 py-1">
+                <div class="flex-row items-center gap-2">
+                    <text class="text-sm text-subtle w-16">Red</text>
+                    <Slider value={red} fraction={redFraction} min="0" max="100" class="grow"/>
+                    <text class="text-sm w-10">{{red}}</text>
+                </div>
+                <div class="flex-row items-center gap-2">
+                    <text class="text-sm text-subtle w-16">Green</text>
+                    <Slider value={green} fraction={greenFraction} min="0" max="100" class="grow"/>
+                    <text class="text-sm w-10">{{green}}</text>
+                </div>
+                <div class="flex-row items-center gap-2">
+                    <text class="text-sm text-subtle w-16">Blue</text>
+                    <Slider value={blue} fraction={blueFraction} min="0" max="100" class="grow"/>
+                    <text class="text-sm w-10">{{blue}}</text>
+                </div>
+                <div class="flex-row items-center gap-2">
+                    <text class="text-sm text-subtle w-16">Intensity</text>
+                    <Slider value={intensity} fraction={intensityFraction} min="0" max="250" class="grow"/>
+                    <text class="text-sm w-10">{{intensityLabel}}</text>
+                </div>
+                <div class="flex-row items-center gap-2">
+                    <text class="text-sm text-subtle w-16">Range</text>
+                    <Slider value={range} fraction={rangeFraction} min="1" max="64" class="grow"/>
+                    <text class="text-sm w-10">{{range}}</text>
+                </div>
+                <div class="flex-row items-center gap-2">
+                    <Switch checked={castsShadow}><text class="text-sm">Casts shadow</text></Switch>
+                </div>
+                <if cond={spotSelected}>
+                    <div class="flex-col gap-1">
+                        <div class="flex-row items-center gap-2">
+                            <text class="text-sm text-subtle w-16">Yaw</text>
+                            <Slider value={yaw} fraction={yawFraction} min="-180" max="180" class="grow"/>
+                            <text class="text-sm w-10">{{yaw}}</text>
+                        </div>
+                        <div class="flex-row items-center gap-2">
+                            <text class="text-sm text-subtle w-16">Pitch</text>
+                            <Slider value={pitch} fraction={pitchFraction} min="-89" max="89" class="grow"/>
+                            <text class="text-sm w-10">{{pitch}}</text>
+                        </div>
+                        <div class="flex-row items-center gap-2">
+                            <text class="text-sm text-subtle w-16">Inner °</text>
+                            <Slider value={inner} fraction={innerFraction} min="1" max="87" class="grow"/>
+                            <text class="text-sm w-10">{{inner}}</text>
+                        </div>
+                        <div class="flex-row items-center gap-2">
+                            <text class="text-sm text-subtle w-16">Outer °</text>
+                            <Slider value={outer} fraction={outerFraction} min="2" max="88" class="grow"/>
+                            <text class="text-sm w-10">{{outer}}</text>
+                        </div>
+                    </div>
+                </if>
+            </div>
+        </scroll>
+    </if>
+</div>

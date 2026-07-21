@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "tree": {
+    "type": "split", "dir": "row", "sizes": [0.24, 0.52, 0.24],
+    "children": [
+      {
+        "type": "split", "dir": "col", "sizes": [0.5, 0.5],
+        "children": [
+          {"type": "leaf", "tabs": ["lights"], "active": "lights"},
+          {"type": "leaf", "tabs": ["properties"], "active": "properties"}
+        ]
+      },
+      {"type": "leaf", "tabs": ["viewport"], "active": "viewport"},
+      {"type": "leaf", "tabs": ["effects"], "active": "effects"}
+    ]
+  },
+  "floats": []
+}

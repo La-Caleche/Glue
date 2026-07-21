@@ -1,0 +1,54 @@
+<import name="Input" from="mcsx:components/input"/>
+<import name="Separator" from="mcsx:components/separator"/>
+<import name="Slider" from="mcsx:components/slider"/>
+<import name="Switch" from="mcsx:components/switch"/>
+<scroll class="w-full h-full">
+    <div class="w-full flex-col gap-2 p-3">
+        <Switch checked={objectEnabled} class="self-start">
+            <text class="text-sm font-semibold">Selected object</text>
+        </Switch>
+        <Input value={objectName} placeholder="Object name"/>
+        <text class="text-xs text-subtle">MeshRenderer · static</text>
+        <Separator/>
+
+        <div onClick={toggleTransform} class="flex-row items-center justify-between py-1">
+            <text class="text-xs font-semibold">TRANSFORM</text>
+            <text class="text-xs text-muted">toggle</text>
+        </div>
+        <if cond={transformOpen}>
+            <for each={transformRows} as="row" class="flex-col">
+                <div class="flex-row items-center justify-between py-1">
+                    <text class="text-xs text-muted">{{row.label}}</text>
+                    <text class="text-xs">{{row.value}}</text>
+                </div>
+            </for>
+        </if>
+        <Separator/>
+
+        <div onClick={toggleRenderer} class="flex-row items-center justify-between py-1">
+            <text class="text-xs font-semibold">RENDERER</text>
+            <text class="text-xs text-muted">toggle</text>
+        </div>
+        <if cond={rendererOpen}>
+            <div class="flex-col gap-2 pb-2">
+                <Switch checked={castShadows} class="self-start"><text class="text-xs">Cast shadows</text></Switch>
+                <div class="flex-row items-center justify-between">
+                    <text class="text-xs text-muted">Opacity</text>
+                    <text class="text-xs">{{opacityLabel}}</text>
+                </div>
+                <Slider value={opacity} fraction={opacityFraction} min="0" max="100"/>
+            </div>
+        </if>
+        <Separator/>
+
+        <div onClick={toggleAdvanced} class="flex-row items-center justify-between py-1">
+            <text class="text-xs font-semibold">ADVANCED</text>
+            <text class="text-xs text-muted">toggle</text>
+        </div>
+        <if cond={advancedOpen}>
+            <div class="rounded border bg-surface-2 p-2">
+                <text class="text-xs text-muted">Layer 0 · batching enabled · receive decals</text>
+            </div>
+        </if>
+    </div>
+</scroll>

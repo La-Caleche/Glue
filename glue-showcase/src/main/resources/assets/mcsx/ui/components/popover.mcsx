@@ -1,0 +1,7 @@
+<!-- MCSX Popover — a non-modal panel hanging below its trigger. Give the trigger id="…" and pass the
+     same string as anchor="…". An outside click dismisses it (the scrim is transparent, not absent).
+     Override at mcsx:components/popover. Props: open, anchor, onClose, class. -->
+<overlay open={open} onClose={onClose} anchor={anchor}
+         class="flex-col gap-1 rounded-md border bg-surface-2 p-1 {class}">
+    <slot/>
+</overlay>

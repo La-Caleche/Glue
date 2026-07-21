@@ -1,0 +1,2 @@
+<!-- MCSX Spinner — a rotating arc. Override at mcsx:components/spinner. Props: size, class. -->
+<icon name="loader" size="16" class="animate-spin text-accent {class}"/>

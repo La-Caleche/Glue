@@ -1,0 +1,8 @@
+<!-- Reference demo document. Uses only binder-supported attributes (bg / pad / color / size). -->
+<div bg="#151a2e" pad="16">
+    <text size="20" color="#5be49b">MCSX on ModernUI</text>
+    <text>{{label}}</text>
+    <button onClick={ping} bg="#5be49b" pad="8">
+        <text color="#0b0e12" size="16">Increment</text>
+    </button>
+</div>

@@ -1,0 +1,20 @@
+<import name="Separator" from="mcsx:components/separator"/>
+<div class="w-full h-full flex-col gap-1 p-2">
+    <text class="text-sm text-subtle">Click a row to fire or flip it · ✕ stops a running effect</text>
+    <Separator/>
+    <scroll class="grow shrink w-full">
+        <div class="w-full flex-col gap-1 py-1">
+            <for each={rows} as="row" class="flex-col gap-1">
+                <div onClick={fire} class="flex-row items-center gap-2 rounded px-2 py-1 bg-surface-2">
+                    <text class="text-sm text-subtle">{{row.tag}}</text>
+                    <text class="text-sm">{{row.name}}</text>
+                    <div class="grow"/>
+                    <text class="text-sm font-semibold {row.statusColor}">{{row.status}}</text>
+                    <div onClick={stopEffect} class="rounded px-1">
+                        <text class="text-sm text-subtle">✕</text>
+                    </div>
+                </div>
+            </for>
+        </div>
+    </scroll>
+</div>

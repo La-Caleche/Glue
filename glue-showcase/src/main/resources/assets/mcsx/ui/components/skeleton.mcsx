@@ -1,0 +1,3 @@
+<!-- MCSX Skeleton — a pulsing placeholder block. Give it a w-*/h-* through class.
+     Override at mcsx:components/skeleton. Props: class. -->
+<div class="animate-pulse rounded bg-surface-3 {class}"/>

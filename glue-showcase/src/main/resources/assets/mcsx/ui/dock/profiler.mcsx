@@ -1,0 +1,30 @@
+<import name="Progress" from="mcsx:components/progress"/>
+<import name="Separator" from="mcsx:components/separator"/>
+<import name="Slider" from="mcsx:components/slider"/>
+<div class="w-full h-full flex-col gap-2 p-3">
+    <div class="flex-row items-center justify-between">
+        <div class="flex-row items-center gap-2">
+            <text class="text-lg font-semibold">60</text>
+            <text class="text-xs text-subtle">FPS · 16.6 ms</text>
+        </div>
+        <text class="text-xs text-success">stable</text>
+    </div>
+    <Progress fraction={sampleFraction}/>
+    <Separator/>
+    <div class="flex-row items-center justify-between">
+        <text class="text-xs text-muted">Sample window</text>
+        <text class="text-xs">{{sampleLabel}}</text>
+    </div>
+    <Slider value={sampleWindow} fraction={sampleFraction} min="1" max="120"/>
+    <Separator/>
+    <scroll class="grow shrink w-full">
+        <div class="w-full flex-col">
+            <for each={stats} as="stat" class="flex-col">
+                <div class="flex-row items-center justify-between py-1">
+                    <text class="text-xs text-muted">{{stat.label}}</text>
+                    <text class="text-xs">{{stat.value}}</text>
+                </div>
+            </for>
+        </div>
+    </scroll>
+</div>

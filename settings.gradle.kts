@@ -29,3 +29,9 @@ pluginManagement {
 plugins {
     id("fr.lacaleche.caldle.dev-dependencies-override")
 }
+
+rootProject.name = "glue"
+
+val modules = listOf("core", "render", "lumos", "lumos-client", "mcsx", "showcase")
+
+modules.forEach { include("glue-$it") }

@@ -1,0 +1,16 @@
+<!-- MCSX Badge — shadcn's Badge, plus the status hues the design language calls for. Status variants
+     are tinted rather than filled (DESIGN.md §4.5), which keeps them legible over the world.
+     Override at mcsx:components/badge.
+     Props: variant = default | secondary | destructive | outline | success | warning | info, class. -->
+<div class="flex-row items-center justify-center rounded-md px-2 py-1 text-xs font-medium {variant} {class}">
+    <slot/>
+    <variants on="variant" default="default">
+        <case is="default" class="bg-accent text-contrast"/>
+        <case is="secondary" class="bg-surface-2 text-default"/>
+        <case is="destructive" class="bg-danger text-danger-contrast"/>
+        <case is="outline" class="border border-strong text-default"/>
+        <case is="success" class="bg-success-subtle text-success"/>
+        <case is="warning" class="bg-warning-subtle text-warning"/>
+        <case is="info" class="bg-info-subtle text-info"/>
+    </variants>
+</div>

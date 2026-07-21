@@ -1,0 +1,95 @@
+<!-- Ignis VFX editor — the shell of editor-poc/index.html.
+     Three static columns: the POC has no dock, no splitters and no draggable panels, so neither
+     does this. The preview body hosts a live <surface> (a consumer native, registered in
+     TestmodClient); the chips floating over it are `absolute` children, which is what this
+     screen is here to prove. -->
+<import name="Button" from="mcsx:components/button"/>
+<import name="Badge" from="mcsx:components/badge"/>
+<import name="Panel" from="mcsx:components/panel"/>
+<import name="Separator" from="mcsx:components/separator"/>
+<div class="w-full h-full flex-row gap-2 bg-base p-2">
+
+    <div class="w-[260px] shrink-0 h-full flex-col gap-3 rounded-md border bg-surface p-3">
+        <div class="flex-row items-center gap-2">
+            <text class="text-base font-semibold">Motes</text>
+            <Badge variant="secondary">root</Badge>
+        </div>
+        <div class="flex-row items-center gap-2">
+            <for each={leftTabs} as="tab" class="flex-row gap-2">
+                <div onClick={selectLeftTab} class="rounded px-3 py-1 {tab.classes}">
+                    <text class="text-xs font-semibold">{{tab.name}}</text>
+                </div>
+            </for>
+        </div>
+        <Separator/>
+        <for each={leftTabs} as="tab" class="flex-col">
+            <if cond={tab.active}>
+                <text class="text-sm text-muted">Nothing in {{tab.name}} yet.</text>
+            </if>
+        </for>
+        <div class="grow"/>
+        <div class="flex-row items-center gap-2">
+            <Button size="icon" onClick={togglePlay}><text class="text-sm">{{playGlyph}}</text></Button>
+            <text class="text-xs text-subtle">1 system · 0 inputs</text>
+        </div>
+    </div>
+
+    <div class="grow shrink min-w-0 h-full flex-col rounded-md border bg-surface">
+        <div class="flex-row items-center gap-2 px-3 py-2">
+            <text class="text-xs font-semibold text-accent">Preview</text>
+        </div>
+        <Separator/>
+        <div class="flex-row items-center gap-2 p-3">
+            <Button variant="secondary" size="sm">Screenshot</Button>
+            <Button variant="secondary" size="sm">Export GIF</Button>
+            <Button variant="ghost" size="sm">Debug</Button>
+            <Button variant="ghost" size="sm">Background</Button>
+        </div>
+        <text class="px-3 pb-2 text-xs text-subtle">117 FPS · 0 particles · 1.0x · Loop</text>
+
+        <div class="grow h-0 rounded-md bg-surface-3">
+            <surface class="absolute inset-0"/>
+            <div class="absolute left-3 bottom-3 flex-row items-center gap-2">
+                <div class="rounded border bg-surface-2 px-2 py-1"><text class="text-xs text-muted">LMB Orbit</text></div>
+                <div class="rounded border bg-surface-2 px-2 py-1"><text class="text-xs text-muted">RMB Pan</text></div>
+                <div class="rounded border bg-surface-2 px-2 py-1"><text class="text-xs text-muted">Scroll Zoom</text></div>
+            </div>
+            <div class="absolute right-3 top-3">
+                <Badge variant="success">live</Badge>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-[380px] shrink-0 h-full flex-col rounded-md border bg-surface">
+        <div class="flex-row items-center gap-2 px-3 py-2">
+            <text class="text-xs font-semibold text-accent">The Forge</text>
+        </div>
+        <Separator/>
+        <div class="flex-row items-end gap-4 px-3">
+            <for each={phases} as="p" class="flex-row gap-4">
+                <div onClick={selectPhase} class="flex-col">
+                    <div class="flex-row items-center gap-1 py-2">
+                        <text class="text-xs {p.textClasses}">{{p.name}}</text>
+                        <text class="text-xs text-subtle">{{p.blocks}}</text>
+                    </div>
+                    <div class="h-[2px] rounded-full {p.underlineClasses}"/>
+                </div>
+            </for>
+        </div>
+        <Separator/>
+        <scroll class="grow h-0">
+            <div class="flex-col gap-3 p-3">
+                <for each={phases} as="p" class="flex-col gap-3">
+                    <if cond={p.active}>
+                        <Panel>
+                            <text class="text-xs text-subtle">{{p.name}} BLOCKS</text>
+                            <text class="text-sm text-muted">{{p.blocks}} block(s) in this phase.</text>
+                        </Panel>
+                    </if>
+                </for>
+                <Button variant="outline" size="sm">Add block</Button>
+            </div>
+        </scroll>
+    </div>
+
+</div>

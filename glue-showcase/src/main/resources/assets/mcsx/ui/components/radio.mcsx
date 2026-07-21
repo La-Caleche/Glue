@@ -1,0 +1,16 @@
+<!-- MCSX Radio — one option of a group. select={} writes this option's value to the shared signal,
+     and the binder exposes `selected` to the subtree, so no comparison lives in the markup.
+     `transition` fades the dot in and out. Override at mcsx:components/radio.
+     Props: group = a String signal, value, class. -->
+<div select={group} value={value} class="flex-row items-center gap-2 {class}">
+    <div class="w-4 h-4 rounded-full border items-center justify-center transition {selected}">
+        <variants on="selected" default="false">
+            <case is="false" class="border-strong"/>
+            <case is="true" class="border-accent"/>
+        </variants>
+        <if cond={selected} class="transition">
+            <div class="w-2 h-2 rounded-full bg-accent"/>
+        </if>
+    </div>
+    <slot/>
+</div>

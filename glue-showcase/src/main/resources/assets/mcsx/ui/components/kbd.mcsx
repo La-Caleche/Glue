@@ -1,0 +1,5 @@
+<!-- MCSX Kbd — a keyboard-key chip. The POC's bottom shadow is dropped: ShapeDrawable has no shadow.
+     Override at mcsx:components/kbd. Props: class. -->
+<div class="flex-row items-center justify-center rounded border bg-surface-3 px-1 text-xs text-muted {class}">
+    <slot/>
+</div>

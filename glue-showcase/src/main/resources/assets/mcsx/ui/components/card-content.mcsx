@@ -1,0 +1,5 @@
+<!-- MCSX CardContent — the card body. Padded on every side but the top, which the header already
+     spaced. Override at mcsx:components/card-content. Props: class. -->
+<div class="flex-col gap-2 p-4 pt-0 {class}">
+    <slot/>
+</div>

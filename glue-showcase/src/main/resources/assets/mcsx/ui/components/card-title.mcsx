@@ -1,0 +1,5 @@
+<!-- MCSX CardTitle — the "title" type token (16sp, semibold). Its text is a bare run, so it inherits
+     size and weight from this container. Override at mcsx:components/card-title. Props: class. -->
+<div class="text-xl font-semibold text-default {class}">
+    <slot/>
+</div>

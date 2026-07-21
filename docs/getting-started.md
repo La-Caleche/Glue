@@ -19,57 +19,66 @@ Glue is a **Fabric 1.21.8** library mod that eliminates boilerplate when buildin
 
 ```
 glue/
-├── src/main/
-│   ├── java/fr/lacaleche/glue/
-│   │   ├── Glue.java                    # Common entry point
-│   │   ├── block/                       # GlueBlock interface
-│   │   ├── client/                      # Client-side systems
-│   │   │   ├── GlueClient.java          # Client entry point
-│   │   │   ├── shader/                  # GluePipeline, ShadedBufferSource, PostShaderHandle, etc.
-│   │   │   ├── render/                  # Block outlines, BlockRenderer
-│   │   │   ├── transform/              # Transform stack + Flywheel stubs
-│   │   │   ├── debug/                   # FBO debug HUD
-│   │   │   ├── events/                  # RenderEvents, DebugEvents
-│   │   │   ├── mixin/                   # Accessor + injection mixins
-│   │   │   ├── extension/               # PoseStack extension interface
-│   │   │   └── utils/                   # FramebufferHelper
-│   │   ├── compat/                      # RenderCompat, IrisProxy, ModCompatManager
-│   │   ├── registries/                  # All registry wrappers
-│   │   ├── math/                        # Color, SeedUtil
-│   │   ├── consumer/                    # QuadConsumer
-│   │   ├── data/                        # TransformationComponent
-│   │   ├── packets/                     # BlockPosPayload
-│   │   └── shaper/                      # VoxelShaper, VecHelper
-│   └── resources/
-│       ├── fabric.mod.json
-│       ├── glue.mixins.json
-│       └── glue.client.mixins.json
-└── src/testmod/                         # Example mod demonstrating all features
+├── glue-core/                            # Registries, data, math, shapes, history (both sides)
+├── glue-render/                          # Pipelines, post effects, scenes, outlines, file dialogs (client)
+├── glue-lumos/                           # Light model, persistence and sync (both sides)
+├── glue-lumos-client/                    # Deferred colored-light renderer (client)
+└── glue-showcase/                        # Runnable feature demonstrations
 ```
 
 ## Adding Glue as a Dependency
 
-In your `build.gradle.kts`:
+Glue is published to the private La Calèche Reposilite. Add the repository with read credentials
+(from `~/.gradle/gradle.properties` or CI variables):
 
 ```kotlin
-dependencies {
-    modImplementation("fr.lacaleche:glue:${glueVersion}")
+repositories {
+    maven {
+        name = "La Calèche Private"
+        url = uri("https://reposilite.lacaleche.cc/private")
+        credentials {
+            username = providers.gradleProperty("lc.reposilite.readonly.name").get()
+            password = providers.gradleProperty("lc.reposilite.readonly.token").get()
+        }
+    }
 }
 ```
 
+Then in your `build.gradle.kts`:
+
+```kotlin
+dependencies {
+    modImplementation("fr.lacaleche.glue:glue-core:${glueVersion}")
+
+    // Add only when the corresponding features are used.
+    modImplementation("fr.lacaleche.glue:glue-render:${glueVersion}")
+    modImplementation("fr.lacaleche.glue:glue-lumos-client:${glueVersion}")
+}
+```
+
+Each module pulls its own dependencies transitively. Rendering consumers depend on `glue-render`;
+to render dynamic lights depend on `glue-lumos-client` (it pulls `glue-lumos` + `glue-render`).
+Server-side code that only describes lights depends on the model module `glue-lumos` alone.
+`glue-core` underlies all of them.
+
 ## Mod Initialization
 
-Glue provides two entry points:
+The modules provide four entry points, all registered automatically by Fabric — your mod never
+calls them:
 
 - `Glue` (common) — registers data component types and internal registries
+- `GlueLumos` (common) — registers the light payload types and the server-side persistence
 - `GlueClient` (client) — registers outline renderers, deferred draw queue, FBO debug HUD, block selection events
+- `GlueLumosClient` (client) — registers the deferred-light pass and owns its GL cleanup
 
-Your mod should depend on `glue` in `fabric.mod.json`:
+Declare the modules used by your mod in `fabric.mod.json`:
 
 ```json
 {
     "depends": {
-        "glue": "*"
+        "glue": "*",
+        "glue-render": "*",
+        "glue-lumos-client": "*"
     }
 }
 ```
