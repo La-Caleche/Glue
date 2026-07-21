@@ -40,6 +40,8 @@ public final class LightAccumulator {
     private int sceneFbo = 0;
     private int sceneTex = 0;
     private int sceneDepthTex = 0;
+    /** Scratch read-FBO wrapping the frame's depth texture for the depth half of the capture. */
+    private int depthReadFbo = 0;
 
     private int width = 0;
     private int height = 0;
@@ -67,10 +69,13 @@ public final class LightAccumulator {
     }
 
     /**
-     * Copy scene color and depth out of {@code srcFboId} so the composite can sample
-     * them. Sampling any attachment of the framebuffer being rendered to is undefined.
+     * Copy scene color out of {@code srcFboId} and scene depth out of {@code depthTexId} so the
+     * composite can sample them. Sampling any attachment of the framebuffer being rendered to is
+     * undefined. Depth is taken from the frame's authoritative depth <em>texture</em>, not from
+     * {@code srcFboId}'s attachment: on an Iris shaderpack frame the framebuffer holding the scene
+     * colour is a composite target with no depth attached.
      */
-    public void captureScene(int srcFboId) {
+    public void captureScene(int srcFboId, int depthTexId) {
         if (sceneFbo == 0 || srcFboId <= 0) return;
         SavedGlState state = SavedGlState.save();
         try {
@@ -79,7 +84,18 @@ public final class LightAccumulator {
             GL11.glReadBuffer(GL30.GL_COLOR_ATTACHMENT0);
             GL11.glDrawBuffer(GL30.GL_COLOR_ATTACHMENT0);
             GL30.glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
-                    GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
+                    GL11.GL_COLOR_BUFFER_BIT, GL11.GL_NEAREST);
+
+            if (depthTexId > 0) {
+                if (depthReadFbo == 0) depthReadFbo = GL30.glGenFramebuffers();
+                GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, depthReadFbo);
+                GL30.glFramebufferTexture2D(GL30.GL_READ_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT,
+                        GL11.GL_TEXTURE_2D, depthTexId, 0);
+                // Depth-only read FBO: completeness requires an explicit no-colour read buffer.
+                GL11.glReadBuffer(GL11.GL_NONE);
+                GL30.glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
+                        GL11.GL_DEPTH_BUFFER_BIT, GL11.GL_NEAREST);
+            }
         } finally {
             state.restore();
         }
@@ -195,6 +211,10 @@ public final class LightAccumulator {
         if (sceneFbo != 0) {
             GL30.glDeleteFramebuffers(sceneFbo);
             sceneFbo = 0;
+        }
+        if (depthReadFbo != 0) {
+            GL30.glDeleteFramebuffers(depthReadFbo);
+            depthReadFbo = 0;
         }
         if (colorTex != 0) {
             GL11.glDeleteTextures(colorTex);

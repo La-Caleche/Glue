@@ -376,7 +376,8 @@ public final class LightDepthSceneRenderer extends AbstractSceneRenderer {
         if (casters.isEmpty()) return;
 
         BlockRenderDispatcher blockRenderer = client.getBlockRenderer();
-        MultiBufferSource.BufferSource bufferSource = client.renderBuffers().bufferSource();
+        MultiBufferSource.BufferSource bufferSource =
+                fr.lacaleche.glue.client.render.light.internal.LumosBuffers.source();
         // Force every block through our pipeline instead of its own render type.
         MultiBufferSource redirect = ignored -> bufferSource.getBuffer(type);
 

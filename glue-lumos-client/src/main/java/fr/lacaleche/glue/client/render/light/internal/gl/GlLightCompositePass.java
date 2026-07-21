@@ -17,8 +17,13 @@ public final class GlLightCompositePass {
         this.resources = resources;
     }
 
+    /** @param fullCapture whether this frame's G-buffer captured every material class (base
+     *                      terrain/entities/particles included). On a reduced frame — an Iris
+     *                      shaderpack frame, where only the self-contained captures ran — an
+     *                      unclaimed pixel means "uncapturable", not "vanilla missed it", so the
+     *                      shader lights it through the estimate path instead of capping it. */
     public boolean render(int lightTexture, int sceneColor, int sceneDepth,
-                          int gbufferAlbedo, int gbufferId,
+                          int gbufferAlbedo, int gbufferId, boolean fullCapture,
                           Matrix4f inverseViewProjection,
                           int destinationFramebuffer, int width, int height) {
         int program = resources.program("glue_light_composite",
@@ -56,6 +61,7 @@ public final class GlLightCompositePass {
             resources.uniform1i(program, "GBufferAlbedo", 6);
             resources.uniform1i(program, "GBufferId", 7);
             resources.uniform1i(program, "HasGBuffer", hasGBuffer ? 1 : 0);
+            resources.uniform1i(program, "FullCapture", hasGBuffer && fullCapture ? 1 : 0);
 
             resources.uniform1f(program, "Exposure", EXPOSURE);
             resources.drawFullscreen(program);

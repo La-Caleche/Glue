@@ -60,10 +60,14 @@ public class LightShapePreviewRenderer extends GlueDebugRenderer {
         }
     }
 
+    /** Test hook: forces the preview on with no debug dock open (see {@code GameTest.lightPreview}),
+     *  so an unattended run can show where every active light actually is. */
+    public static volatile boolean forced;
+
     @Override
     public void render(PoseStack matrices, MultiBufferSource vertexConsumers, double cameraX, double cameraY,
                        double cameraZ) {
-        if (!LightsPaneController.previewEnabled()) return;
+        if (!forced && !LightsPaneController.previewEnabled()) return;
         Light selectedLight = LightsPaneController.selectedLight();
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) return;

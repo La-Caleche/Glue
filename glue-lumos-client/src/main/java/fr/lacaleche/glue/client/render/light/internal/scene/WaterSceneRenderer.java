@@ -82,9 +82,14 @@ public final class WaterSceneRenderer extends AbstractSceneRenderer {
         if (client.level == null || blocks.isEmpty()) return;
         if (!GBufferCapture.beginWaterCapture()) return;
         try {
-            RenderType type = ShadowPipelines.waterGBuffer();
+            // Reduced frames use the wave-tolerant variant: the pack displaces its water, so the
+            // plain LEQUAL capture goes patchy over crests (see water_gbuffer_reduced.vsh).
+            RenderType type = GBufferCapture.isReducedCapture()
+                    ? ShadowPipelines.waterGBufferReduced()
+                    : ShadowPipelines.waterGBuffer();
             BlockRenderDispatcher blockRenderer = client.getBlockRenderer();
-            MultiBufferSource.BufferSource bufferSource = client.renderBuffers().bufferSource();
+            MultiBufferSource.BufferSource bufferSource =
+                    fr.lacaleche.glue.client.render.light.internal.LumosBuffers.source();
             VertexConsumer buffer = bufferSource.getBuffer(type);
 
             for (BlockPos pos : blocks) {

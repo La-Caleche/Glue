@@ -15,6 +15,7 @@ uniform int HasEntityShadow;    // 1 if an entity shadow map is bound for this l
 uniform sampler2D GBufferAlbedo;  // unit 9: captured albedo + packed normal (A)
 uniform sampler2D GBufferId;      // unit 10: material id (R) + owning depth24 (GBA)
 uniform int HasGBuffer;           // 1 if the material G-buffer is bound
+uniform int ReducedCapture;       // 1 on an Iris shaderpack frame (self-contained captures only)
 uniform sampler2D MaterialProps;  // unit 12: roughness (R) + metalness (G) + F0 (B)
 uniform int HasMaterialProps;     // 1 if the material-properties attachment is bound
 
@@ -551,7 +552,19 @@ void main() {
         gbufferId = dynamicMaterial.r * 255.0;
         float ownerDepth = unpackDepth24(dynamicMaterial.gba);
         vec3 ownerP = reconstruct(texCoord, ownerDepth);
-        gbufferOwned = distance(ownerP, P) < 0.02 + 0.01 * length(P)
+        // Reduced-frame captures get raster slack: the re-renders and the pack rasterised the same
+        // geometry with different (TAA-jittered) matrices, so the depths disagree by the surface's
+        // slope per pixel -- metres at a close grazing angle. fwidth of the reconstructed scene
+        // position is that per-pixel extent; capped so silhouette edges cannot leak stale ids
+        // (mirrors composite.fsh's rasterSlack). Water additionally gets a wave-amplitude margin:
+        // its capture packs the true flat-surface depth while the pack's depth is displaced --
+        // safe from walls, whose pixels never receive the id (culled at capture by depth test).
+        float margin = 0.0;
+        if (ReducedCapture == 1) {
+            margin = min(2.0 * length(fwidth(P)), 0.75);
+            if (gbufferId > 4.5 && gbufferId < 5.5) margin += 0.3;
+        }
+        gbufferOwned = distance(ownerP, P) < 0.02 + 0.01 * length(P) + margin
                 && gbufferId > 0.5 && gbufferId < 6.5;
     }
     // Terrain (1) and entities (2) carry a real captured normal; particles (3, billboards) do not;

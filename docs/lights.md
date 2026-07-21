@@ -11,8 +11,9 @@ The subsystem is registered automatically by `GlueLumosClient`; there is nothing
 initialize. Lumos runs only on the vanilla **Fancy** graphics path, reading Minecraft's main
 render target directly. What it lights, it identifies through a shared **material G-buffer** that
 the scene's own draws fill — vanilla's core shaders on the vanilla chunk renderer, the Sodium
-`0.7.3` adapter when Sodium is installed. Lumos does **not** run under Fabulous graphics or an
-active Iris shaderpack — see [Performance & limitations](#performance--limitations).
+`0.7.3` adapter when Sodium is installed. Lumos does **not** run under Fabulous graphics; under an
+active Iris shaderpack it runs in a reduced mode — see
+[Performance & limitations](#performance--limitations).
 
 Everything you call lives in `fr.lacaleche.glue.lumos`: `Lumos` (the entry point), `Light`,
 `LightType`, `LightAttachment(s)`, `LightHandle`. It is a both-sides package, so the same code
@@ -67,11 +68,12 @@ be recovered from a single already-lit sample (`scene = albedo × light` is one 
 unknowns). Rather than light a guess, Lumos leaves them at their untouched vanilla look. They keep
 a depth-derived normal for the passes that need one.
 
-The gate is all-or-nothing per frame. If a consumer wants material, the frame is Fancy (not
-Fabulous), no Iris shaderpack is active, and the terrain path can actually write material, the
-G-buffer opens; otherwise it stays shut and no capture runs. Sodium builds whose shader layout does
-not match the guarded `0.7.3` adapter, and a future Minecraft whose core-shader source drifts away
-from a patch anchor, both close the gate safely rather than render garbage.
+The gate is per frame. If a consumer wants material, the frame is Fancy (not Fabulous), and the
+terrain path can actually write material, the G-buffer opens fully; on an Iris shaderpack frame it
+opens in a reduced mode where only the self-contained re-renders (glass/water/metal, plus base
+terrain near each light) fill it and the per-draw capture stays disarmed. Otherwise it stays shut and no capture runs. Sodium builds whose
+shader layout does not match the guarded `0.7.3` adapter, and a future Minecraft whose core-shader
+source drifts away from a patch anchor, both close the gate safely rather than render garbage.
 
 ## Quick start
 
@@ -436,11 +438,22 @@ route is for shapes whose **geometry** differs, not whose silhouette does.
   look, by design: their reflectance is unknowable from an already-lit sample, and
   lighting the guess floods a pale surface to white and paints a dark one flat. Bringing
   a surface class into the light is done by capturing it, not by tuning the fallback.
-- **Active Iris shaderpacks** disable Lumos entirely. This is a structural boundary, not
-  a missing feature: the pack owns the `colortex` layout Glue's G-buffer would have to
-  attach to, and it replaces the world-geometry draw seam the capture is armed at
-  (Iris's own injection cancels it before Glue's runs), so there is no scene colour or
-  depth Lumos could read that is the pack's actual output. An approximate
-  "Lumos over the pack's final image" path was built and withdrawn — it is not queued
-  work, and reproducing it is not an improvement. Iris **installed with shaders disabled**
-  is fully supported and runs the normal vanilla Fancy path with full material capture.
+- **Active Iris shaderpacks** run Lumos in a **reduced mode**. The structural boundary is
+  unchanged: the pack owns its `colortex` layout and its programs draw the world geometry,
+  so the per-draw capture never arms on a pack frame. What still works for real: scene
+  depth is borrowed from Iris's own render targets (the same internals the post-effect
+  chain uses), the **self-contained** glass/water/metal re-renders fill their material
+  attachments depth-tested against the pack's depth, **base terrain near each light is
+  re-rendered into the G-buffer the same way** (`TerrainSceneRenderer`, real albedo +
+  packed normal under id 1 — the per-light block scan's exposed-shell bucket, drawn via
+  `renderBatched` so tints, face culling and model seeds match what the pack drew), and
+  the lit result is composited through the proven post-effect seam — scene in from the
+  pack's framebuffer, lit against the main target, blitted back. Entities and particles
+  remain uncaptured on pack frames and light through the damped estimate path
+  (depth-derived normal, estimated albedo). An
+  earlier "Lumos over the pack's final image" attempt predating the pack-depth plumbing
+  was withdrawn; this mode differs from it by using the pack's real depth and by keeping
+  the special-surface material captures live. If the Iris internals drift and the depth
+  cannot be found, lights turn off rather than corrupt the pack's frame. Iris **installed
+  with shaders disabled** is fully supported and runs the normal vanilla Fancy path with
+  full material capture.

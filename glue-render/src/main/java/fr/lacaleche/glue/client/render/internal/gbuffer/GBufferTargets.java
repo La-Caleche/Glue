@@ -54,11 +54,14 @@ public final class GBufferTargets {
     /**
      * Ensures the FBO exists and is wired to {@code main}'s current colour/depth textures at its
      * current size. Returns false if the target could not be made complete.
+     *
+     * @param depthOverride a GL depth texture to borrow instead of {@code main}'s own (an Iris
+     *                      shaderpack frame's scene depth), or {@code 0} for the main depth
      */
-    public boolean ensure(RenderTarget main) {
+    public boolean ensure(RenderTarget main, int depthOverride) {
         if (main == null) return false;
         int color = FramebufferHelper.getColorTextureId(main);
-        int depth = FramebufferHelper.getDepthTextureId(main);
+        int depth = depthOverride > 0 ? depthOverride : FramebufferHelper.getDepthTextureId(main);
         if (color <= 0 || depth <= 0) return false;
 
         if (fbo != 0 && main.width == width && main.height == height

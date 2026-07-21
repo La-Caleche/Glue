@@ -98,6 +98,9 @@ public final class GlDeferredLightPass {
             bindTexture(program, "GBufferAlbedo", 9, hasGBuffer ? gbufferAlbedo : 0);
             bindTexture(program, "GBufferId", 10, hasGBuffer ? gbufferId : 0);
             resources.uniform1i(program, "HasGBuffer", hasGBuffer ? 1 : 0);
+            resources.uniform1i(program, "ReducedCapture",
+                    fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture
+                            .isReducedCapture() ? 1 : 0);
 
             bindTexture(program, "MaterialProps", 12, gbufferProps > 0 ? gbufferProps : 0);
             resources.uniform1i(program, "HasMaterialProps", gbufferProps > 0 ? 1 : 0);

@@ -67,6 +67,8 @@ public final class ShadowPipelines {
     private static GluePipeline glassGBufferPipeline;
     private static GluePipeline waterGBufferPipeline;
     private static GluePipeline metalGBufferPipeline;
+    private static GluePipeline terrainGBufferPipeline;
+    private static GluePipeline waterGBufferReducedPipeline;
 
     private ShadowPipelines() {
     }
@@ -147,12 +149,46 @@ public final class ShadowPipelines {
                 .depthTest(DepthTestFunction.LEQUAL_DEPTH_TEST)
                 .depthBias(-1.0f, -10.0f)
                 .build();
+
+        // Reduced-frame water: the pack displaces its water with waves, so the flat fluid geometry
+        // fails the LEQUAL test over crests and the capture goes patchy. The dedicated vertex stage
+        // pulls the rasterised surface toward the camera by the wave allowance (screen position
+        // unchanged) so crests pass, while walls still occlude anything further behind them; the
+        // fragment stage packs the TRUE un-pulled depth as owner depth, so ownership needs only a
+        // wave-amplitude margin. See water_gbuffer_reduced.vsh/.fsh.
+        waterGBufferReducedPipeline = base("water_gbuffer_reduced",
+                "internal/light/water_gbuffer_reduced", "internal/light/water_gbuffer_reduced")
+                .noAlphaCutout()
+                .noBlend()
+                .colorWrite(true)
+                .depthWrite(false)
+                .depthTest(DepthTestFunction.LEQUAL_DEPTH_TEST)
+                .depthBias(-1.0f, -10.0f)
+                .build();
+
+        // Base terrain into the shared material G-buffer (see internal/light/terrain_gbuffer.fsh) --
+        // reduced-capture frames only, where the native terrain capture cannot run because an Iris
+        // pack owns every terrain program. Same read-only, camera-biased setup as metal: the visible
+        // surface passes the LEQUAL test against the scene depth and claims its pixel under id 1.
+        // The cutout discard lives in the fragment shader (0.5, vanilla's threshold), not here.
+        terrainGBufferPipeline = base("terrain_gbuffer", "internal/light/terrain_gbuffer")
+                .noAlphaCutout()
+                .noBlend()
+                .colorWrite(true)
+                .depthWrite(false)
+                .depthTest(DepthTestFunction.LEQUAL_DEPTH_TEST)
+                .depthBias(-1.0f, -10.0f)
+                .build();
     }
 
     private static GluePipeline.Builder base(String name, String fragShader) {
+        return base(name, "internal/light/shadow", fragShader);
+    }
+
+    private static GluePipeline.Builder base(String name, String vertexShader, String fragShader) {
         return GluePipeline.builder(
                         ResourceLocation.fromNamespaceAndPath("glue", name),
-                        ResourceLocation.fromNamespaceAndPath("glue", "internal/light/shadow"),
+                        ResourceLocation.fromNamespaceAndPath("glue", vertexShader),
                         ResourceLocation.fromNamespaceAndPath("glue", fragShader))
                 .snippet(RenderPipelines.MATRICES_FOG_SNIPPET)
                 .vertexFormat(DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS)
@@ -184,6 +220,12 @@ public final class ShadowPipelines {
         return blockAtlasType(tintDepthPipeline, "shadow_tint_depth", true);
     }
 
+    public static RenderType terrainGBuffer() {
+        // Vanilla renders opaque terrain with the MIPPED block sheet; match it so the captured
+        // albedo agrees with the block the player sees.
+        return blockAtlasType(terrainGBufferPipeline, "terrain_gbuffer", true);
+    }
+
     public static RenderType metalGBuffer() {
         // Vanilla renders opaque terrain with the MIPPED block sheet; match it so the captured albedo
         // (which tints the metal's reflection) agrees with the block the player sees.
@@ -195,6 +237,12 @@ public final class ShadowPipelines {
         // with the surface the player sees. Camera-biased like glassGBuffer() so only the frontmost
         // water surface survives the read-only depth test against the main depth.
         return blockAtlasType(waterGBufferPipeline, "water_gbuffer", true);
+    }
+
+    public static RenderType waterGBufferReduced() {
+        // The reduced-frame water pipeline (camera-pulled raster depth + true owner depth -- see
+        // its init comment); same atlas discipline as waterGBuffer().
+        return blockAtlasType(waterGBufferReducedPipeline, "water_gbuffer_reduced", true);
     }
 
     public static RenderType glassGBuffer() {

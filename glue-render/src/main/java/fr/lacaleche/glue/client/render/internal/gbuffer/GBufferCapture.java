@@ -1,5 +1,6 @@
 package fr.lacaleche.glue.client.render.internal.gbuffer;
 
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -7,6 +8,7 @@ import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.platform.DestFactor;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
+import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
@@ -45,17 +47,26 @@ public final class GBufferCapture {
             ResourceLocation.fromNamespaceAndPath("glue", "internal/light/glass_gbuffer");
     private static final ResourceLocation WATER_SHADER =
             ResourceLocation.fromNamespaceAndPath("glue", "internal/light/water_gbuffer");
+    private static final ResourceLocation WATER_REDUCED_SHADER =
+            ResourceLocation.fromNamespaceAndPath("glue", "internal/light/water_gbuffer_reduced");
     private static final ResourceLocation METAL_SHADER =
             ResourceLocation.fromNamespaceAndPath("glue", "internal/light/metal_gbuffer");
+    private static final ResourceLocation TERRAIN_RERENDER_SHADER =
+            ResourceLocation.fromNamespaceAndPath("glue", "internal/light/terrain_gbuffer");
     private static final GBufferTargets TARGETS = new GBufferTargets();
 
     private static boolean frameReady;
     private static boolean inWorldPhase;
+    // True when this frame's G-buffer only holds the self-contained captures (Iris shaderpack
+    // frame) -- base terrain/entities/particles are uncapturable, not missing.
+    private static boolean reducedCapture;
     // Glass and water are captured by a post-world re-render, so each is armed explicitly around its
     // draw rather than by the world phase (which is already closed by then).
     private static boolean glassCaptureActive;
     private static boolean waterCaptureActive;
     private static boolean metalCaptureActive;
+    private static boolean terrainRecaptureActive;
+    private static boolean entityRecaptureActive;
 
     // Entity shadow maps re-render entities from a light's POV, post-world. Vanilla entity draws only
     // honour the framebuffer bound at the trySetup seam (not RenderSystem's output override), so the
@@ -81,12 +92,27 @@ public final class GBufferCapture {
     public static void beginFrame() {
         frameReady = false;
         inWorldPhase = false;
+        reducedCapture = false;
         if (!TerrainMaterialBuffer.isActive()) return;
         RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
-        if (TARGETS.ensure(main)) {
+        // Under an Iris shaderpack the scene's depth lives in Iris's render targets, not the main
+        // target; the captures depth-test against the borrowed attachment, so borrow Iris's.
+        boolean irisPack = RenderCompat.isIrisShaderEnabled();
+        int depthOverride = 0;
+        if (irisPack) {
+            depthOverride = RenderCompat.getIrisMainDepthGlId();
+            if (depthOverride <= 0) return;
+        }
+        if (TARGETS.ensure(main, depthOverride)) {
             TARGETS.clearMaterialAttachments();
             frameReady = true;
-            inWorldPhase = true;
+            reducedCapture = irisPack;
+            // With a pack active the world phase never opens: Iris feeds the vanilla
+            // RenderPipeline objects through setPipeline while overriding the actual programs, so
+            // the entity/particle gates would match draws whose fragment stage carries none of our
+            // outputs -- and the redirect would tear those draws out of the pack's frame. Only the
+            // explicitly-armed self-contained captures may use the FBO on a pack frame.
+            inWorldPhase = !irisPack;
         }
     }
 
@@ -178,6 +204,55 @@ public final class GBufferCapture {
         TARGETS.endGlassPass();
     }
 
+    /**
+     * Opens the terrain re-capture: the reduced-frame stand-in for the native terrain capture
+     * (which an Iris pack's program ownership blocks), restricting the shared FBO to its material
+     * attachments and arming the redirect for the terrain re-render's draws. Returns false (drawing
+     * nothing) if the target is not ready. Pair every {@code true} return with
+     * {@link #endTerrainRecapture()}.
+     */
+    public static boolean beginTerrainRecapture() {
+        if (!frameReady) return false;
+        TARGETS.beginGlassPass();
+        terrainRecaptureActive = true;
+        return true;
+    }
+
+    /** Closes the terrain re-capture and restores the full draw-buffer set. */
+    public static void endTerrainRecapture() {
+        if (!terrainRecaptureActive) return;
+        terrainRecaptureActive = false;
+        TARGETS.endGlassPass();
+    }
+
+    /**
+     * Opens the entity re-capture: the reduced-frame stand-in for the world-phase entity capture.
+     * Entities draw through their ordinary vanilla pipelines (whose patched shaders write the
+     * material outputs), so unlike the Glue-pipeline captures this cannot carry a depth bias or a
+     * depth mask on the pipeline &mdash; the decal discipline is applied at the GL level instead:
+     * a polygon offset for the whole capture (so the LEQUAL re-test against the scene's own entity
+     * depth passes without z-fight dither) and a forced depth-mask-off per redirected draw (see
+     * {@link #consumePendingRedirect()}), protecting the borrowed scene depth. Both go through
+     * {@link GlStateManager} so its state cache stays truthful. Returns false (drawing nothing) if
+     * the target is not ready. Pair every {@code true} return with {@link #endEntityRecapture()}.
+     */
+    public static boolean beginEntityRecapture() {
+        if (!frameReady) return false;
+        TARGETS.beginGlassPass();
+        GlStateManager._polygonOffset(-1.0f, -10.0f);
+        GlStateManager._enablePolygonOffset();
+        entityRecaptureActive = true;
+        return true;
+    }
+
+    /** Closes the entity re-capture and restores the full draw-buffer set. */
+    public static void endEntityRecapture() {
+        if (!entityRecaptureActive) return;
+        entityRecaptureActive = false;
+        GlStateManager._disablePolygonOffset();
+        TARGETS.endGlassPass();
+    }
+
     /** Called at {@code setPipeline}: record whether the draw about to run should be redirected. */
     public static void armForPipeline(RenderPipeline pipeline) {
         pendingFbo = redirectFboFor(pipeline);
@@ -202,6 +277,11 @@ public final class GBufferCapture {
         // suppression survives to the draw. Skipped for the shadow FBO, which has no attachment 1..3.
         if (fbo != 0 && fbo == TARGETS.framebufferId()) {
             TARGETS.suppressMaterialBlend();
+            // The entity re-capture's FBO borrows the scene's live depth, and the vanilla entity
+            // pipelines it draws through all declare depth writes -- force the mask off after each
+            // pipeline application so the re-render can never corrupt the scene depth. Through
+            // GlStateManager, so the next pipeline's own depth-mask request re-applies for real.
+            if (entityRecaptureActive) GlStateManager._depthMask(false);
         }
         return fbo;
     }
@@ -260,7 +340,8 @@ public final class GBufferCapture {
         // Water: a post-world re-render of nearby fluid surfaces, armed explicitly like glass. Same
         // material-only redirect -- attachment 0 keeps the water colour vanilla already blended.
         if (waterCaptureActive && frameReady
-                && WATER_SHADER.equals(pipeline.getFragmentShader())) {
+                && (WATER_SHADER.equals(pipeline.getFragmentShader())
+                        || WATER_REDUCED_SHADER.equals(pipeline.getFragmentShader()))) {
             return TARGETS.framebufferId();
         }
         // Metal: a post-world re-render of nearby curated metal blocks, armed explicitly like glass.
@@ -268,16 +349,23 @@ public final class GBufferCapture {
                 && METAL_SHADER.equals(pipeline.getFragmentShader())) {
             return TARGETS.framebufferId();
         }
+        // Terrain re-capture: the reduced-frame re-render of nearby base terrain, armed explicitly
+        // like glass. Distinct from the world-phase terrain gate below, which keys on the vanilla
+        // chunk pipelines this re-render never uses.
+        if (terrainRecaptureActive && frameReady
+                && TERRAIN_RERENDER_SHADER.equals(pipeline.getFragmentShader())) {
+            return TARGETS.framebufferId();
+        }
+        // Entity re-capture: the reduced-frame re-render of entities near lights, armed explicitly.
+        // Same pipeline gate as the world-phase entity capture below -- the draws come through the
+        // ordinary vanilla entity pipelines, whose patched shaders carry the material outputs.
+        if (entityRecaptureActive && frameReady
+                && ownsItsPixels(pipeline) && isEntityMaterialPipeline(pipeline)) {
+            return TARGETS.framebufferId();
+        }
         if (!frameReady || !inWorldPhase) return 0;
         if (!ownsItsPixels(pipeline)) return 0;
-        // isWriteAlpha is load-bearing, not a proxy for opacity: glColorMask is not per-attachment,
-        // so a draw that masks alpha would drop the packed normal in attachment 1's alpha and the
-        // low byte of the owning depth in attachment 2's.
-        boolean entity = CoreShaderMaterialPatch.isEntityReady()
-                && pipeline.isWriteAlpha()
-                && ENTITY_SHADER.equals(pipeline.getVertexShader())
-                && ENTITY_SHADER.equals(pipeline.getFragmentShader())
-                && pipeline.getVertexFormat() == DefaultVertexFormat.NEW_ENTITY;
+        boolean entity = isEntityMaterialPipeline(pipeline);
         // Particles keep the stricter unblended gate that ownsItsPixels no longer applies. A
         // translucent billboard (smoke, spell, glow) has no single albedo or normal to capture, so
         // the deferred cap is the right answer for it; and TRANSLUCENT_PARTICLE / WEATHER_DEPTH_WRITE
@@ -303,6 +391,26 @@ public final class GBufferCapture {
                         || pipeline == RenderPipelines.CUTOUT_MIPPED
                         || pipeline == RenderPipelines.CUTOUT);
         return (entity || particle || terrain) ? TARGETS.framebufferId() : 0;
+    }
+
+    /**
+     * A pixel-owning vanilla entity draw whose patched shader writes the material outputs.
+     * isWriteAlpha is load-bearing, not a proxy for opacity: glColorMask is not per-attachment,
+     * so a draw that masks alpha would drop the packed normal in attachment 1's alpha and the
+     * low byte of the owning depth in attachment 2's.
+     */
+    private static boolean isEntityMaterialPipeline(RenderPipeline pipeline) {
+        return CoreShaderMaterialPatch.isEntityReady()
+                && pipeline.isWriteAlpha()
+                && ENTITY_SHADER.equals(pipeline.getVertexShader())
+                && ENTITY_SHADER.equals(pipeline.getFragmentShader())
+                && pipeline.getVertexFormat() == DefaultVertexFormat.NEW_ENTITY;
+    }
+
+    /** True when this frame's G-buffer holds only the self-contained captures (Iris shaderpack
+     *  frame): unclaimed pixels are uncapturable base surfaces, not capture failures. */
+    public static boolean isReducedCapture() {
+        return frameReady && reducedCapture;
     }
 
     /** Albedo (RGB) + packed normal (A), or -1 if not captured this frame. */

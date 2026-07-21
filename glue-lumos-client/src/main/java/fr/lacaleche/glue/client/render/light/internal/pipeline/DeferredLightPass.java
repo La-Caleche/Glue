@@ -74,7 +74,7 @@ final class DeferredLightPass {
             }
         }
 
-        accumulator.captureScene(frame.framebufferId());
+        accumulator.captureScene(frame.framebufferId(), frame.sceneDepthTextureId());
         int denoised = denoise.apply(accumulator.getColorTextureId(), frame.sceneDepthTextureId(),
                 frame.width(), frame.height());
 
@@ -84,7 +84,8 @@ final class DeferredLightPass {
         int litTexture = accumulator.getLitTextureId();
         boolean composited = composite.render(denoised,
                 accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
-                gbufferAlbedo, gbufferId, inverseViewProjection,
+                gbufferAlbedo, gbufferId, !GBufferCapture.isReducedCapture(),
+                inverseViewProjection,
                 accumulator.getLitFramebufferId(),
                 frame.width(), frame.height());
         if (!composited) return;
@@ -96,7 +97,7 @@ final class DeferredLightPass {
         // shows the final lit scene, then blend it onto the glass pixels (identified by the
         // GLASS material id in the G-buffer).
         if (gbufferId > 0) {
-            accumulator.captureScene(frame.framebufferId());
+            accumulator.captureScene(frame.framebufferId(), frame.sceneDepthTextureId());
             reflection.render(accumulator.getSceneTextureId(), accumulator.getSceneDepthTextureId(),
                     gbufferId, gbufferAlbedo, viewProjection, inverseViewProjection, camera, time,
                     frame.framebufferId(), frame.width(), frame.height());

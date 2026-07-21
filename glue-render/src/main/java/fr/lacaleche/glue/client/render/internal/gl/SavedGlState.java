@@ -1,5 +1,6 @@
 package fr.lacaleche.glue.client.render.internal.gl;
 
+import com.mojang.blaze3d.opengl.GlStateManager;
 import fr.lacaleche.glue.client.shader.internal.GlDirectRenderer;
 
 import net.fabricmc.api.EnvType;
@@ -87,44 +88,107 @@ public record SavedGlState(
         );
     }
 
+    /**
+     * Restores the snapshot <em>and</em> keeps Blaze3D's CPU-side state cache truthful.
+     *
+     * <p>Draws issued through vanilla pipelines between {@link #save()} and here (light-POV
+     * re-renders, shadow bakes) update {@link GlStateManager}'s redundancy cache. Restoring the
+     * cached states with raw GL would leave that cache describing the pass's final state while
+     * the context holds the saved one; the next pipeline application then skips "already set"
+     * state and renders with the wrong one. Symptom of exactly that: the GUI's cached item-icon
+     * pre-renders coming out black for every icon first drawn after a Lumos Iris-mode frame.</p>
+     *
+     * <p>So every state {@code GlStateManager} caches (depth, blend enable/function, cull,
+     * scissor enable, colour mask, active texture, per-unit 2D bindings, read/draw framebuffer
+     * bindings) is restored through it, forced past the redundancy check by setting a throwaway
+     * value first. Uncached state (program, VAO, draw/read buffers, viewport, scissor box, blend
+     * equation, clear colour) stays raw.</p>
+     */
     public void restore() {
         GL20.glUseProgram(program);
-        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, drawFbo);
-        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, readFbo);
+        bindFramebufferSynced(GL30.GL_DRAW_FRAMEBUFFER, drawFbo);
+        bindFramebufferSynced(GL30.GL_READ_FRAMEBUFFER, readFbo);
         GL20.glDrawBuffers(drawBuffers);
         GL11.glReadBuffer(readBuffer);
         GL30.glBindVertexArray(vao);
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, arrayBuffer);
-        if (depth) GL11.glEnable(GL11.GL_DEPTH_TEST);
-        else GL11.glDisable(GL11.GL_DEPTH_TEST);
-        GL11.glDepthFunc(depthFunc);
-        GL11.glDepthMask(depthWrite);
-        // Restore the blend function unconditionally, even when blending is off.
-        // GlStateManager._blendFuncSeparate is cached: if we leave GL_ONE/GL_ONE
-        // behind, its cache still reads SRC_ALPHA/ONE_MINUS_SRC_ALPHA and the next
-        // call to set that is a no-op, so the following draw blends additively.
-        GL14.glBlendFuncSeparate(blendSrcRgb, blendDstRgb, blendSrcAlpha, blendDstAlpha);
+
+        if (depth) {
+            GlStateManager._disableDepthTest();
+            GlStateManager._enableDepthTest();
+        } else {
+            GlStateManager._enableDepthTest();
+            GlStateManager._disableDepthTest();
+        }
+        GlStateManager._depthFunc(depthFunc == GL11.GL_ALWAYS ? GL11.GL_LEQUAL : GL11.GL_ALWAYS);
+        GlStateManager._depthFunc(depthFunc);
+        GlStateManager._depthMask(!depthWrite);
+        GlStateManager._depthMask(depthWrite);
+
+        boolean savedIsOnes = blendSrcRgb == GL11.GL_ONE && blendDstRgb == GL11.GL_ONE
+                && blendSrcAlpha == GL11.GL_ONE && blendDstAlpha == GL11.GL_ONE;
+        if (savedIsOnes) {
+            GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
+                    GL11.GL_ONE, GL11.GL_ZERO);
+        } else {
+            GlStateManager._blendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE);
+        }
+        GlStateManager._blendFuncSeparate(blendSrcRgb, blendDstRgb, blendSrcAlpha, blendDstAlpha);
         GL20.glBlendEquationSeparate(blendEquationRgb, blendEquationAlpha);
         if (blend) {
-            GL11.glEnable(GL11.GL_BLEND);
+            GlStateManager._disableBlend();
+            GlStateManager._enableBlend();
         } else {
-            GL11.glDisable(GL11.GL_BLEND);
+            GlStateManager._enableBlend();
+            GlStateManager._disableBlend();
         }
-        if (cull) GL11.glEnable(GL11.GL_CULL_FACE);
-        else GL11.glDisable(GL11.GL_CULL_FACE);
-        if (scissor) GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        else GL11.glDisable(GL11.GL_SCISSOR_TEST);
+
+        if (cull) {
+            GlStateManager._disableCull();
+            GlStateManager._enableCull();
+        } else {
+            GlStateManager._enableCull();
+            GlStateManager._disableCull();
+        }
+        if (scissor) {
+            GlStateManager._disableScissorTest();
+            GlStateManager._enableScissorTest();
+        } else {
+            GlStateManager._enableScissorTest();
+            GlStateManager._disableScissorTest();
+        }
         GL11.glScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
-        GL11.glColorMask(colorRed, colorGreen, colorBlue, colorAlpha);
+
+        GlStateManager._colorMask(!colorRed, colorGreen, colorBlue, colorAlpha);
+        GlStateManager._colorMask(colorRed, colorGreen, colorBlue, colorAlpha);
         GL11.glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
 
+        // The context's actual active unit may have drifted from the cache's idea of it; realign
+        // the context to the cache first so _activeTexture's redundancy skip is trustworthy and
+        // each _bindTexture below lands on the unit the cache records it against.
+        GL13.glActiveTexture(GlStateManager._getActiveTexture());
         for (int unit = 0; unit < textures.length; unit++) {
-            GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, textures[unit]);
+            GlStateManager._activeTexture(GL13.GL_TEXTURE0 + unit);
+            GlStateManager._bindTexture(textures[unit] == 0 ? scratchTexture() : 0);
+            GlStateManager._bindTexture(textures[unit]);
         }
-
-        GL13.glActiveTexture(activeTexture);
+        GlStateManager._activeTexture(activeTexture);
         GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+    }
+
+    /** Never-rendered scratch objects used as throwaway bind targets; one of each per process. */
+    private static int scratchFbo = -1;
+    private static int scratchTex = -1;
+
+    private static void bindFramebufferSynced(int target, int fbo) {
+        if (scratchFbo == -1) scratchFbo = GlStateManager.glGenFramebuffers();
+        GlStateManager._glBindFramebuffer(target, fbo == scratchFbo ? 0 : scratchFbo);
+        GlStateManager._glBindFramebuffer(target, fbo);
+    }
+
+    private static int scratchTexture() {
+        if (scratchTex == -1) scratchTex = GlStateManager._genTexture();
+        return scratchTex;
     }
 
     private static int[] readDrawBuffers() {

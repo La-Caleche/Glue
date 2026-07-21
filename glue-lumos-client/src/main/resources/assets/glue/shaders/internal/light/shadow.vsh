@@ -18,6 +18,9 @@ out float cylindricalVertexDistance;
 out vec4 vertexColor;
 out vec2 texCoord0;
 out float lightNormDist;
+// World-space face normal, consumed only by terrain_gbuffer.fsh (the material G-buffer packs it);
+// the other fragment stages sharing this vertex stage simply do not declare the input.
+out vec3 glueNormal;
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
@@ -38,4 +41,5 @@ void main() {
 
     vertexColor = Color;   // no lighting: a shadow map only cares about geometry
     texCoord0 = UV0;
+    glueNormal = Normal;
 }

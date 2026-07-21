@@ -3,9 +3,11 @@ package fr.lacaleche.glue.testmod;
 import fr.lacaleche.glue.client.debug.DebugManager;
 import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
 import fr.lacaleche.glue.client.events.RenderEvents;
+import fr.lacaleche.glue.testmod.gametest.GameTestRunner;
 import fr.lacaleche.glue.testmod.mcsx.McsxDemos;
 import fr.lacaleche.glue.testmod.registries.*;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
+import fr.lacaleche.glue.testmod.render.AutoScreenshot;
 import fr.lacaleche.glue.testmod.render.GlueDebugDock;
 import fr.lacaleche.glue.testmod.render.LightShapePreviewRenderer;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
@@ -63,6 +65,8 @@ public class TestmodClient implements ClientModInitializer {
         DebugManager.getInstance().register(new LightShapePreviewRenderer());
         ClientTickEvents.END_CLIENT_TICK.register(client -> GlueDebugDock.tick());
 
+        AutoScreenshot.init();
+        GameTestRunner.init();
         AdditiveSpriteRenderer.init();
 
         McsxDemos.register();

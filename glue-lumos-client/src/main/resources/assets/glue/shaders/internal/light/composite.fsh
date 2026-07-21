@@ -22,6 +22,11 @@ uniform mat4 InvViewProj;
 uniform sampler2D GBufferAlbedo;
 uniform sampler2D GBufferId;
 uniform int HasGBuffer;
+// 1 when this frame's G-buffer captured every material class. 0 on a reduced frame (an Iris
+// shaderpack frame, where only the self-contained glass/water/metal captures ran): there an
+// unclaimed pixel means "uncapturable", not "vanilla missed it", so it takes the estimate path
+// below instead of the uncaptured-light cap.
+uniform int FullCapture;
 
 // Assumed reflectance when no material buffer covers this pixel. Mid-grey: the value a
 // surface of unknown albedo is least wrong at. Keeps the fallback in the same range as a
@@ -50,6 +55,19 @@ float unpackDepth24(vec3 encodedDepth) {
     return dot(depthBytes, vec3(65536.0, 256.0, 1.0)) / 16777215.0;
 }
 
+// Reduced frames compare two DIFFERENT rasterisations of the same geometry: the captures re-render
+// with vanilla's matrices while the pack drew the scene depth with its own (TAA packs jitter the
+// projection sub-pixel every frame). A sub-pixel disagreement shifts the sampled depth by the
+// surface's slope per pixel -- nothing face-on, but metres-per-pixel at a close grazing angle,
+// which is exactly where the fixed tolerance rejected valid captures and holes appeared in the
+// lit result. fwidth of the reconstructed scene position IS that per-pixel world extent, so scale
+// it for slack; capped so a depth discontinuity (silhouette edge, where fwidth explodes) cannot
+// hand a pixel to a stale id from the far side of the edge.
+float rasterSlack(vec3 sceneP) {
+    if (FullCapture == 1) return 0.0;
+    return min(2.0 * length(fwidth(sceneP)), 0.75);
+}
+
 // True when the frontmost surface at uv is a glass pane. The pane carries the GLASS material id
 // (4), but the glass re-render is sorted only against other panes, so a pane behind an opaque wall
 // stamped its id here too -- verify OWNERSHIP the same way the entity path does: the depth the pane
@@ -62,8 +80,14 @@ bool frontmostIsGlass(vec2 uv, float sceneDepth) {
     float ownerDepth = unpackDepth24(idSample.gba);
     vec3 ownerP = reconstruct(uv, ownerDepth);
     vec3 Ps = reconstruct(uv, sceneDepth);
-    return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps);
+    return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps) + rasterSlack(Ps);
 }
+
+// Wave allowance for water ownership on a reduced frame: the capture packs the TRUE flat-surface
+// depth while the pack's scene depth carries its wave displacement, so the two legitimately
+// disagree by the amplitude. Safe from wall pixels now: the capture's depth test culls water more
+// than its camera-pull behind an occluder, so walls never receive the id in the first place.
+const float WATER_WAVE_MARGIN = 0.3;
 
 // Same ownership test for water (id 5). Like glass, water gets a real purpose-built deferred
 // response, so it must be exempt from the uncaptured-translucent light cap below.
@@ -75,7 +99,8 @@ bool frontmostIsWater(vec2 uv, float sceneDepth) {
     float ownerDepth = unpackDepth24(idSample.gba);
     vec3 ownerP = reconstruct(uv, ownerDepth);
     vec3 Ps = reconstruct(uv, sceneDepth);
-    return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps);
+    float margin = FullCapture == 0 ? WATER_WAVE_MARGIN : 0.0;
+    return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps) + margin + rasterSlack(Ps);
 }
 
 // Same ownership test for metal (id 6). Metal gets a real metallic deferred response, so it too must
@@ -88,7 +113,7 @@ bool frontmostIsMetal(vec2 uv, float sceneDepth) {
     float ownerDepth = unpackDepth24(idSample.gba);
     vec3 ownerP = reconstruct(uv, ownerDepth);
     vec3 Ps = reconstruct(uv, sceneDepth);
-    return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps);
+    return distance(ownerP, Ps) < 0.02 + 0.01 * length(Ps) + rasterSlack(Ps);
 }
 
 void main() {
@@ -122,11 +147,20 @@ void main() {
         float ownerDepth = unpackDepth24(idSample.gba);
         vec3 ownerP = reconstruct(texCoord, ownerDepth);
         vec3 sceneP = reconstruct(texCoord, sceneDepth);
-        bool ownsPixel = distance(ownerP, sceneP) < 0.02 + 0.01 * length(sceneP);
+        bool ownsPixel = distance(ownerP, sceneP)
+                < 0.02 + 0.01 * length(sceneP) + rasterSlack(sceneP);
         gbufferCaptured = ownsPixel && id > 0.5 && id < 3.5;
     }
 
     if (gbufferCaptured) {
+        albedo = texture(GBufferAlbedo, texCoord).rgb;
+        recoveredLuma = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
+    } else if (FullCapture == 0 && (isWater || isGlass || isMetal)) {
+        // Reduced frame: the special-surface captures store their REAL albedo (for water and glass
+        // the alpha carries opacity, so only rgb is read). The estimate below reads the pack's
+        // already-graded, brightened image instead of vanilla's, which is what flooded water with
+        // full-strength light. On the full-capture path these surfaces keep the estimate, whose
+        // vanilla-scene tuning is proven.
         albedo = texture(GBufferAlbedo, texCoord).rgb;
         recoveredLuma = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
     } else {
@@ -168,9 +202,15 @@ void main() {
     // capped is genuinely uncaptured geometry (translucents with no material data). The guard is
     // "we have material capability at all", which is now exactly "the G-buffer is bound": every
     // material class, terrain included, lands in it on both the vanilla and Sodium paths.
-    if (HasGBuffer == 1 && !isGlass && !isWater && !isMetal && !gbufferCaptured) {
+    if (FullCapture == 1 && !isGlass && !isWater && !isMetal && !gbufferCaptured) {
         float mag = max(illumination.r, max(illumination.g, illumination.b));
         if (mag > UNCAPTURED_LIGHT_CAP) illumination *= UNCAPTURED_LIGHT_CAP / mag;
+    } else if (HasGBuffer == 1 && FullCapture == 0
+            && !isGlass && !isWater && !isMetal && !gbufferCaptured) {
+        // Reduced frame: no real albedo modulates the overlay and the pack's image is already
+        // graded, so full-strength additive light floods to white. Run it dimmed -- a light pool
+        // should read as coloured light on the surface, not a white disc.
+        illumination *= 0.55;
     }
 
     vec3 finalLinear = sceneLinear + illumination * (vec3(1.0) - sceneLinear);

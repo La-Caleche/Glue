@@ -30,9 +30,9 @@ public final class TerrainMaterialBuffer {
     private TerrainMaterialBuffer() {
     }
 
-    /** True once {@link #beginFrame()} has opened a coherent material frame this frame (Lumos
-     *  wants material, we are on the vanilla Fancy path, not Iris/Fabulous, and the terrain
-     *  renderer in use can actually write material). Gates the whole G-buffer capture. */
+    /** True once {@link #beginFrame()} has opened a material frame this frame (Lumos wants
+     *  material, not Fabulous, and either the terrain renderer in use can write material or an
+     *  Iris shaderpack frame admits the self-contained captures). Gates the G-buffer capture. */
     public static boolean isActive() {
         return active;
     }
@@ -45,9 +45,9 @@ public final class TerrainMaterialBuffer {
 
     /**
      * Declares work to run when the frame stops being able to capture material at all, so a consumer
-     * can free GPU memory it only needs while material is being captured. A shaderpack enabled
-     * mid-session or Fabulous selected can hold that state for the rest of a session, and the frame
-     * loop would otherwise never revisit those allocations.
+     * can free GPU memory it only needs while material is being captured. Fabulous selected can hold
+     * that state for the rest of a session, and the frame loop would otherwise never revisit those
+     * allocations.
      *
      * <p>Runs on the render thread, once per transition. Losing interest does NOT release: a consumer
      * whose last light just left will likely want it back, and rebuilding on that edge costs more
@@ -70,7 +70,7 @@ public final class TerrainMaterialBuffer {
         // Release only when the frame CANNOT capture -- not when nothing happened to ask this frame.
         // Interest flickers (the last light leaving and coming back), and rebuilding every program,
         // VAO and target on that edge would churn far more than it reclaims. Being blocked by
-        // Fabulous or a shaderpack lasts, which is what makes the allocations worth freeing.
+        // Fabulous lasts, which is what makes the allocations worth freeing.
         if (wasActive && !active && isBlocked()) {
             for (Runnable release : RELEASE) release.run();
         }
@@ -78,16 +78,24 @@ public final class TerrainMaterialBuffer {
 
     /** Whether this frame could not capture material even if a consumer asked. */
     private static boolean isBlocked() {
-        return Minecraft.useShaderTransparency()
-                || fr.lacaleche.glue.compat.RenderCompat.isIrisShaderEnabled();
+        return Minecraft.useShaderTransparency();
     }
 
     private static void openFrame() {
-        // Lumos targets the vanilla Fancy path. Capture material only when a consumer needs it AND
-        // the frame can actually produce a coherent material buffer: not under Fabulous (translucents
-        // composite from a separate target, so the main depth would not match) and not under an
-        // active Iris shaderpack (the pack owns its own colortex layout).
+        // Capture material only when a consumer needs it AND the frame can actually produce a
+        // coherent material buffer: not under Fabulous (translucents composite from a separate
+        // target, so the main depth would not match).
         if (!isRequested() || isBlocked()) return;
+
+        // Under an active Iris shaderpack the pack owns every base geometry program, so neither
+        // terrain patch can ride the world draws -- but the SELF-CONTAINED captures (the
+        // glass/water/metal re-renders, drawn with Glue's own pipelines after the pack's world
+        // pass) still fill their attachments. The frame opens in that reduced mode: base surfaces
+        // stay uncaptured and consumers resolve them through their estimate path.
+        if (fr.lacaleche.glue.compat.RenderCompat.isIrisShaderEnabled()) {
+            active = true;
+            return;
+        }
 
         // Terrain carries its id on EITHER path only because a chunk shader was source-patched. If an
         // anchor ever drifts, that patch no-ops and terrain reaches consumers with NO id -- and

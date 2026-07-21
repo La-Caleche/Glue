@@ -95,7 +95,8 @@ public final class MetalSceneRenderer extends AbstractSceneRenderer {
         try {
             RenderType type = ShadowPipelines.metalGBuffer();
             BlockRenderDispatcher blockRenderer = client.getBlockRenderer();
-            MultiBufferSource.BufferSource bufferSource = client.renderBuffers().bufferSource();
+            MultiBufferSource.BufferSource bufferSource =
+                    fr.lacaleche.glue.client.render.light.internal.LumosBuffers.source();
             MultiBufferSource redirect = ignored -> bufferSource.getBuffer(type);
 
             for (BlockPos pos : blocks) {

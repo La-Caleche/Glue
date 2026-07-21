@@ -3,9 +3,11 @@ package fr.lacaleche.glue.client.render.light.internal.context;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fr.lacaleche.glue.lumos.Light;
 import fr.lacaleche.glue.lumos.LightAttachment;
+import fr.lacaleche.glue.client.render.light.internal.scene.EntityMaterialSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.scene.GlassSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.scene.MaterialBlockScan.NearbyMaterials;
 import fr.lacaleche.glue.client.render.light.internal.scene.MetalSceneRenderer;
+import fr.lacaleche.glue.client.render.light.internal.scene.TerrainSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.scene.WaterSceneRenderer;
 import fr.lacaleche.glue.client.render.light.internal.shadow.ShadowBaker;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -30,6 +32,8 @@ public final class WorldLightContext implements AutoCloseable {
     final GlassSceneRenderer glass = new GlassSceneRenderer();
     final WaterSceneRenderer water = new WaterSceneRenderer();
     final MetalSceneRenderer metal = new MetalSceneRenderer();
+    final TerrainSceneRenderer terrain = new TerrainSceneRenderer();
+    final EntityMaterialSceneRenderer entityMaterial = new EntityMaterialSceneRenderer();
     final Map<Light, NearbyMaterials> materialBlocks = new IdentityHashMap<>();
 
     public WorldLightContext(ClientLevel level) {
@@ -71,6 +75,16 @@ public final class WorldLightContext implements AutoCloseable {
     /** Internal rendering state; not part of the light-management API. */
     public MetalSceneRenderer metalRenderer() {
         return metal;
+    }
+
+    /** Internal rendering state; not part of the light-management API. */
+    public TerrainSceneRenderer terrainRenderer() {
+        return terrain;
+    }
+
+    /** Internal rendering state; not part of the light-management API. */
+    public EntityMaterialSceneRenderer entityMaterialRenderer() {
+        return entityMaterial;
     }
 
     /** Internal rendering state; not part of the light-management API. */
@@ -194,6 +208,8 @@ public final class WorldLightContext implements AutoCloseable {
         glass.cleanup();
         water.cleanup();
         metal.cleanup();
+        terrain.cleanup();
+        entityMaterial.cleanup();
     }
 
     @Override
@@ -207,5 +223,7 @@ public final class WorldLightContext implements AutoCloseable {
         glass.cleanup();
         water.cleanup();
         metal.cleanup();
+        terrain.cleanup();
+        entityMaterial.cleanup();
     }
 }

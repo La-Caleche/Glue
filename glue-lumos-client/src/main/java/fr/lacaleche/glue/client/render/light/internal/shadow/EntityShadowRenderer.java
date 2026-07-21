@@ -87,7 +87,8 @@ public final class EntityShadowRenderer extends AbstractSceneRenderer {
         EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
         dispatcher.setRenderShadow(false);   // no vanilla blob shadow polluting the depth map
         LumosLevelRendererAccessor levelRenderer = (LumosLevelRendererAccessor) client.levelRenderer;
-        MultiBufferSource.BufferSource buffers = client.renderBuffers().bufferSource();
+        MultiBufferSource.BufferSource buffers =
+                fr.lacaleche.glue.client.render.light.internal.LumosBuffers.source();
 
         // Vanilla entity draws honour the framebuffer bound at the command-encoder trySetup seam, NOT
         // a raw pre-bind or RenderSystem's output override -- so without this they leak into the main

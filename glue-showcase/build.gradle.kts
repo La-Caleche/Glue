@@ -44,6 +44,38 @@ loom {
             configName = "Glue Showcase"
             ideConfigGenerated(true)
             runDir("../run")
+
+            // CLI verification runs: -Pglue.showcase.quickplay=<world> boots straight into a
+            // singleplayer world. -Pglue.showcase.runReal=true retargets to the REAL ../run
+            // profile (gradle resolves runDir against this project, hence the extra "../"; the
+            // generated IDE config resolves the plain "../run" against the workspace root and is
+            // untouched) -- only possible while no IDE session holds its file locks. Optionally
+            // -Pglue.showcase.autoshot=<seconds> saves rotating screenshots for reading back and
+            // -Pglue.showcase.autotest=true spawns demo lights around the player on join.
+            providers.gradleProperty("glue.showcase.quickplay").orNull?.let { world ->
+                programArg("--quickPlaySingleplayer")
+                programArg(world)
+            }
+            if (providers.gradleProperty("glue.showcase.runReal").orNull == "true") {
+                runDir("../../run")
+            }
+            providers.gradleProperty("glue.showcase.autoshot").orNull?.let { seconds ->
+                vmArg("-Dglue.showcase.autoshot=$seconds")
+            }
+            providers.gradleProperty("glue.lumos.irisStage").orNull?.let { stage ->
+                vmArg("-Dglue.lumos.irisStage=$stage")
+            }
+            if (providers.gradleProperty("glue.showcase.autotest").orNull == "true") {
+                vmArg("-Dglue.showcase.autotest=true")
+            }
+            // -Pglue.showcase.gametest=<name> runs a scripted GameTest (see testmod.gametest) and
+            // closes the game when it finishes; add gametestKeepOpen=true to stay in the session.
+            providers.gradleProperty("glue.showcase.gametest").orNull?.let { test ->
+                vmArg("-Dglue.showcase.gametest=$test")
+            }
+            if (providers.gradleProperty("glue.showcase.gametestKeepOpen").orNull == "true") {
+                vmArg("-Dglue.showcase.gametest.keepOpen=true")
+            }
         }
 
         named("server") {

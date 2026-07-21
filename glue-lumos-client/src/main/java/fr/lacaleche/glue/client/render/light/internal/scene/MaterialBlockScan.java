@@ -39,13 +39,17 @@ public final class MaterialBlockScan {
     private MaterialBlockScan() {
     }
 
-    /** The special-material blocks near a light, split by how they are re-rendered: {@code panes} and
-     *  {@code metals} via {@code renderSingleBlock}, {@code water} via {@code renderLiquid}. Cached per
-     *  light and invalidated together on block changes. */
-    public record NearbyMaterials(List<BlockPos> panes, List<BlockPos> water, List<BlockPos> metals) {
+    /** The material blocks near a light, split by how they are re-rendered: {@code panes} and
+     *  {@code metals} via {@code renderSingleBlock}, {@code water} via {@code renderLiquid}, and
+     *  {@code terrain} &mdash; every other exposed model block &mdash; via {@code renderBatched}.
+     *  Terrain is collected unconditionally (the scan is walking the volume anyway) but only
+     *  re-rendered on reduced-capture frames, so a cache entry stays valid when the player toggles
+     *  a shaderpack mid-session. Cached per light and invalidated together on block changes. */
+    public record NearbyMaterials(List<BlockPos> panes, List<BlockPos> water, List<BlockPos> metals,
+                                  List<BlockPos> terrain) {
 
         private static final NearbyMaterials EMPTY =
-                new NearbyMaterials(List.of(), List.of(), List.of());
+                new NearbyMaterials(List.of(), List.of(), List.of(), List.of());
     }
 
     /**
@@ -65,6 +69,7 @@ public final class MaterialBlockScan {
         List<BlockPos> panes = new ArrayList<>();
         List<BlockPos> water = new ArrayList<>();
         List<BlockPos> metals = new ArrayList<>();
+        List<BlockPos> terrain = new ArrayList<>();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos neighbour = new BlockPos.MutableBlockPos();
         int cameraChunkX = ((int) Math.floor(client.gameRenderer.getMainCamera().getPosition().x)) >> 4;
@@ -119,6 +124,8 @@ public final class MaterialBlockScan {
                                         panes.add(pos.immutable());
                                     } else if (MetalSceneRenderer.isMetal(state)) {
                                         metals.add(pos.immutable());
+                                    } else if (hasExposedFace(level, pos, neighbour)) {
+                                        terrain.add(pos.immutable());
                                     }
                                 }
                                 FluidState fluid = state.getFluidState();
@@ -132,7 +139,19 @@ public final class MaterialBlockScan {
                 }
             }
         }
-        return new NearbyMaterials(panes, water, metals);
+        return new NearbyMaterials(panes, water, metals, terrain);
+    }
+
+    /** Whether any face of this block can be seen at all &mdash; the terrain bucket keeps only the
+     *  exposed shell, since a buried block can never be a light's frontmost surface and the reach
+     *  volume is overwhelmingly interior. */
+    private static boolean hasExposedFace(BlockGetter level, BlockPos pos,
+                                          BlockPos.MutableBlockPos neighbour) {
+        for (Direction direction : DIRECTIONS) {
+            neighbour.setWithOffset(pos, direction);
+            if (!level.getBlockState(neighbour).isSolidRender()) return true;
+        }
+        return false;
     }
 
     /**
