@@ -43,8 +43,7 @@ final class MaterialBufferPass {
         LinkedHashSet<BlockPos> terrain = new LinkedHashSet<>();
         for (Light light : visible) {
             NearbyMaterials nearby = context.materialBlocks().computeIfAbsent(light, candidate ->
-                    MaterialBlockScan.scan(minecraft, candidate.x, candidate.y,
-                            candidate.z, candidate.range));
+                    MaterialBlockScan.scan(minecraft, candidate));
             panes.addAll(nearby.panes());
             water.addAll(nearby.water());
             metals.addAll(nearby.metals());

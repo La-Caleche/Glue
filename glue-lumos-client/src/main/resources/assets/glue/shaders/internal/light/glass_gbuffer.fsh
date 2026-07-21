@@ -46,6 +46,12 @@ vec3 gluePackDepth24(float depth) {
 
 void main() {
     vec4 color = texture(Sampler0, texCoord0) * vertexColor;
+    // A near-transparent texel is not a surface. Vanilla cutout discards it too, so the
+    // scene depth there belongs to whatever is BEHIND the pane -- stamping the pane's id
+    // and depth over that pixel orphans it (its real owner's capture is overwritten, the
+    // ownership test fails, and the pixel falls to the uncaptured path: capped dark on the
+    // vanilla path, estimate-lit on pack frames). Clear glass centres must stay unstamped.
+    if (color.a < 0.15) discard;
     glue_Material = vec4(srgbToLinear(color.rgb), color.a);
     glue_MaterialId = vec4(4.0 / 255.0, gluePackDepth24(gl_FragCoord.z));
     // Glass: smooth dielectric.

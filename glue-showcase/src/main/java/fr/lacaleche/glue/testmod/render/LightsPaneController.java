@@ -313,8 +313,8 @@ public final class LightsPaneController extends ScreenController {
         });
     }
 
-    /** World light ahead of the player: saved, synced, op-gated — it appears once the server syncs. */
-    private void placeWorld() {
+    /** World point light ahead of the player: saved, synced, op-gated — it appears once the server syncs. */
+    private void placeWorldPoint() {
         Minecraft.getInstance().execute(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
@@ -323,6 +323,19 @@ public final class LightsPaneController extends ScreenController {
             Lumos.place(mc.player.level(), Light.point(
                     eye.x + look.x * 2.0, eye.y + look.y * 2.0, eye.z + look.z * 2.0,
                     1.0f, 0.85f, 0.6f, 2.5f, 10.0f));
+        });
+    }
+
+    /** World spot light ahead of the player: saved, synced, op-gated — it appears once the server syncs. */
+    private void placeWorldSpot() {
+        Minecraft.getInstance().execute(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player == null) return;
+            Vec3 eye = mc.player.getEyePosition();
+            Vec3 look = mc.player.getViewVector(1.0f);
+            Lumos.place(mc.player.level(), Light.spot(eye.x, eye.y, eye.z,
+                    (float) look.x, (float) look.y, (float) look.z,
+                    1.0f, 0.95f, 0.85f, 3.0f, 22.0f, 20.0f, 32.0f));
         });
     }
 

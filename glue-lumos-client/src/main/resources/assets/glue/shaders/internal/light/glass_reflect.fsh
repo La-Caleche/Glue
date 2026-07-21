@@ -195,6 +195,15 @@ void main() {
     float strength = metal ? Strength * 0.7 : (water ? Strength * 1.4 : Strength);
     float fresnel = r0 + (1.0 - r0) * pow(1.0 - max(dot(N, -V), 0.0), 5.0);
     float alpha = clamp(fresnel * strength * edge, 0.0, 1.0);
+    // A near-CLEAR glass texel takes no reflection, mirroring the deferred pass's response
+    // gate. On the vanilla path those texels are cutout-discarded (no surface exists), but
+    // shaderpacks draw clear glass as a semi-opaque pane that owns its pixels -- and the
+    // Fresnel-weighted blend of a brightly lit scene then reads as a coloured glaze smeared
+    // across the "empty" pane face, strongest at grazing angles. Stained glass (~0.5 alpha),
+    // ice and pane frames keep their reflections.
+    if (!water && !metal) {
+        alpha *= smoothstep(0.02, 0.3, texture(GBufferAlbedo, texCoord).a);
+    }
     if (alpha <= 0.0) discard;
 
     vec3 reflected = texture(SceneColor, hitUV).rgb;

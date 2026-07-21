@@ -150,17 +150,29 @@ void main() {
         bool ownsPixel = distance(ownerP, sceneP)
                 < 0.02 + 0.01 * length(sceneP) + rasterSlack(sceneP);
         gbufferCaptured = ownsPixel && id > 0.5 && id < 3.5;
+
+        // Seen THROUGH a translucent (mirrors deferred.fsh): packs draw clear glass as a
+        // depth-writing pane, so the captured solid the eye actually sees sits a short way
+        // behind the scene depth. Its albedo is the right one to modulate the light with;
+        // without this the pixel falls to the estimate. Bounded so a stale capture far
+        // behind an uncaptured foreground surface cannot claim it.
+        if (FullCapture == 0 && !gbufferCaptured && id > 0.5 && id < 3.5) {
+            float behind = length(ownerP) - length(sceneP);
+            if (behind > 0.05 && behind < 3.0) gbufferCaptured = true;
+        }
     }
 
     if (gbufferCaptured) {
         albedo = texture(GBufferAlbedo, texCoord).rgb;
         recoveredLuma = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
-    } else if (FullCapture == 0 && (isWater || isGlass || isMetal)) {
-        // Reduced frame: the special-surface captures store their REAL albedo (for water and glass
-        // the alpha carries opacity, so only rgb is read). The estimate below reads the pack's
-        // already-graded, brightened image instead of vanilla's, which is what flooded water with
-        // full-strength light. On the full-capture path these surfaces keep the estimate, whose
-        // vanilla-scene tuning is proven.
+    } else if (isGlass || (FullCapture == 0 && (isWater || isMetal))) {
+        // Captured albedo, read straight (for glass and water the alpha carries opacity, so
+        // only rgb is used). Glass takes it on BOTH paths: the deferred pane response is
+        // deliberately untinted (pack-style -- a pane brightens in its own colour), so this
+        // multiply is the pane's entire colour story. Water and metal take it on reduced
+        // frames only, where the estimate below would read the pack's already-graded,
+        // brightened image -- which is what flooded water with full-strength light; on the
+        // full-capture path they keep the estimate, whose vanilla-scene tuning is proven.
         albedo = texture(GBufferAlbedo, texCoord).rgb;
         recoveredLuma = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
     } else {

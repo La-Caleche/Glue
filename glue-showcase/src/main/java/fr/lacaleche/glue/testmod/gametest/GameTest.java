@@ -179,6 +179,20 @@ public final class GameTest {
         });
     }
 
+    /** Selects the first empty hotbar slot, so no held item (e.g. a picked-up glowstone) emits a
+     *  shaderpack handheld light into the frame. Vanilla syncs the change on the next tick. */
+    public GameTest selectEmptyHand() {
+        return run("select an empty hotbar slot", ctx -> {
+            net.minecraft.world.entity.player.Inventory inventory = ctx.player().getInventory();
+            for (int slot = 0; slot < 9; slot++) {
+                if (inventory.getItem(slot).isEmpty()) {
+                    inventory.setSelectedSlot(slot);
+                    return;
+                }
+            }
+        });
+    }
+
     public GameTest openInventory() {
         return run("open inventory screen",
                 ctx -> ctx.client().setScreen(new InventoryScreen(ctx.player())));

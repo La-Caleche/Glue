@@ -1,5 +1,6 @@
 package fr.lacaleche.glue.client.render.light.internal.scene;
 
+import fr.lacaleche.glue.lumos.Light;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
@@ -52,15 +53,38 @@ public final class MaterialBlockScan {
                 new NearbyMaterials(List.of(), List.of(), List.of(), List.of());
     }
 
+    /** Conservative bounding radius of one block for the cone test: the half-diagonal of a unit
+     *  cube (~0.87), rounded up so a block whose corner clips the cone is never dropped. */
+    private static final double BLOCK_RADIUS = 0.9;
+
     /**
      * Every glass, water and metal block within a light's reach.
      *
      * <p>A block can land in two buckets: a waterlogged pane is both glass to re-draw as a model and
      * water to re-draw as fluid, so the buckets are tested independently rather than exclusively.</p>
+     *
+     * <p>A spot or gobo light keeps only the blocks its CONE can touch. This is a correctness-
+     * preserving cut, not an approximation: the deferred pass multiplies the whole response by a
+     * cone-shape factor that is exactly zero outside the outer angle, so a capture there can never
+     * contribute &mdash; yet the sphere volume of a long-range spot is dominated by it (a 32-degree
+     * cone covers ~8% of its range sphere), and the buckets are re-rendered every frame on
+     * shaderpack frames. This cut is what keeps a single spot from tessellating tens of thousands
+     * of terrain blocks per frame.</p>
      */
-    public static NearbyMaterials scan(Minecraft client, double lx, double ly, double lz, float range) {
+    public static NearbyMaterials scan(Minecraft client, Light light) {
         ClientLevel level = client.level;
         if (level == null) return NearbyMaterials.EMPTY;
+
+        double lx = light.x;
+        double ly = light.y;
+        double lz = light.z;
+        float range = light.range;
+        boolean cone = light.cosOuter > -0.999f;
+        double dirX = light.directionX;
+        double dirY = light.directionY;
+        double dirZ = light.directionZ;
+        double cosOuter = light.cosOuter;
+        double sinOuter = Math.sqrt(Math.max(0.0, 1.0 - cosOuter * cosOuter));
 
         BlockPos center = BlockPos.containing(lx, ly, lz);
         double reach = range + 1.0;   // +1 covers the block's own half-diagonal
@@ -114,7 +138,16 @@ public final class MaterialBlockScan {
                             for (int localZ = localMinZ; localZ <= localMaxZ; localZ++) {
                                 int worldZ = originZ + localZ;
                                 double dz = worldZ + 0.5 - lz;
-                                if (dx * dx + dy * dy + dz * dz > reachSq) continue;
+                                double distSq = dx * dx + dy * dy + dz * dz;
+                                if (distSq > reachSq) continue;
+                                if (cone) {
+                                    // Signed distance from the block's bounding sphere to the cone
+                                    // surface (negative = inside): reject blocks the cone cannot
+                                    // touch. Blocks hugging the apex pass via the sphere radius.
+                                    double axial = dx * dirX + dy * dirY + dz * dirZ;
+                                    double perp = Math.sqrt(Math.max(0.0, distSq - axial * axial));
+                                    if (cosOuter * perp - sinOuter * axial > BLOCK_RADIUS) continue;
+                                }
                                 BlockState state = section.getBlockState(localX, localY, localZ);
                                 if (state.isAir()) continue;
                                 pos.set(worldX, worldY, worldZ);

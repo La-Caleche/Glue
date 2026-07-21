@@ -36,6 +36,12 @@ out vec4 fragColor;
 // is saying the pane is thicker than one texel of alpha suggests.
 const float TINT_STRENGTH = 1.8;
 
+// The mip-4 sprite average blends in every pane texture's pale border, washing the
+// transmitted colour toward pastel -- while the pane itself renders its full-saturation
+// centre texels. Pushing the average's saturation back up (luma-preserving, clamped)
+// makes the projected pool agree with the pane the light fell through.
+const float TINT_SATURATION = 1.6;
+
 vec3 srgbToLinear(vec3 color) {
     vec3 low = color / 12.92;
     vec3 high = pow((color + 0.055) / 1.055, vec3(2.4));
@@ -54,6 +60,10 @@ void main() {
 
     float opacity = clamp(color.a * TINT_STRENGTH, 0.0, 1.0);
     vec3 transmittance = mix(vec3(1.0), srgbToLinear(color.rgb), opacity);
+
+    float tintLuma = dot(transmittance, vec3(0.2126, 0.7152, 0.0722));
+    transmittance = clamp(mix(vec3(tintLuma), transmittance, TINT_SATURATION),
+                          vec3(0.0), vec3(1.0));
 
     fragColor = vec4(transmittance, 1.0);
 }
