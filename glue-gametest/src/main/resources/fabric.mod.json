@@ -1,0 +1,27 @@
+{
+    "schemaVersion": 1,
+    "id": "glue-gametest",
+    "version": "${version}",
+    "name": "Glue GameTest",
+    "description": "Scripted in-game test harness: step-machine tests, an extensible tool registry, screenshots and reports",
+    "authors": [
+        "Malo <malo@lacaleche.cc>",
+        "Theo <theo@lacaleche.cc>"
+    ],
+    "contact": {
+        "homepage": "https://lacaleche.cc",
+        "sources": "https://gitlab.lacaleche.cc/loccamy/java/glue"
+    },
+    "environment": "client",
+    "entrypoints": {
+        "client": [
+            "fr.lacaleche.glue.gametest.GlueGameTest"
+        ]
+    },
+    "depends": {
+        "fabricloader": ">=0.14.6",
+        "minecraft": "~1.21.8",
+        "java": ">=21",
+        "fabric-api": "*"
+    }
+}
