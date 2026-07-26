@@ -30,6 +30,8 @@ public final class GameTestRunner {
     private static final int QUIT_DELAY = 60;
 
     private final String testName;
+    /** The name as a filesystem-safe folder: {@code ignis:editor-smoke} → {@code ignis_editor-smoke}. */
+    private final String folderName;
     private final List<String> report = new ArrayList<>();
     private GameTest test;
     private TestContext context;
@@ -42,6 +44,7 @@ public final class GameTestRunner {
 
     GameTestRunner(String testName) {
         this.testName = testName;
+        this.folderName = testName.replaceAll("[^A-Za-z0-9._-]", "_");
     }
 
     void tick(Minecraft client) {
@@ -84,7 +87,7 @@ public final class GameTestRunner {
             finished = true;
             return false;
         }
-        outputDir = new File(new File(client.gameDirectory, "screenshots"), "gametest/" + testName);
+        outputDir = new File(new File(client.gameDirectory, "screenshots"), "gametest/" + folderName);
         outputDir.mkdirs();
         context = new TestContext(client, this::saveScreenshot);
         TestContext.LOGGER.info("[gametest] running: {} ({} steps)", testName, test.steps().size());
@@ -121,7 +124,7 @@ public final class GameTestRunner {
     private void saveScreenshot(String label, Runnable onSaved) {
         Minecraft client = context.client();
         String name = String.format("%02d-%s.png", ++shotCount, label);
-        Screenshot.grab(client.gameDirectory, "gametest/" + testName + "/" + name,
+        Screenshot.grab(client.gameDirectory, "gametest/" + folderName + "/" + name,
                 client.getMainRenderTarget(), 1, component -> onSaved.run());
     }
 }
