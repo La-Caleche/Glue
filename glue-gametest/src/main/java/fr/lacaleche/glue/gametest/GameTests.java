@@ -23,6 +23,17 @@ public final class GameTests {
         TESTS.put(test.name(), test);
     }
 
+    /**
+     * Whether this launch runs a scripted test ({@code -Dglue.gametest} is set). Mod UI may consult
+     * this to skip prompts that would block an unattended run (crash-recovery dialogs, first-run
+     * wizards) — skip, not auto-answer: a scripted run must never consume or destroy state a human
+     * session would be asked about.
+     */
+    public static boolean armed() {
+        String name = System.getProperty("glue.gametest");
+        return name != null && !name.isEmpty();
+    }
+
     static GameTest get(String name) {
         return TESTS.get(name);
     }
