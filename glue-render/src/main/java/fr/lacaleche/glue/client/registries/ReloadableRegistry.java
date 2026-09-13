@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.function.Supplier;
 
 /**
  * Two-layer registry: permanent Java entries + hot-reloadable JSON entries.
@@ -59,6 +60,32 @@ public class ReloadableRegistry<T> implements Iterable<Map.Entry<ResourceLocatio
         T json = jsonEntries.get(id);
         if (json != null) return json;
         return javaEntries.get(id);
+    }
+
+    /**
+     * Looks up an entry, registering the supplied fallback as a permanent Java entry when neither
+     * layer contains the id. Never returns null: the id keeps resolving on every later lookup,
+     * while a JSON entry with the same id still overrides the registered fallback (and its removal
+     * on reload falls back to it cleanly). The fallback supplier is only invoked on a miss.
+     *
+     * @throws IllegalArgumentException if the supplier is null
+     * @throws IllegalStateException    if the supplier returns null, which would leave the id
+     *                                  present but unresolvable
+     */
+    public T getOrRegister(ResourceLocation id, Supplier<? extends T> fallback) {
+        if (fallback == null) {
+            throw new IllegalArgumentException("Fallback supplier for '" + id + "' in registry '" + name + "' must not be null");
+        }
+
+        T existing = get(id);
+        if (existing != null) return existing;
+
+        T created = fallback.get();
+        if (created == null) {
+            throw new IllegalStateException("Fallback supplier for '" + id + "' in registry '" + name + "' returned null");
+        }
+
+        return register(id, created);
     }
 
     public boolean containsKey(ResourceLocation id) {

@@ -131,7 +131,7 @@ public final class GBufferCapture {
     }
 
     /**
-     * Opens the glass capture: restricts the shared FBO to its material attachments (1,2) and arms
+     * Opens the glass capture: restricts the shared FBO to its material attachments (1-3) and arms
      * the redirect for glass draws. Returns false (drawing nothing) if the target is not ready.
      * Pair every {@code true} return with {@link #endGlassCapture()}.
      */
@@ -330,7 +330,7 @@ public final class GBufferCapture {
             return entityShadowFbo;
         }
         // Glass: a post-world re-render of nearby panes, armed explicitly (not by the world phase).
-        // It writes only attachments 1/2 -- attachment 0 keeps the pane colour vanilla already
+        // It writes only material attachments 1-3 -- attachment 0 keeps the pane colour vanilla already
         // blended -- and never writes main depth (the pipeline masks it), so it is safe to redirect
         // this one Glue pipeline outside the entity/particle gate below.
         if (glassCaptureActive && frameReady

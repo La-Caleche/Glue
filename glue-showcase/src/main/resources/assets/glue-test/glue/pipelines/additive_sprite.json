@@ -4,6 +4,7 @@
     "blend": "additive",
     "alpha_cutout": 0.1,
     "cull": false,
+    "samplers": ["Sampler0"],
     "iris_program": "EMISSIVE_ENTITIES",
     "category": "entity"
 }

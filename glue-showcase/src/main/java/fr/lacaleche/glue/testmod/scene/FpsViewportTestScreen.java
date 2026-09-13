@@ -18,28 +18,22 @@ import net.minecraft.world.phys.Vec3;
  * Exercises: mouse capture, WASD fly movement, scroll speed, and the cleanup lifecycle.
  *
  * <p>Coordinate model: the scene is rendered in <em>scene space</em> — a coordinate system
- * where (0, 0, 0) is the player's foot position at screen open time. The camera starts at
+ * where (0, 0, 0) is a stable terrain anchor near the player at screen open time. The camera starts at
  * eye height (0, 1.7, 0) in scene space and moves freely within it via WASD. The block region
- * is anchored to the player's real world position and never changes during flight.
+ * remains fixed at that world position during flight.
  */
-public class FpsViewportTestScreen extends AbstractViewportScreen {
+public class FpsViewportTestScreen extends AbstractViewportScreen<FpsCameraController> {
 
     private static final float RENDER_SCALE = 1.0f;
 
     private final BlockSceneRenderer renderer;
-    private final FpsCameraController fpsCamera;
 
     public FpsViewportTestScreen() {
-        this(createCamera());
-    }
+        super(Component.literal("FPS Scene"), createCamera());
 
-    private FpsViewportTestScreen(FpsCameraController cam) {
-        super(Component.literal("FPS Scene"), cam);
-        this.fpsCamera = cam;
-
-        // Anchor the rendered region to the player's real world position — never updated during flight.
+        // Anchor the rendered region to nearby terrain and never update it during flight.
         Minecraft mc = Minecraft.getInstance();
-        BlockPos center = mc.player != null ? mc.player.getOnPos() : BlockPos.ZERO;
+        BlockPos center = SceneTestAnchor.aroundPlayer(mc);
 
         this.renderer = new BlockSceneRenderer() {
             @Override
@@ -65,7 +59,9 @@ public class FpsViewportTestScreen extends AbstractViewportScreen {
 
     @Override
     protected int renderSceneToTexture(float width, float height, Minecraft client, float tickDelta) {
-        renderer.setViewMatrix(fpsCamera.buildViewMatrix());
+        // The renderer defaults to 60 degrees and the camera to 70; project through the camera's.
+        renderer.setFov(cameraController.getFov());
+        renderer.setViewMatrix(cameraController.buildViewMatrix());
         renderer.setScale(RENDER_SCALE);
         return renderer.renderToTexture((int) width, (int) height, client);
     }
@@ -101,20 +97,20 @@ public class FpsViewportTestScreen extends AbstractViewportScreen {
             guiGraphics.drawString(font,
                     "WASD: Move  Space/Shift: Up/Down  Ctrl: Sprint  Scroll: Speed  ESC: Release",
                     4, 4, 0xFFFFFFFF);
-            Vec3 pos = fpsCamera.getPosition();
+            Vec3 pos = cameraController.getPosition();
             BlockPos wc = renderer.getCenterPos();
             guiGraphics.drawString(font,
                     String.format("Scene: %.1f, %.1f, %.1f  |  World center: %s  |  Speed: %.3f",
                             pos.x, pos.y, pos.z,
                             wc != null ? wc.toShortString() : "?",
-                            fpsCamera.getMoveSpeed()),
+                            cameraController.getMoveSpeed()),
                     4, 14, 0xFFAAAAAA);
         } else {
             guiGraphics.drawString(font,
                     "LMB: Capture mouse  |  RMB: Pan  |  Scroll: Adjust speed  |  ESC: Close",
                     4, 4, 0xFFFFFFFF);
             guiGraphics.drawString(font,
-                    "Speed: " + String.format("%.3f", fpsCamera.getMoveSpeed()),
+                    "Speed: " + String.format("%.3f", cameraController.getMoveSpeed()),
                     4, 14, 0xFFAAAAAA);
         }
     }

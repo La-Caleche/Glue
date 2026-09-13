@@ -7,6 +7,7 @@ import fr.lacaleche.glue.client.render.gizmo.GizmoSpace;
 import fr.lacaleche.glue.client.viewport.AbstractViewportScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -17,34 +18,32 @@ import org.lwjgl.glfw.GLFW;
  * block selection via raycasting, gizmo manipulation (translate/rotate/scale),
  * undo/redo history, and snap.
  */
-public class GizmoTestScreen extends AbstractViewportScreen {
+public class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraController> {
 
     private static final float RENDER_SCALE = 1.0f;
 
     private final SceneTestPreviewRenderer renderer;
     private final SceneTestController controller;
     private final GlfwGizmoController gizmoController;
-    private final OrbitCameraController orbitCamera;
 
     public GizmoTestScreen() {
         super(Component.literal("Gizmo Test"), new OrbitCameraController(new Vector3f(0, 0, 0)));
-        this.orbitCamera = (OrbitCameraController) cameraController;
         this.renderer = new SceneTestPreviewRenderer();
 
         Minecraft client = Minecraft.getInstance();
         this.gizmoController = new GlfwGizmoController();
         this.gizmoController.setWindowHandle(client.getWindow().getWindow());
 
-        this.controller = new SceneTestController(
-                client.player != null ? client.player.getOnPos() : new net.minecraft.core.BlockPos(0, 0, 0),
-                this.gizmoController);
+        BlockPos center = SceneTestAnchor.aroundPlayer(client);
+        this.controller = new SceneTestController(center, this.gizmoController);
+        this.renderer.setCenterPos(center);
         this.renderer.setSceneController(controller);
     }
 
     @Override
     protected int renderSceneToTexture(float width, float height, Minecraft client, float tickDelta) {
-        renderer.setFov(orbitCamera.getFov());
-        renderer.setViewMatrix(orbitCamera.buildViewMatrix());
+        renderer.setFov(cameraController.getFov());
+        renderer.setViewMatrix(cameraController.buildViewMatrix());
         renderer.setScale(RENDER_SCALE);
         return renderer.renderToTexture((int) width, (int) height, client);
     }
@@ -62,14 +61,14 @@ public class GizmoTestScreen extends AbstractViewportScreen {
         if (controller.getSelectedBlockPos() == null) return;
 
         float[] viewMatrix = new float[16];
-        Matrix4f gizmoView = orbitCamera.buildViewMatrix();
+        Matrix4f gizmoView = cameraController.buildViewMatrix();
         gizmoView.scale(RENDER_SCALE);
         gizmoView.translate(-0.5f, -0.5f, -0.5f);
         gizmoView.get(viewMatrix);
 
         float[] projectionMatrix = new float[16];
         new Matrix4f().setPerspective(
-                (float) Math.toRadians(orbitCamera.getFov()),
+                (float) Math.toRadians(cameraController.getFov()),
                 width / height, 0.1f, 1000.0f)
                 .get(projectionMatrix);
 
@@ -87,7 +86,7 @@ public class GizmoTestScreen extends AbstractViewportScreen {
     @Override
     protected void onViewportClick(float localX, float localY, float width, float height, int button) {
         if (button == 0) {
-            controller.handleClick(localX, localY, width, height, orbitCamera, RENDER_SCALE);
+            controller.handleClick(localX, localY, width, height, cameraController, RENDER_SCALE);
         }
     }
 
@@ -124,7 +123,7 @@ public class GizmoTestScreen extends AbstractViewportScreen {
         }
         // Reset camera
         if (keyCode == GLFW.GLFW_KEY_HOME) {
-            orbitCamera.reset();
+            cameraController.reset();
             return true;
         }
         // Undo / redo
@@ -171,7 +170,7 @@ public class GizmoTestScreen extends AbstractViewportScreen {
                 String.format("Undo: %s  Redo: %s  Zoom: %.1f",
                         canUndo ? "available" : "—",
                         canRedo ? "available" : "—",
-                        orbitCamera.getZoom()),
+                        cameraController.getZoom()),
                 4, 24, 0xFF888888);
 
         if (controller.getSelectedBlockPos() != null) {

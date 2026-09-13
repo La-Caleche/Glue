@@ -24,6 +24,7 @@ public class FpsCameraController extends AbstractCameraController {
     private double prevCursorX;
     private double prevCursorY;
     private boolean firstCapturedFrame = true;
+    private long previousInputTime;
 
     public float getMoveSpeed() {
         return moveSpeed;
@@ -88,7 +89,11 @@ public class FpsCameraController extends AbstractCameraController {
     }
 
     public void move(float forward, float up, float right, boolean fast) {
-        float speed = moveSpeed * (fast ? FAST_MULTIPLIER : 1.0f);
+        move(forward, up, right, fast, 1.0f);
+    }
+
+    private void move(float forward, float up, float right, boolean fast, float frameScale) {
+        float speed = moveSpeed * (fast ? FAST_MULTIPLIER : 1.0f) * frameScale;
 
         Vector3f lookDir = new Vector3f(this.getLookVector());
         lookDir.y = 0;
@@ -98,11 +103,13 @@ public class FpsCameraController extends AbstractCameraController {
         rightDir.y = 0;
         if (rightDir.lengthSquared() > 0.0001f) rightDir.normalize();
 
-        camPos = camPos.add(
-                (lookDir.x * forward + rightDir.x * right) * speed,
-                up * speed,
-                (lookDir.z * forward + rightDir.z * right) * speed
-        );
+        Vector3f movement = new Vector3f(
+                lookDir.x * forward + rightDir.x * right,
+                up,
+                lookDir.z * forward + rightDir.z * right);
+        if (movement.lengthSquared() > 1.0f) movement.normalize();
+
+        camPos = camPos.add(movement.x * speed, movement.y * speed, movement.z * speed);
         applyState();
     }
 
@@ -123,6 +130,12 @@ public class FpsCameraController extends AbstractCameraController {
 
     @Override
     public void processCapturedInput(long windowHandle) {
+        long inputTime = System.nanoTime();
+        float frameScale = previousInputTime == 0
+                ? 0.0f
+                : Mth.clamp((inputTime - previousInputTime) / 1_000_000_000.0f * 60.0f, 0.0f, 6.0f);
+        previousInputTime = inputTime;
+
         double[] xBuf = new double[1];
         double[] yBuf = new double[1];
         GLFW.glfwGetCursorPos(windowHandle, xBuf, yBuf);
@@ -156,13 +169,14 @@ public class FpsCameraController extends AbstractCameraController {
         if (InputConstants.isKeyDown(windowHandle, GLFW.GLFW_KEY_LEFT_CONTROL)) sprint = true;
 
         if (forward != 0 || strafe != 0 || vertical != 0) {
-            move(forward, vertical, strafe, sprint);
+            move(forward, vertical, strafe, sprint, frameScale);
         }
     }
 
     @Override
     public void cleanup() {
         firstCapturedFrame = true;
+        previousInputTime = 0;
     }
 
     @Override

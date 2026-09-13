@@ -2,6 +2,7 @@ package fr.lacaleche.glue.client.mixin;
 
 import fr.lacaleche.glue.client.events.DebugEvents;
 import fr.lacaleche.glue.client.events.RenderEvents;
+import fr.lacaleche.glue.client.viewport.internal.GameViewportStage;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
@@ -13,6 +14,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Gui.class)
 public class GuiMixin {
 
+    @Inject(method = "render", at = @At("HEAD"))
+    private void glue$beginGameViewportHud(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        GameViewportStage.beginHud(guiGraphics);
+    }
+
     @Inject(method = "renderDebugOverlay", at = @At("HEAD"))
     private void glue$renderDebugOverlay(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
         RenderEvents.RENDER_HUD.invoker().accept(context);
@@ -20,6 +26,8 @@ public class GuiMixin {
 
     @Inject(method = {"render"}, at = {@At("RETURN")})
     public void glue$render(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        // Undo the viewport HUD transform first, so listeners below draw against the whole frame.
+        GameViewportStage.endHud(guiGraphics);
         float tickDelta = deltaTracker.getGameTimeDeltaTicks();
         int screenWidth = guiGraphics.guiWidth();
         int screenHeight = guiGraphics.guiHeight();

@@ -35,7 +35,7 @@ import java.util.Set;
  * the main depth so only the frontmost pane survives, and its albedo + opacity and
  * {@code id=4} + owner-depth are written into the same G-buffer attachments that terrain,
  * entities and particles fill. The draws are redirected into that buffer at the
- * command-encoder seam; only attachments 1 and 2 are written, because vanilla's own
+ * command-encoder seam; only material attachments 1–3 are written, because vanilla's own
  * terrain passes already drew the pane colour into the main target.</p>
  *
  * <p>Re-rendered once per frame (camera-dependent, so not cacheable like shadow maps),

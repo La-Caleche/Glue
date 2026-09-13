@@ -51,7 +51,7 @@ public class TestShaderBlock extends BaseEntityBlock implements GlueBlock, IHave
 
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new TestShaderBlockEntity(pos, state);
+        return new TestShaderBlockEntity(TestBlockEntities.SHADER_BLOCK_ENTITY, pos, state);
     }
 
     @Override
@@ -67,7 +67,7 @@ public class TestShaderBlock extends BaseEntityBlock implements GlueBlock, IHave
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         if (level.isClientSide()) {
-            return createTickerHelper(type, TestBlockEntities.SHADER_BLOCK_ENTITY, TestShaderBlockEntity::tick);
+            return createTickerHelper(type, TestBlockEntities.SHADER_BLOCK_ENTITY, TickingBlockEntity::tick);
         }
         return null;
     }
@@ -77,7 +77,9 @@ public class TestShaderBlock extends BaseEntityBlock implements GlueBlock, IHave
                                                Player player, BlockHitResult hitResult) {
         if (level.getBlockEntity(pos) instanceof TestShaderBlockEntity entity) {
             entity.cycleShader();
-            if (!level.isClientSide()) {
+            if (level.isClientSide()) {
+                // Only the client-only TestShaderPipelines registry can turn the index into a name,
+                // and this block also loads on dedicated servers, where that class does not exist.
                 String name = TestShaderPipelines.nameOf(entity.getShaderIndex());
                 player.displayClientMessage(
                         Component.literal("§b[Glue] §fShader: §e" + name), true);

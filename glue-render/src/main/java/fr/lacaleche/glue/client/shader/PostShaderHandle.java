@@ -96,23 +96,24 @@ public record PostShaderHandle(ResourceLocation id, Set<ResourceLocation> extern
         }
 
         SavedGlState state = SavedGlState.save();
+        try {
+            int mainFbo = FramebufferHelper.getFramebufferId(target);
+            boolean needsBlit = RenderCompat.isIrisShaderEnabled() && mainFbo >= 0 && mainFbo != state.fbo();
+            int w = target.width;
+            int h = target.height;
 
-        int mainFbo = FramebufferHelper.getFramebufferId(target);
-        boolean needsBlit = RenderCompat.isIrisShaderEnabled() && mainFbo >= 0 && mainFbo != state.fbo();
-        int w = target.width;
-        int h = target.height;
+            if (needsBlit) {
+                blitFramebuffer(state.fbo(), mainFbo, w, h);
+            }
 
-        if (needsBlit) {
-            blitFramebuffer(state.fbo(), mainFbo, w, h);
+            RenderCompat.withIrisBypass(() -> chain.process(target, resourceAllocator));
+
+            if (needsBlit) {
+                blitFramebuffer(mainFbo, state.fbo(), w, h);
+            }
+        } finally {
+            state.restore();
         }
-
-        RenderCompat.withIrisBypass(() -> chain.process(target, resourceAllocator));
-
-        if (needsBlit) {
-            blitFramebuffer(mainFbo, state.fbo(), w, h);
-        }
-
-        state.restore();
     }
 
     public void addToFrame(FrameGraphBuilder frameGraphBuilder, int width, int height,

@@ -1,0 +1,28 @@
+{
+    "schemaVersion": 1,
+    "id": "glue-mcsx-dock",
+    "version": "${version}",
+    "name": "Glue MCSX Dock",
+    "description": "Retained dock workspaces for MCSX",
+    "authors": [
+        "Malo <malo@lacaleche.cc>",
+        "Theo <theo@lacaleche.cc>"
+    ],
+    "contact": {
+        "homepage": "https://lacaleche.cc",
+        "sources": "https://gitlab.lacaleche.cc/loccamy/java/glue"
+    },
+    "environment": "client",
+    "entrypoints": {
+        "main": [
+            "fr.lacaleche.glue.mcsx.dock.McsxDock"
+        ]
+    },
+    "depends": {
+        "fabricloader": ">=0.14.6",
+        "minecraft": "~1.21.8",
+        "java": ">=21",
+        "fabric-api": "*",
+        "glue-mcsx": "${version}"
+    }
+}

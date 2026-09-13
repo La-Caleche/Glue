@@ -1,14 +1,10 @@
 package fr.lacaleche.glue.client.viewport;
 
-import com.mojang.blaze3d.opengl.GlTexture;
-import com.mojang.blaze3d.opengl.GlTextureView;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.TextureFormat;
 import fr.lacaleche.glue.client.camera.AbstractCameraController;
+import fr.lacaleche.glue.client.viewport.internal.BorrowedSceneTexture;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
@@ -20,22 +16,23 @@ import org.lwjgl.glfw.GLFW;
  * scene texture as a fullscreen quad. Subclasses provide the scene via
  * {@link #renderSceneToTexture} and optionally overlay content via
  * {@link #onRenderOverlay}.
+ *
+ * @param <C> the concrete camera controller passed to the constructor; {@link #cameraController}
+ *            and {@link #getCameraController()} keep that type, so subclasses never downcast
  */
-public abstract class AbstractViewportScreen extends Screen {
+public abstract class AbstractViewportScreen<C extends AbstractCameraController> extends Screen {
 
     private static final ResourceLocation SCENE_TEXTURE_LOC =
             ResourceLocation.fromNamespaceAndPath("glue", "scene_viewport_tex");
 
-    protected final AbstractCameraController cameraController;
+    protected final C cameraController;
 
+    private final BorrowedSceneTexture sceneTexture = new BorrowedSceneTexture(SCENE_TEXTURE_LOC);
     private boolean isCapturing = false;
     private int sceneTextureId = -1;
-    private int lastRegisteredTextureId = -1;
-    private int lastRegisteredWidth = -1;
-    private int lastRegisteredHeight = -1;
     private double dragDistance;
 
-    protected AbstractViewportScreen(Component title, AbstractCameraController cameraController) {
+    protected AbstractViewportScreen(Component title, C cameraController) {
         super(title);
         this.cameraController = cameraController;
     }
@@ -83,16 +80,12 @@ public abstract class AbstractViewportScreen extends Screen {
             cameraController.processCapturedInput(client.getWindow().getWindow());
         }
 
-        int scaledWidth = (int) (this.width * client.getWindow().getGuiScale());
-        int scaledHeight = (int) (this.height * client.getWindow().getGuiScale());
-        sceneTextureId = renderSceneToTexture(scaledWidth, scaledHeight, client, partialTick);
-
-        // Reset viewport dimensions after FBO rendering
-        client.getWindow().setWidth(client.getWindow().getScreenWidth());
-        client.getWindow().setHeight(client.getWindow().getScreenHeight());
+        int framebufferWidth = client.getWindow().getWidth();
+        int framebufferHeight = client.getWindow().getHeight();
+        sceneTextureId = renderSceneToTexture(framebufferWidth, framebufferHeight, client, partialTick);
 
         if (sceneTextureId > 0) {
-            registerSceneTexture(client, sceneTextureId, scaledWidth, scaledHeight);
+            this.sceneTexture.update(client, sceneTextureId, framebufferWidth, framebufferHeight);
             guiGraphics.blit(SCENE_TEXTURE_LOC,
                     0, 0, this.width, this.height,
                     0.0f, 1.0f, 1.0f, 0.0f);
@@ -173,6 +166,7 @@ public abstract class AbstractViewportScreen extends Screen {
     public void removed() {
         super.removed();
         if (isCapturing) stopCapture();
+        this.sceneTexture.release(Minecraft.getInstance());
     }
 
     @Override
@@ -184,47 +178,8 @@ public abstract class AbstractViewportScreen extends Screen {
         return isCapturing;
     }
 
-    public AbstractCameraController getCameraController() {
+    public C getCameraController() {
         return cameraController;
     }
 
-    private void registerSceneTexture(Minecraft client, int textureId, int width, int height) {
-        if (textureId == lastRegisteredTextureId
-                && width == lastRegisteredWidth
-                && height == lastRegisteredHeight) {
-            return;
-        }
-        lastRegisteredTextureId = textureId;
-        lastRegisteredWidth = width;
-        lastRegisteredHeight = height;
-        client.getTextureManager().register(SCENE_TEXTURE_LOC,
-                new ExternalTexture(textureId, width, height));
-    }
-
-    private static class ExternalTexture extends AbstractTexture {
-        final int wrappedId;
-
-        ExternalTexture(int id, int width, int height) {
-            this.wrappedId = id;
-            ExternalGlTexture gl = new ExternalGlTexture(id, width, height);
-            this.texture = gl;
-            this.textureView = new ExternalTextureView(gl);
-        }
-    }
-
-    private static class ExternalGlTexture extends GlTexture {
-        ExternalGlTexture(int id, int w, int h) {
-            super(GpuTexture.USAGE_TEXTURE_BINDING, "glue scene viewport", TextureFormat.RGBA8, w, h, 1, 1, id);
-        }
-
-        @Override public void close() { this.closed = true; }
-        @Override public void removeViews() {}
-    }
-
-    private static class ExternalTextureView extends GlTextureView {
-        ExternalTextureView(GlTexture texture) { super(texture, 0, 1); }
-
-        @Override public void close() {}
-        @Override public boolean isClosed() { return false; }
-    }
 }

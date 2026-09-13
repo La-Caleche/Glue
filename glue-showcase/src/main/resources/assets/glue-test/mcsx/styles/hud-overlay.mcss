@@ -1,0 +1,58 @@
+.hud-root {
+    width: 100%;
+    padding: 16px;
+    gap: 0px;
+    align-items: start;
+    justify-content: start;
+    background: transparent;
+}
+
+.hud-card {
+    width: 320px;
+    padding: 16px;
+    gap: 8px;
+    align-items: stretch;
+    justify-content: start;
+    background: @hud-surface;
+    corner-radius: @shell-radius;
+}
+
+.hud-card > .ui-heading {
+    width: 100%;
+    color: @text-primary;
+    text-size: 17px;
+}
+
+.hud-summary {
+    width: 100%;
+    color: @text-primary;
+    text-size: 13px;
+}
+
+.hud-completed {
+    width: 100%;
+    color: @text-meta;
+    text-size: 11px;
+}
+
+.hud-objective {
+    width: 100%;
+    padding: 8px;
+    gap: 4px;
+    align-items: stretch;
+    justify-content: start;
+    background: @hud-surface-strong;
+    corner-radius: @corner-radius;
+}
+
+.hud-objective > .ui-copy {
+    width: 100%;
+    color: @text-explanatory;
+    text-size: 13px;
+}
+
+.hud-objective-value {
+    width: 100%;
+    color: @text-primary;
+    text-size: 13px;
+}

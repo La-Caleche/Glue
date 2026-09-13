@@ -13,6 +13,7 @@ import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -20,7 +21,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static fr.lacaleche.glue.client.debug.GlueDebugRenderer.ElementType.BOX;
 import static fr.lacaleche.glue.client.debug.GlueDebugRenderer.ElementType.MARKER;
@@ -41,31 +41,34 @@ public class RaycastDebugRenderer extends GlueDebugRenderer {
 
         final Entity entity = client.cameraEntity;
         final CollisionViewExtension world = (CollisionViewExtension) entity.level();
-        final AtomicInteger hitCount = new AtomicInteger(0);
 
         final double maxDistance = 20.0;
-        final Vec3 origin = entity.getEyePosition(0.0f);
-        final Vec3 rotation = entity.getViewVector(0.0f);
+        final float tickDelta = client.getDeltaTracker().getGameTimeDeltaTicks();
+        final Vec3 origin = entity.getEyePosition(tickDelta);
+        final Vec3 rotation = entity.getViewVector(tickDelta);
         final Vec3 target = origin.add(rotation.x * maxDistance, rotation.y * maxDistance, rotation.z * maxDistance);
 
-        final HitResult pick = entity.pick(maxDistance, 0.0F, false);
+        final HitResult pick = entity.pick(maxDistance, tickDelta, false);
         final BlockHitResult result = pick instanceof BlockHitResult br ? br : null;
+        final AABB searchBounds = entity.getBoundingBox().expandTowards(rotation.scale(maxDistance)).inflate(1.0);
         final List<Tuple<BlockPos, VoxelShape>> bigOutlineShapes = ImmutableList
-                .copyOf(world.glue$getBlockCollisions(entity, entity.getBoundingBox().inflate(6.0))).stream()
+                .copyOf(world.glue$getBlockCollisions(entity, searchBounds)).stream()
                 .filter(pair -> pair.getA() != null).toList();
 
-        bigOutlineShapes.forEach(pair -> {
+        int hitCount = 0;
+        for (Tuple<BlockPos, VoxelShape> pair : bigOutlineShapes) {
             final BlockPos blockPos = pair.getA();
             this.addDebugElement(blockPos.immutable(),
                     builder -> builder.type(BOX).color(Color.ofRGBA(200, 200, 200, 255)));
 
             final BlockHitResult hit = pair.getB().clip(origin, target, blockPos);
-            if (hit == null)
-                return;
+            if (hit == null) continue;
 
+            hitCount++;
+            int currentHit = hitCount;
             this.addDebugElement(hit.getBlockPos().immutable(),
-                    builder -> builder.type(MARKER).color(70, 130, 240).message("Hit " + hitCount.incrementAndGet()));
-        });
+                    builder -> builder.type(MARKER).color(70, 130, 240).message("Hit " + currentHit));
+        }
 
         if (result != null && result.getType() != BlockHitResult.Type.MISS)
             this.addDebugElement(result.getBlockPos(),
@@ -86,18 +89,19 @@ public class RaycastDebugRenderer extends GlueDebugRenderer {
         final CollisionViewExtension world = (CollisionViewExtension) entity.level();
 
         final double maxDistance = 20.0;
-        final BlockHitResult vanillaResult = entityRaycast.glue$vanillaRaycast(maxDistance, 0.0F, false);
-        final BlockHitResult bigOutlineResult = entityRaycast.glue$bigOutlineRaycast(maxDistance, 0.0F, false);
-        // pick() can return EntityHitResult — skip block-result UI when looking at an entity.
-        final HitResult pick = entity.pick(maxDistance, 0.0F, false);
+        final float tickDelta = client.getDeltaTracker().getGameTimeDeltaTicks();
+        final BlockHitResult vanillaResult = entityRaycast.glue$vanillaRaycast(maxDistance, tickDelta, false);
+        final BlockHitResult bigOutlineResult = entityRaycast.glue$bigOutlineRaycast(maxDistance, tickDelta, false);
+        final HitResult pick = entity.pick(maxDistance, tickDelta, false);
         final BlockHitResult result = pick instanceof BlockHitResult br ? br : null;
 
-        final Vec3 origin = entity.getEyePosition(0.0f);
-        final Vec3 rotation = entity.getViewVector(0.0f);
+        final Vec3 origin = entity.getEyePosition(tickDelta);
+        final Vec3 rotation = entity.getViewVector(tickDelta);
         final Vec3 target = origin.add(rotation.x * maxDistance, rotation.y * maxDistance, rotation.z * maxDistance);
 
+        final AABB searchBounds = entity.getBoundingBox().expandTowards(rotation.scale(maxDistance)).inflate(1.0);
         final List<Tuple<BlockPos, VoxelShape>> bigOutlineShapes = ImmutableList
-                .copyOf(world.glue$getBlockCollisions(entity, entity.getBoundingBox().inflate(6.0))).stream()
+                .copyOf(world.glue$getBlockCollisions(entity, searchBounds)).stream()
                 .filter(pair -> pair.getA() != null).toList();
 
         final List<String> texts = new ArrayList<>();
@@ -147,7 +151,7 @@ public class RaycastDebugRenderer extends GlueDebugRenderer {
         if (result != null && result.getType() != BlockHitResult.Type.MISS) {
             final BlockPos bigOutlinePos = result.getBlockPos();
             final BlockState bigOutlineState = world.getBlockState(bigOutlinePos);
-            final double bigOutlineDistance = result.getLocation().distanceToSqr(origin);
+            final double bigOutlineDistance = result.getLocation().distanceTo(origin);
 
             texts.add(name + " Pos: " + bigOutlinePos.toShortString());
             texts.add(name + " State: " + bigOutlineState);
@@ -163,25 +167,24 @@ public class RaycastDebugRenderer extends GlueDebugRenderer {
                              Vec3 target) {
         if (bigOutlineShapes.isEmpty())
             return;
-        final AtomicInteger hitCount = new AtomicInteger(0);
+        int hitCount = 0;
         texts.add("Hits:");
 
-        bigOutlineShapes.forEach(pair -> {
+        for (Tuple<BlockPos, VoxelShape> pair : bigOutlineShapes) {
             final BlockPos blockPos = pair.getA();
             final VoxelShape shape = pair.getB();
             final BlockHitResult hit = shape.clip(origin, target, blockPos);
-            if (hit == null)
-                return;
-            hitCount.incrementAndGet();
+            if (hit == null) continue;
+            hitCount++;
 
             final Vec3 hitPos = hit.getLocation();
-            final double distance = hitPos.distanceToSqr(origin);
+            final double distance = hitPos.distanceTo(origin);
 
-            texts.add("Hit " + hitCount.get() + " at: " + BlockPos.containing(hitPos).toShortString());
+            texts.add("Hit " + hitCount + " at: " + BlockPos.containing(hitPos).toShortString());
             texts.add("Distance: " + String.format("%.2f", distance));
-        });
+        }
 
-        if (hitCount.get() == 0)
+        if (hitCount == 0)
             texts.add("No hits");
         texts.add("");
     }

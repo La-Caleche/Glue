@@ -8,6 +8,7 @@ import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -69,8 +70,12 @@ public class EntityMixin implements EntityRaycastExtension {
         final Vec3 origin = self.getEyePosition(tickDelta);
         final Vec3 rotation = self.getViewVector(tickDelta);
         final Vec3 target = origin.add(rotation.x * maxDistance, rotation.y * maxDistance, rotation.z * maxDistance);
+        final AABB searchBounds = self.getBoundingBox().expandTowards(rotation.scale(maxDistance)).inflate(1.0);
 
-        return this.glue$performRaycast(origin, target, maxDistance, ImmutableList.copyOf(world.glue$getBlockCollisions(self, self.getBoundingBox().inflate(6.0))).stream().filter(pair -> pair.getA() != null).toList());
+        return this.glue$performRaycast(origin, target, maxDistance,
+                ImmutableList.copyOf(world.glue$getBlockCollisions(self, searchBounds)).stream()
+                        .filter(pair -> pair.getA() != null)
+                        .toList());
     }
 
     @Override

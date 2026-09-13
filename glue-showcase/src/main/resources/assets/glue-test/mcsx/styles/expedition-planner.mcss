@@ -1,0 +1,146 @@
+.ui-screen {
+    padding: 0px;
+    gap: 0px;
+    align-items: stretch;
+    justify-content: start;
+    background: transparent;
+}
+
+.ui-viewport {
+    width: 100%;
+    padding: 24px;
+    gap: 0px;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+}
+
+.planner-card {
+    width: 100%;
+    max-width: 760px;
+    padding: 24px;
+    gap: 24px;
+    align-items: stretch;
+    justify-content: start;
+    background: @surface;
+    corner-radius: @shell-radius;
+}
+
+Text {
+    color: @text-primary;
+}
+
+.ui-heading {
+    width: 100%;
+    text-size: 20px;
+}
+
+.ui-copy {
+    width: 100%;
+    color: @text-explanatory;
+    text-size: 13px;
+}
+
+.ui-section {
+    width: 100%;
+    padding: 0px;
+    gap: 8px;
+    align-items: stretch;
+    justify-content: start;
+    background: transparent;
+}
+
+.ui-section-title {
+    width: 100%;
+    color: @text-label;
+    text-size: 10px;
+}
+
+.objective-editor {
+    width: 100%;
+    padding: 0px;
+    gap: 8px;
+    align-items: stretch;
+    justify-content: start;
+    background: transparent;
+}
+
+TextField {
+    width: 100%;
+    color: @text-primary;
+    background: @surface-well;
+    corner-radius: @corner-radius;
+    control-height: @control-height;
+    text-size: 13px;
+}
+
+Checkbox {
+    color: @text-muted;
+    control-height: @control-height;
+    text-size: 13px;
+}
+
+Checkbox:checked {
+    color: @text-primary;
+}
+
+Checkbox:disabled {
+    color: @text-disabled;
+}
+
+.ui-actions {
+    width: 100%;
+    padding: 0px;
+    gap: 8px;
+    align-items: stretch;
+    justify-content: start;
+    background: transparent;
+}
+
+.ui-actions > Button {
+    flex-grow: 1;
+}
+
+.validation-error {
+    color: @danger-line;
+}
+
+.progress-card {
+    gap: 20px;
+}
+
+.expedition-name {
+    text-size: 17px;
+}
+
+.progress-summary {
+    width: 100%;
+    color: @text-primary;
+    text-size: 20px;
+}
+
+.completed-copy {
+    color: @text-muted;
+}
+
+.objective-progress {
+    width: 100%;
+    padding: 12px;
+    gap: 4px;
+    align-items: stretch;
+    justify-content: start;
+    background: @surface-well;
+    corner-radius: @corner-radius;
+}
+
+.objective-value {
+    width: 100%;
+    color: @text-primary;
+    text-size: 13px;
+}
+
+.planner-footer {
+    padding: 12px;
+    background: @surface-footer;
+    corner-radius: @shell-radius;
+}

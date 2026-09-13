@@ -30,7 +30,7 @@ import java.util.Arrays;
  *       resolve back to the scene surface.</li>
  * </ol>
  */
-final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
+final class SodiumTerrainMaterialCapture {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue/material-buffer");
 
@@ -45,8 +45,7 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
     private int[] drawBuffers;
     private Method isTranslucent;
 
-    @Override
-    public void beginFrame(long sequence) {
+    public void beginFrame() {
         frameActive = false;
         if (passAttached) {
             forceRestoreRecordedFramebuffer();
@@ -60,7 +59,6 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
         frameActive = true;
     }
 
-    @Override
     public void cancelFrame() {
         frameActive = false;
         if (passAttached) forceRestoreRecordedFramebuffer();
@@ -138,7 +136,6 @@ final class SodiumTerrainMaterialCapture implements TerrainMaterialCapture {
         }
     }
 
-    @Override
     public void cleanup() {
         cancelFrame();
     }

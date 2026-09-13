@@ -1,10 +1,14 @@
 package fr.lacaleche.glue.testmod.file;
 
 import fr.lacaleche.glue.client.file.FileDialogs;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.Screen;
+import fr.lacaleche.glue.mcsx.client.Ui;
+import fr.lacaleche.glue.mcsx.client.reactive.Signal;
+import fr.lacaleche.glue.mcsx.client.style.Stylesheets;
+import fr.lacaleche.glue.mcsx.client.theme.Themes;
+import fr.lacaleche.glue.testmod.TestmodClient;
+import fr.lacaleche.glue.testmod.mcsx.ShowcaseUiScreen;
+import icyllis.modernui.core.Core;
+import icyllis.modernui.view.View;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,94 +17,103 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-/**
- * Test screen demonstrating the FileDialogs API.
- * Provides buttons for open file, save file, and open folder dialogs.
- */
-public class FileDialogTestScreen extends Screen {
+/** MCSX screen demonstrating open, save, filtered-file, and folder dialogs. */
+public final class FileDialogTestScreen extends ShowcaseUiScreen {
+
+    public static final String TAG_ROOT = "showcase.file-dialogs";
+    public static final String TAG_STATUS = "showcase.file-dialogs.status";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FileDialogTestScreen.class);
 
-    private String lastResult = "No dialog opened yet";
-    private boolean waiting = false;
-
-    public FileDialogTestScreen() {
-        super(Component.literal("File Dialog Test"));
-    }
+    private final Signal<String> lastResult = Signal.of(translated("showcase.files.status.ready"));
+    private final Signal<Boolean> waiting = Signal.of(false);
 
     @Override
-    protected void init() {
-        int centerX = this.width / 2;
-        int y = this.height / 2 - 50;
-
-        addRenderableWidget(Button.builder(Component.literal("Open File..."), btn -> openFile())
-                .pos(centerX - 100, y)
-                .size(200, 20)
-                .build());
-
-        addRenderableWidget(Button.builder(Component.literal("Save File..."), btn -> saveFile())
-                .pos(centerX - 100, y + 25)
-                .size(200, 20)
-                .build());
-
-        addRenderableWidget(Button.builder(Component.literal("Open Folder..."), btn -> openFolder())
-                .pos(centerX - 100, y + 50)
-                .size(200, 20)
-                .build());
-
-        addRenderableWidget(Button.builder(Component.literal("Open (with filter)..."), btn -> openFiltered())
-                .pos(centerX - 100, y + 75)
-                .size(200, 20)
-                .build());
+    protected View create(Ui ui) {
+        return ui.screen(
+                Signal.of(Themes.mcsx()),
+                Stylesheets.resource(TestmodClient.id("showcase-controls")),
+                ui.card(
+                        ui.column(
+                                ui.heading("showcase.files.title"),
+                                ui.copy("showcase.files.description")
+                        ).classes("control-header"),
+                        ui.column(
+                                ui.button("showcase.files.open", this::openFile).enabled(this.waiting.map(value -> !value)),
+                                ui.secondaryButton("showcase.files.save", this::saveFile)
+                                        .enabled(this.waiting.map(value -> !value)),
+                                ui.secondaryButton("showcase.files.folder", this::openFolder)
+                                        .enabled(this.waiting.map(value -> !value)),
+                                ui.secondaryButton("showcase.files.filtered", this::openFiltered)
+                                        .enabled(this.waiting.map(value -> !value))
+                        ).classes("dialog-actions"),
+                        ui.row(
+                                ui.text(this.lastResult).tag(TAG_STATUS).classes("dialog-status"),
+                                ui.quietButton("showcase.back", this::back)
+                        ).classes("control-footer")
+                ).classes("dialog-card")
+        ).tag(TAG_ROOT).classes("showcase-dialogs");
     }
 
     /**
-     * The envelope every dialog button shares: refuse while one is open, show progress, then apply the
-     * result back on the client thread. Only the dialog call and the label differ.
+     * Refuses duplicate requests and publishes every asynchronous outcome through MCSX's UI-thread
+     * bridge. Cancellation remains distinct from exceptional completion.
      */
-    private void show(String label, Supplier<CompletableFuture<Optional<String>>> dialog) {
-        if (waiting) return;
-        waiting = true;
-        lastResult = "Waiting for dialog...";
+    private void show(String labelKey, Supplier<CompletableFuture<Optional<String>>> dialog) {
+        if (this.waiting.get()) return;
 
-        dialog.get().thenAccept(result -> Minecraft.getInstance().execute(() -> {
-            lastResult = result.map(path -> label + ": " + path).orElse("Cancelled");
-            waiting = false;
-            LOGGER.info("{} result: {}", label, lastResult);
+        String label = translated(labelKey);
+        CompletableFuture<Optional<String>> pending;
+        try {
+            pending = dialog.get();
+        } catch (RuntimeException failure) {
+            this.lastResult.set(translated("showcase.files.status.failed", label, failure.getMessage()));
+            LOGGER.error("{} could not be opened", label, failure);
+            return;
+        }
+
+        this.waiting.set(true);
+        this.lastResult.set(translated("showcase.files.status.waiting"));
+        pending.whenComplete((result, error) -> Core.postOnUiThread(() -> {
+            this.waiting.set(false);
+            if (error != null) {
+                this.lastResult.set(translated("showcase.files.status.failed", label, error.getMessage()));
+                LOGGER.error("{} failed", label, error);
+                return;
+            }
+
+            String message = result
+                    .map(path -> translated("showcase.files.status.selected", label, path))
+                    .orElseGet(() -> translated("showcase.files.status.cancelled"));
+            this.lastResult.set(message);
+            LOGGER.info("{} result: {}", label, message);
         }));
     }
 
     private void openFile() {
-        show("Opened", () -> FileDialogs.showOpenDialog(null));
+        this.show("showcase.files.result.opened", FileDialogs::showOpenDialog);
     }
 
     private void saveFile() {
-        show("Save to", () -> FileDialogs.showSaveDialog(null, "untitled.txt",
-                new FileDialogs.FileFilter("Text Files", "txt", "md"),
-                new FileDialogs.FileFilter("All Files", "*")));
+        this.show("showcase.files.result.save", () -> FileDialogs.showSaveDialogInDefaultFolder(
+                "untitled.txt",
+                new FileDialogs.FileFilter("Text Files", "txt", "md")
+        ));
     }
 
     private void openFolder() {
-        show("Folder", () -> FileDialogs.showOpenFolderDialog(null));
+        this.show("showcase.files.result.folder", FileDialogs::showOpenFolderDialog);
     }
 
     private void openFiltered() {
-        show("Opened", () -> FileDialogs.showOpenDialog(null,
+        this.show("showcase.files.result.opened", () -> FileDialogs.showOpenDialog(
+                null,
                 new FileDialogs.FileFilter("Images", "png", "jpg", "jpeg", "gif", "bmp"),
-                new FileDialogs.FileFilter("JSON Files", "json")));
+                new FileDialogs.FileFilter("JSON Files", "json")
+        ));
     }
 
-    @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
-
-        guiGraphics.drawCenteredString(font, this.title, this.width / 2, 20, 0xFFFFFF);
-        guiGraphics.drawCenteredString(font, lastResult, this.width / 2, this.height / 2 + 50, 0xAAFFAA);
-        guiGraphics.drawCenteredString(font, "ESC to close", this.width / 2, this.height - 20, 0x888888);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
+    private static String translated(String key, Object... arguments) {
+        return Component.translatable(key, arguments).getString();
     }
 }

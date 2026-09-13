@@ -1,124 +1,138 @@
-# AGENTS.md — Project Context & Engineering Guidelines
+# Repository Instructions
 
-> This file provides essential context for AI agents working on this project.
-> Read this file fully before making any changes.
+This is the canonical instruction file for coding agents working on Glue. Read it before changing
+the repository. When editing maintained Java or Java tests, also read
+[`docs/development/java-style.md`](docs/development/java-style.md).
 
----
+## Instruction Order
 
-## Your Role
+When guidance conflicts, use this order:
 
-You are a senior engineer pair-programming on this project. The maintainer values clean architecture, simplicity, surgical changes, and high-quality technical output.
+1. The current task's explicit requirements.
+2. Public API, persisted data, platform, and framework contracts.
+3. This file's project invariants.
+4. `docs/development/java-style.md` for maintained Java and tests.
+5. Nearby maintained code where the canonical documents leave a choice open.
 
----
+Historical inconsistencies are not conventions. Preserve them only where compatibility requires it,
+and do not reproduce them in new APIs.
 
-## Giving Analysis & Recommendations (Objectivity Rule)
+## Project Snapshot
 
-When asked for an opinion, a technology/architecture choice, a review, or any "should we…" judgment, answer **objectively, neutrally, and grounded in evidence** — never to please:
+Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
+provides typed registries, rendering and shader infrastructure, Lumos deferred lighting, MCSX UI and
+docking, native dialogs, and a scripted in-game test harness. The build uses Gradle Kotlin DSL,
+Fabric Loom, and the in-house `fr.lacaleche.caldle` plugin.
 
-- **Ground it in reality first.** Read the actual code and measure the actual scope before judging. Tie the recommendation to this project's real context and constraints.
-- **Present the real tradeoffs.** Lay out the viable alternatives with honest pros and cons.
-- **Separate preference from merit.** Distinguish what the maintainer *prefers* from what is *technically better*.
-- **Take a clear position.** Provide a concrete, reasoned recommendation.
-- **Push back when warranted.** If the evidence contradicts the maintainer's lean, say so plainly.
+- Maven group: `fr.lacaleche.glue`
+- Core Fabric mod id: `glue`
+- Version source: `app.version` in `gradle.properties`
+- Public documentation: [`docs/`](docs/README.md)
+- Runnable examples and integration tests: [`glue-showcase/`](glue-showcase/README.md)
+- Remapped output: `build/libs/` at the repository root
 
----
+Glue is a library. Public behavior and supported APIs are what `docs/` documents; packages named
+`internal` are implementation details.
 
-## Project Overview
+## Modules
 
-**Glue** (mod id `glue`, group `fr.lacaleche.glue`) is a **Fabric utility library for Minecraft 1.21.8** — "Yet Another Minecraft Library". It provides typed registry wrappers, rendering and shader tooling (core pipelines, post-processing chains, a deferred dynamic-light subsystem), block outlines, transform stacks, native file dialogs, and Iris/Oculus compatibility shims. It is a **library**: other mods depend on it; it ships no gameplay content of its own.
+| Module | Mod id | Environment | Direct Glue dependencies | Responsibility |
+|---|---|---|---|---|
+| `glue-core` | `glue` | both | none | Shared registries, packets/codecs, math, shapes, and history. |
+| `glue-render` | `glue-render` | client | `glue-core` | Pipelines, post effects, materials, outlines, scenes, render events, compatibility, and native dialogs. |
+| `glue-lumos` | `glue-lumos` | both | `glue-core` | Shared light model, codecs, synchronization, and persistence. |
+| `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light renderer, material passes, shadows, and GLSL. |
+| `glue-mcsx` | `glue-mcsx` | client | `glue-core` | Java-first ModernUI components, reactive values, Taffy layout, themes, and `.mcss`. |
+| `glue-mcsx-dock` | `glue-mcsx-dock` | client | `glue-mcsx` | Retained dock layouts, tabs, splits, floating windows, persistence, and editor interaction. |
+| `glue-gametest` | `glue-gametest` | client, development | none | Scripted live-client tests, tools, screenshots, and reports. |
+| `glue-showcase` | `glue-showcase` | both, development | all library modules | Sole run configuration, demos, and integration scenarios; not published by release CI. |
 
-The version lives in `gradle.properties` (`app.version`). User-facing documentation is the wiki in `docs/` (see `docs/README.md` for the table of contents) — **keep it updated when the public API changes**.
+Keep environment boundaries explicit. Shared models belong in both-side modules; rendering and UI
+implementations belong in client modules. `glue-core` contains the legacy client-only
+`KeybindingsRegistry`; do not expand that exception. No library module may depend on
+`glue-showcase`.
 
-### Core Philosophy
+## Engineering Rules
 
-- **Modular design.** Packages are domain-scoped; `internal` sub-packages are NOT public API and may change freely. The public surface is what `docs/` documents.
-- **Simplicity over complexity.** No speculative abstractions. If a simple solution exists, prefer it over a complex "best practice" that adds overhead.
-- **Code-first.** Registries, pipelines, and effects are defined in code (with optional data-driven JSON variants where the docs say so).
+- Read the owning module, neighboring implementation, contracts, and relevant tests before editing.
+- Prefer existing registry wrappers, events, utilities, and lifecycle hooks over parallel machinery.
+- Keep changes focused. Do not add speculative abstractions, compatibility shims, dependencies, or
+  unrelated cleanup.
+- Make ownership, thread boundaries, lifecycle, and cleanup explicit.
+- Use a new dependency only after checking its API exposure, runtime footprint, and optional-mod
+  behavior.
+- Update the matching `docs/` page when public behavior changes. New public capabilities should have
+  a small showcase example; changes to demonstrated behavior should update the existing example.
+- Do not leave TODOs, stubs, placeholder implementations, commented-out code, or debug output.
+- Base architectural recommendations on the actual code and constraints. State material corrections
+  and tradeoffs plainly; do not endorse a weak design merely to agree with the maintainer.
 
-### Technology Stack
+## Rendering Invariants
 
-| Component | Technology |
-|---|---|
-| Language | Java 21 |
-| Platform | Minecraft 1.21.8, Fabric Loader + Fabric API |
-| Mappings | Official Mojang mappings (via fabric-loom) |
-| Build | Gradle (Kotlin DSL), fabric-loom, in-house `fr.lacaleche.caldle` plugin |
-| Rendering | Blaze3D / OpenGL; some passes use raw GL (LWJGL) deliberately |
-| Shaders | GLSL under `src/main/resources/assets/glue/shaders/` (`core/`, `internal/`, `post/`) |
-| Optional compat | Iris (compileOnly; all access via `compat.RenderCompat`, guarded by `HAS_IRIS` — must work without Iris installed) |
-| Native dialogs | LWJGL-NFD |
-| Tests | JUnit 5 |
+- Prefer an existing `RenderEvents` or debug hook before adding a mixin. Mixins capture vanilla state
+  or expose a seam; feature logic belongs in ordinary classes.
+- Minecraft caches OpenGL state. Raw GL code must restore framebuffer, draw-buffer, texture, blend,
+  and other touched state through the established helpers such as `SavedGlState`.
+- Depth reconstruction uses captured `FrameMatrices`. Never rebuild the view matrix from
+  `camera.rotation()` because it omits transforms such as view bobbing.
+- Iris and Sodium are optional. Shipped runtime Iris access belongs behind guarded compatibility code
+  such as `RenderCompat`; reflective access to Iris internals belongs in `ModCompatManager` rather
+  than feature code. Development tests may call public Iris APIs only behind a mod-loaded guard.
+  Everything must still load without Iris.
+- Lumos identifies surfaces through one material G-buffer, not post-hoc depth matching. Material data
+  and its owning depth are written in the same geometry draw through MRT.
+- Material targets own their attachments while borrowing host color and depth. Sodium integration
+  attaches those textures to Sodium's active framebuffer instead of duplicating the scene pass.
+- A pixel no material class claimed cannot have reliable albedo reconstructed from an already-lit
+  color. Preserve the `UNCAPTURED_LIGHT_CAP` contract.
+- Minecraft 1.21.8's material outputs currently rely on the core-shader source patch and explicit MRT
+  output constraints. Replace that seam only with an in-game-validated alternative.
 
-### Repository Structure
+Lumos is intended to support the difficult cases too: entities, particles, water, and reflective
+materials. Do not silently downscope an agreed capability because it is hard. Within that scope, use
+the smallest correct design.
 
-A composite build of **feature modules**, each its own Fabric mod with its own id, `fabric.mod.json`, and remapped jar (in the workspace-root `build/libs/`). A mod pulls only the modules it needs; a dedicated server loads only the ones that declare no client environment. Each module has `src/main` (+ `src/test` for JUnit); `internal` sub-packages are not API.
+## Verification
 
-| Module | id | Environment | Role |
-|---|---|---|---|
-| `glue-core` | `glue` | both | Environment-agnostic base: typed registries (`registries`), networking/codecs (`packets`), `math`, `shaper`, `history`. Entry point `fr.lacaleche.glue.Glue` (main). No client/blaze3d code. |
-| `glue-render` | `glue-render` | client | Client infrastructure: `client.shader` (+ `pipeline`, `effect`, `internal`), `client.render` (gbuffer, material, outline, scene), `client.events` (`RenderEvents`, `DebugEvents`), `client.debug`, `compat` (Iris), the client file dialogs and client registries (`KeybindingsRegistry`, `BlocksRendererRegistry`). Entry point `client.GlueClient`. Access widener `glue-render.accesswidener`. |
-| `glue-lumos` | `glue-lumos` | both | Shared light model: `fr.lacaleche.glue.lumos.Light` / `LightType` (and the light codecs/sync as they land). Loads on both sides so the renderer and server persistence share one definition. |
-| `glue-lumos-client` | `glue-lumos-client` | client | The deferred colored-light renderer: `client.render.light.*` (pipeline, shadow, scene, gl) + its GLSL. Depends on `glue-lumos` + `glue-render`. Entry point `client.render.light.GlueLumosClient`. |
-| `glue-mcsx` | `glue-mcsx` | client | MCSX, the declarative UI library: `.mcsx` documents, reactive bindings, Tailwind-style styling, theming, docking, viewport embedding, on a vendored self-hosted ModernUI runtime (`mui` package — upstream conventions, excluded from lint). Assets keep the `mcsx` namespace. Standalone: depends on no other Glue module. |
-| `glue-showcase` | `glue-showcase` | dev only | Development/demo mod and the sole run config; not shipped. Doubles as living documentation — every feature has a demo (see `glue-showcase/README.md`). New features should get one. |
+Use the narrowest useful command while iterating, then verify affected dependents when a shared API
+changes.
 
-A feature that spans environments (like lighting) splits into a both-sides model module and a client renderer, because a client-only module cannot load on a dedicated server (e.g. `glue-render`'s access widener references a client class) and Fabric mod dependencies are not per-environment. Future features (UI, …) follow the same split.
+```shell
+./gradlew compileJava
+./gradlew test
+./gradlew libraryJars
+./gradlew :glue-showcase:runClient
+./gradlew :glue-showcase:runServer
+```
 
----
+<details>
+<summary>PowerShell</summary>
 
-## Key Patterns
+```powershell
+.\gradlew.bat compileJava
+.\gradlew.bat test
+.\gradlew.bat libraryJars
+.\gradlew.bat :glue-showcase:runClient
+.\gradlew.bat :glue-showcase:runServer
+```
 
-1. **Typed registries.** Content and client hooks go through Glue's registry wrappers (`BlocksRegistry`, `ItemsRegistry`, `KeybindingsRegistry`, `CoreShaderRegistry`, `PostShaderRegistry`, …) rather than raw Fabric/vanilla registration.
-2. **Rendering hooks are events.** World/HUD-phase work hangs off `RenderEvents` (e.g. `POST_WORLD_RENDER`, `RENDER_HUD`) and `DebugManager`, which are driven from a small set of mixins. Prefer an existing event over a new mixin.
-3. **GL state discipline.** Minecraft's `GlStateManager` *caches* GL state (blend func, texture bindings, FBOs…). Any raw-GL code must save/restore through the established helpers (`SavedGlState`, and restore FBO/texture bindings after blits) or it will corrupt later vanilla rendering in ways that surface far from the cause.
-4. **Depth-buffer reconstruction uses `FrameMatrices`.** Never rebuild a view matrix from `camera.rotation()` — it misses view bobbing and the reconstruction slides against the world.
-5. **Mixins are a last resort.** They exist to capture vanilla state or inject events, not to implement features. Keep them thin; put logic in plain classes.
-6. **Iris is optional.** Anything touching Iris goes through the `compat` layer (`RenderCompat`) and must degrade gracefully when Iris is absent. Its API classes are imported directly; every call site short-circuits on `HAS_IRIS` so they are never resolved without Iris. Iris *internals* (pipeline manager, render targets) are reached reflectively through `ModCompatManager`.
-7. **Material G-buffer, not depth-matching.** Lumos identifies what a pixel *is* (terrain / entity / particle / glass / water / metal) through a **material G-buffer** — real per-pixel material data written by the geometry pass — never by comparing a separately captured depth to the scene depth. Depth-matching could not distinguish a pane from a mob and is gone: every material class writes its id and its own owning depth in the same draw, and consumers confirm ownership with a world-space test against that packed depth. New surface types are added as material classes in this buffer, through the shared capture API — not as bespoke depth hacks. See `client.render.internal.gbuffer` (the MRT and the core-shader patch), `client.render.internal.material` (the per-frame gate and the Sodium adapter), and the G-buffer notes below.
+</details>
 
----
+The VitePress documentation is an isolated Node project under `docs/`. For documentation changes:
 
-## Lumos & the Material G-buffer (strategic direction)
+```shell
+pnpm --dir docs install --frozen-lockfile
+pnpm --dir docs build
+```
 
-Lumos is meant to be a **top-tier lighting engine** — proper static point lights with shadows and color that light *everything*, including entities and particles, and extend to water and reflective materials. Difficulty is not a reason to skip a feature; the maintainer has explicitly chosen to own the hard parts.
+`build` and `check` are currently blocked by a PMD snapshot resolved by the Caldle plugin. The CI gate
+uses `test` plus remapped jars instead.
 
-The foundation is a **G-buffer / material-capture subsystem** with a **clean, reusable API for creating render targets that do not conflict with Sodium or Iris**. Principles:
+Before reporting completion:
 
-- **Reuse the host's buffers when offered, own them when not.** `GBufferTargets` owns the material attachments with raw GL but borrows Minecraft's main colour and depth, so a redirected draw still produces the ordinary scene. When Sodium is the terrain renderer, `SodiumTerrainMaterialCapture` hangs those same owned textures off Sodium's own bound framebuffer for the opaque pass rather than duplicating them.
-- **The capture pass writes material data in the SAME draw as the geometry** (MRT), so material depth is inherently consistent with the scene — this is why the earlier separate-draw attempt failed. On MC 1.21.8 this requires bypassing Blaze3D's single-attachment `RenderPass` at the `com.mojang.blaze3d.opengl.GlCommandEncoder` level (the technique Iris uses; Iris source is available at `../../Iris` for reference — replicate only what's needed, not the whole shaderpack loader).
-- **Vanilla core shaders are patched at the source seam** (`ShaderManager$CompilationCache.getShaderSource`), mirroring the existing `SodiumMaterialShaderPatch`. Note `#version 150` core shaders need `GL_ARB_explicit_attrib_location` for a second `layout(location=1)` output.
-- **One material buffer, many consumers.** Terrain, entities, particles, glass, water and metal all land in it as material classes, so the deferred, shadow and reflection passes read one coherent buffer. A pixel no class claimed cannot have its albedo recovered — reflectance and illumination are one product in an already-lit sample — so `UNCAPTURED_LIGHT_CAP` bounds what Lumos may add there; at its current `0` those pixels keep their untouched vanilla look. The estimated albedo serves the different case where there is no material capability at all, and the cap never arms.
-
-Build it incrementally and verify each stage in-game (GLSL and MRT wiring have no compile-time safety net).
-
----
-
-## Conventions
-
-### Code Style
-
-- Java 21; prefer records for value objects; explicit types over `var` where it aids readability.
-- **No decorator comments** (`// --- Helpers ---` is forbidden).
-- **Useful documentation only.** Javadoc for classes and non-obvious contracts; comments explain *why*, never restate the code.
-
-### Build System & Verification
-
-- Compile every module: `.\gradlew.bat compileJava`
-- Run tests: `.\gradlew.bat test`
-- Launch the demo client (interactive; usually the maintainer does this): `.\gradlew.bat :glue-showcase:runClient`
-- Launch the demo dedicated server: `.\gradlew.bat :glue-showcase:runServer` (run dir `run-server/`; accept the EULA on first launch)
-- Build the library jars: `.\gradlew.bat libraryJars` (five library modules, in the workspace-root `build/libs/`); `remapJar` additionally builds the showcase jar
-
-Note: the `build`/`check` tasks currently fail resolving a PMD snapshot in the `caldle` plugin, unrelated to the code — verify with `compileJava` + `test`, not `build`.
-
-**Always verify before considering a task done:** compile the touched module(s). GLSL shaders and JSON resources have **no compile step** — they fail at runtime — so review them extra carefully and say explicitly when a change needs an in-game check.
-
----
-
-## Important Rules
-
-1. **Respect boundaries.** No library module references `glue-showcase`; `internal` packages are not API; keep client code out of the both-sides modules (`glue-core`, `glue-lumos`).
-2. **Reuse existing utilities.** Before creating helpers, check `client.utils`, the registries, and the shader/pipeline infrastructure.
-3. **Keep changes surgical.** No "just in case" features, no drive-by refactors.
-4. **No placeholder content.** No TODOs or stubs that will not be immediately acted on.
-5. **Docs follow the API.** A change to public behavior updates the matching page in `docs/` (and the showcase demo when one exists).
+1. Compile the touched module and any dependent modules affected by API changes.
+2. Run relevant unit and live-client tests.
+3. Validate descriptors, generated resources, and jar packaging when they change.
+4. Treat GLSL, MRT wiring, mixins, and JSON resources as runtime-sensitive: they have little or no
+   compile-time protection and require an explicit in-game check.
+5. Report exactly what ran, what passed, and what could not be verified.

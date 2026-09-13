@@ -4,7 +4,7 @@ import com.mojang.serialization.MapCodec;
 import fr.lacaleche.glue.block.GlueBlock;
 import fr.lacaleche.glue.block.IHaveBigOutline;
 import fr.lacaleche.glue.shaper.GlueVoxelShape;
-import fr.lacaleche.glue.testmod.TestmodClient;
+import fr.lacaleche.glue.testmod.Testmod;
 import fr.lacaleche.glue.testmod.registries.TestBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -51,7 +51,7 @@ public class TestOutlineBlock extends BaseEntityBlock implements GlueBlock, IHav
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.INVISIBLE;
+        return RenderShape.MODEL;
     }
 
     @Override
@@ -74,6 +74,6 @@ public class TestOutlineBlock extends BaseEntityBlock implements GlueBlock, IHav
 
     @Override
     public ResourceLocation getOutlineRenderer() {
-        return TestmodClient.id("example");
+        return Testmod.id("example");
     }
 }

@@ -4,11 +4,13 @@
   "compatibilityLevel": "JAVA_21",
   "refmap": "mcsx.mui.refmap.json",
   "client": [
-    "MixinGameRenderer",
-    "MixinGuiRenderer",
-    "MixinKeyboardHandler",
-    "MixinMouseHandler",
-    "MixinRenderSystem"
+    "HostViewRootCursorMixin",
+    "HostViewRootKeyMixin",
+    "UiManagerCompositeMixin",
+    "UiManagerOverlayInputMixin",
+    "UiManagerOverlayUnderScreenMixin",
+    "UiManagerOverlayWitnessMixin",
+    "ViewCursorMixin"
   ],
   "injectors": {
     "defaultRequire": 1

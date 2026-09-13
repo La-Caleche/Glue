@@ -13,10 +13,9 @@ import java.util.List;
 /**
  * Collects nearby living entities as vertical capsules for the deferred pass's blob shadows.
  *
- * <p>Entities are not baked into the (cached, block-change-invalidated) shadow maps -- they move
- * every frame. Instead each nearby living entity is approximated as a vertical capsule the deferred
- * pass analytically occludes the light against, a cheap soft shadow that grounds a lit entity without
- * a per-entity shadow map.</p>
+ * <p>A light with no resident shadow map approximates each nearby living entity as a vertical capsule
+ * that the deferred pass occludes analytically. Shadow-mapped lights use the per-frame entity depth
+ * pass instead.</p>
  */
 final class EntityShadowBlobs {
 

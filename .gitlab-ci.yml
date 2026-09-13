@@ -34,6 +34,8 @@ publish:
         :glue-lumos:publish
         :glue-lumos-client:publish
         :glue-mcsx:publish
+        :glue-mcsx-dock:publish
+        :glue-gametest:publish
         :glue-showcase:remapJar
   artifacts:
     paths:

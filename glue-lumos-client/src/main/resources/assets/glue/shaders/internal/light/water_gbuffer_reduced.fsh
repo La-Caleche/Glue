@@ -7,13 +7,8 @@
 // depth is pulled toward the camera to survive the pack's wave displacement, and packing that
 // would put the pull distance into every downstream ownership test.
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
 in vec4 vertexColor;
 in vec2 texCoord0;
 noperspective in float glueTrueDepth;

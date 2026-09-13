@@ -62,15 +62,22 @@ public class SceneTestController extends Abstract3DController {
             TransformationComponent finalTransform = blockTransforms.getOrDefault(selectedBlockPos, null);
             if (finalTransform != null && !initialDragTransform.equals(finalTransform)) {
                 historyManager
-                        .execute(new UpdateItemCommand(this, selectedBlockPos, initialDragTransform, finalTransform));
+                        .execute(new UpdateBlockCommand(this, selectedBlockPos, initialDragTransform, finalTransform));
             }
         }
         initialDragTransform = null;
     }
 
+    /**
+     * Stores {@code transform} as {@code blockPos}'s preview transform. The gizmo only follows when
+     * that block is the selected one — undo/redo may target a block the user has since deselected,
+     * and the gizmo must keep showing the block it is attached to.
+     */
     public void setGizmo(BlockPos blockPos, TransformationComponent transform) {
         this.blockTransforms.put(blockPos, transform);
-        updateGizmo(transform);
+        if (blockPos.equals(selectedBlockPos)) {
+            updateGizmo(transform);
+        }
     }
 
     @Override
@@ -79,11 +86,6 @@ public class SceneTestController extends Abstract3DController {
     }
 
     public void selectBlock(BlockPos blockPos) {
-        if (blockPos == null) {
-            this.selectedBlockPos = null;
-            return;
-        }
-
         this.selectedBlockPos = blockPos;
         setGizmoFromBlock();
     }
@@ -154,15 +156,17 @@ public class SceneTestController extends Abstract3DController {
      * Performs AABB raycasting against all visible blocks in the scene to find
      * which block the user clicked on. The nearest hit is selected.
      * The real world is never modified — only the preview selection changes.
+     * <p>
+     * Each candidate is tested as a unit cube around its transform's translation: a preview
+     * transform's rotation and scale are ignored, so a heavily rotated or shrunk block picks
+     * against the box it started from. Good enough for a demo, not for an editor.
      */
     public void handleClick(float mouseX, float mouseY, float screenWidth, float screenHeight,
             OrbitCameraController camera, float scale) {
         OrbitCameraController.PickRay ray = camera.createRay(mouseX, mouseY, screenWidth, screenHeight);
 
-        float scaleValue = scale;
-
         // Transform ray into scene-local space
-        Vector3f localOrigin = new Vector3f(ray.origin()).div(scaleValue).add(0.5f, 0.5f, 0.5f);
+        Vector3f localOrigin = new Vector3f(ray.origin()).div(scale).add(0.5f, 0.5f, 0.5f);
         Vector3f localDir = new Vector3f(ray.dir()).normalize();
 
         float closestDist = Float.MAX_VALUE;

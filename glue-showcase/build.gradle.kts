@@ -9,6 +9,8 @@ dependencies {
     implementation(project(path = ":glue-lumos", configuration = "namedElements"))
     implementation(project(path = ":glue-lumos-client", configuration = "namedElements"))
     implementation(project(path = ":glue-mcsx", configuration = "namedElements"))
+    implementation(project(path = ":glue-mcsx-dock", configuration = "namedElements"))
+    implementation(project(path = ":glue-gametest", configuration = "namedElements"))
 
     compileOnly(libs.iris)
 
@@ -68,13 +70,13 @@ loom {
             if (providers.gradleProperty("glue.showcase.autotest").orNull == "true") {
                 vmArg("-Dglue.showcase.autotest=true")
             }
-            // -Pglue.showcase.gametest=<name> runs a scripted GameTest (see testmod.gametest) and
-            // closes the game when it finishes; add gametestKeepOpen=true to stay in the session.
-            providers.gradleProperty("glue.showcase.gametest").orNull?.let { test ->
-                vmArg("-Dglue.showcase.gametest=$test")
+            // -Pglue.gametest=<name> runs a scripted client test and closes the game when it
+            // finishes; add -Pglue.gametest.keepOpen=true to stay in the session.
+            providers.gradleProperty("glue.gametest").orNull?.let { test ->
+                vmArg("-Dglue.gametest=$test")
             }
-            if (providers.gradleProperty("glue.showcase.gametestKeepOpen").orNull == "true") {
-                vmArg("-Dglue.showcase.gametest.keepOpen=true")
+            if (providers.gradleProperty("glue.gametest.keepOpen").orNull == "true") {
+                vmArg("-Dglue.gametest.keepOpen=true")
             }
         }
 
@@ -85,8 +87,6 @@ loom {
             runDir("../run-server")
         }
     }
-
-    accessWidenerPath = project.project(":glue-render").file("src/main/resources/glue-render.accesswidener")
 }
 
 tasks.configureEach {

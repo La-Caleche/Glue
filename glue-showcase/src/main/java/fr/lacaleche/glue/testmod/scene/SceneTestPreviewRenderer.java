@@ -13,6 +13,13 @@ import net.minecraft.world.level.block.state.BlockState;
  * Extends {@link BlockSceneRenderer} and overrides {@link #renderBlock} to
  * apply per-block {@link TransformationComponent} from the {@link SceneTestController},
  * so gizmo-dragged blocks appear at their new positions in the preview.
+ * <p>
+ * {@code renderBlock} is a positioning hook, not a draw call: the base
+ * {@code renderScene} pushes the pose stack, calls it, draws the block model and
+ * pops. This override therefore only repositions the pose — with the gizmo
+ * transform (centre-anchored, hence the trailing half-block shift) or, via
+ * {@code super}, the plain grid offset — and every block is drawn exactly once
+ * with no pose leaking between blocks.
  */
 public class SceneTestPreviewRenderer extends BlockSceneRenderer {
 

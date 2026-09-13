@@ -22,8 +22,10 @@ public final class GlueRenderMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        return !mixinClassName.contains(".sodium.")
-                || FabricLoader.getInstance().isModLoaded("sodium");
+        if (mixinClassName.contains(".axiom.")) {
+            return FabricLoader.getInstance().isModLoaded("axiom");
+        }
+        return !mixinClassName.contains(".sodium.") || FabricLoader.getInstance().isModLoaded("sodium");
     }
 
     @Override

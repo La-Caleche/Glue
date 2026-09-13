@@ -1,32 +1,22 @@
-# Glue Wiki
+# Glue Documentation
 
-**Glue** is a Fabric utility library for Minecraft 1.21.8 that simplifies mod development by providing typed registry wrappers, rendering utilities, shader systems, and Iris/Oculus compatibility.
+The Glue documentation is a VitePress project. Published Markdown lives in `src/content/docs/`.
 
-The repository publishes `glue-core`, `glue-render`, `glue-lumos`, `glue-lumos-client`, and
-`glue-mcsx`. Choose the narrowest module that provides the required feature; each module declares
-its own dependencies, including the Glue modules it is built on. `glue-core` and `glue-lumos` load
-on both client and dedicated server; `glue-render`, `glue-lumos-client`, and `glue-mcsx` are
-client-only.
+- `deprecated/` contains the previous documentation for migration reference and is not published.
+- `development/` contains contributor guidance and is not part of the public site.
 
-## Table of Contents
+## Requirements
 
-1. [Getting Started](getting-started.md)
-2. [Registry System](registries.md)
-3. [Blocks & Block Entities](blocks.md)
-4. [Items & Data Components](items.md)
-5. [Keybindings](keybindings.md)
-6. [Core Shaders & Render Pipelines](core-shaders.md)
-7. [Entity Shader Pipelines (GluePipeline)](entity-pipelines.md)
-8. [Post-Processing Shaders](post-shaders.md)
-9. [Dynamic Lights (Deferred)](lights.md)
-10. [Block Outlines](block-outlines.md)
-11. [Transform Stack](transform-stack.md)
-12. [Iris / Oculus Compatibility](iris-compat.md)
-13. [Events](events.md)
-14. [FBO Debug HUD](debug-hud.md)
-15. [3D Scene Viewport](scene-viewport.md)
-16. [Utilities](utilities.md)
-17. [File Dialogs](file-dialogs.md)
-18. [Mod Compatibility (Reflection)](mod-compat.md)
-19. [Sodium Material Adapter](sodium-material-adapter.md)
-20. [MCSX UI Library](mcsx/README.md)
+- Node.js 22.12 or newer.
+- pnpm 11.5.2 or newer.
+
+## Commands
+
+```shell
+pnpm install --frozen-lockfile
+pnpm dev
+pnpm check
+pnpm build
+```
+
+Run these commands from `docs/`. The production site is written to `docs/dist/`.

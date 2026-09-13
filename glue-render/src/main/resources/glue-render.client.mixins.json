@@ -32,6 +32,13 @@
     "PoseStackMixin",
     "material.sodium.SodiumShaderChunkRendererMixin",
     "material.sodium.SodiumShaderLoaderMixin",
-    "shader.pipeline.TextureStateShardAccessor"
+    "shader.pipeline.TextureStateShardAccessor",
+    "viewport.GameRendererScreenViewportMixin",
+    "viewport.GameRendererViewportMixin",
+    "viewport.GuiRendererViewportMixin",
+    "viewport.MinecraftScreenViewportMixin",
+    "viewport.MinecraftViewportMixin",
+    "viewport.MouseHandlerViewportMixin",
+    "viewport.axiom.AxiomContextMenuViewportMixin"
   ]
 }

@@ -13,16 +13,10 @@
 //   location 2 (RGBA8): material id 5 (WATER) in R + this surface's window depth packed into GBA.
 //   location 3 (RGBA8): roughness / metalness / F0. Water is a near-mirror dielectric.
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
 in vec4 vertexColor;
 in vec2 texCoord0;
-in float lightNormDist;
 
 layout(location = 1) out vec4 glue_Material;
 layout(location = 2) out vec4 glue_MaterialId;

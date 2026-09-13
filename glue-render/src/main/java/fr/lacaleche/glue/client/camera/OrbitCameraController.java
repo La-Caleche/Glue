@@ -95,7 +95,7 @@ public class OrbitCameraController extends AbstractCameraController {
             float newRotX = Mth.clamp(getRotationX() + deltaY * ROTATION_SENSITIVITY, -90.0f, 90.0f);
             this.setOrbitRotation(newRotX, newRotY);
         } else if (dragButton == 1) {
-            float scale = (zoom * 1.1547f) / viewportHeight;
+            float scale = (float) (2.0 * zoom * Math.tan(Math.toRadians(fov * 0.5f)) / viewportHeight);
             float panYSign = invertPanY ? 1 : -1;
 
             Vector3f right = new Vector3f(this.getLeftVector()).negate();

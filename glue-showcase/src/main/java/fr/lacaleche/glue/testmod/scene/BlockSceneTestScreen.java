@@ -13,23 +13,25 @@ import org.joml.Vector3f;
  * Renders blocks around the player's position with full rotation/zoom/pan controls.
  * Use +/- keys to adjust the rendered region, R to reset the camera.
  */
-public class BlockSceneTestScreen extends AbstractViewportScreen {
+public class BlockSceneTestScreen extends AbstractViewportScreen<OrbitCameraController> {
 
     private static final float RENDER_SCALE = 1.0f;
 
     private final BlockSceneRenderer renderer;
-    private final OrbitCameraController orbitCamera;
 
     public BlockSceneTestScreen() {
         super(Component.literal("Block Scene Test"),
                 new OrbitCameraController(new Vector3f(0, 0, 0)));
-        this.orbitCamera = (OrbitCameraController) cameraController;
         this.renderer = new BlockSceneRenderer();
+        this.renderer.setCenterPos(SceneTestAnchor.aroundPlayer(Minecraft.getInstance()));
     }
 
     @Override
     protected int renderSceneToTexture(float width, float height, Minecraft client, float tickDelta) {
-        renderer.setViewMatrix(orbitCamera.buildViewMatrix());
+        // The renderer defaults to 60 degrees and the camera to 70: without this the scene is
+        // projected through a different lens than the camera frames and picks with.
+        renderer.setFov(cameraController.getFov());
+        renderer.setViewMatrix(cameraController.buildViewMatrix());
         renderer.setScale(RENDER_SCALE);
         return renderer.renderToTexture((int) width, (int) height, client);
     }
@@ -58,7 +60,7 @@ public class BlockSceneTestScreen extends AbstractViewportScreen {
         }
         // Reset camera
         if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_HOME) {
-            orbitCamera.reset();
+            cameraController.reset();
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
@@ -76,7 +78,7 @@ public class BlockSceneTestScreen extends AbstractViewportScreen {
         int blockCount = dx * dz * dy;
         guiGraphics.drawString(font,
                 String.format("Region: %dx%dx%d  (%d blocks)  Zoom: %.1f",
-                        dx, dy, dz, blockCount, orbitCamera.getZoom()),
+                        dx, dy, dz, blockCount, cameraController.getZoom()),
                 4, 14, 0xFFAAAAAA);
     }
 

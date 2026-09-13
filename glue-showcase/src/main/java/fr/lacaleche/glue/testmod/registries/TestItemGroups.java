@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.testmod.registries;
 
 import fr.lacaleche.glue.registries.ItemGroupsRegistry;
-import fr.lacaleche.glue.testmod.TestmodClient;
+import fr.lacaleche.glue.testmod.Testmod;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -13,7 +13,7 @@ import net.minecraft.world.item.ItemStack;
  */
 public class TestItemGroups {
 
-    public static final ItemGroupsRegistry REGISTRY = new ItemGroupsRegistry(TestmodClient.MOD_ID, TestmodClient::id);
+    public static final ItemGroupsRegistry REGISTRY = new ItemGroupsRegistry(Testmod.MOD_ID, Testmod::id);
 
     public static final CreativeModeTab TEST_GROUP = REGISTRY.register(
             "test_group",
@@ -29,6 +29,6 @@ public class TestItemGroups {
     );
 
     public static void registerItemGroups() {
-        TestmodClient.LOGGER.info("Registering item groups");
+        Testmod.LOGGER.info("Registering item groups");
     }
 }

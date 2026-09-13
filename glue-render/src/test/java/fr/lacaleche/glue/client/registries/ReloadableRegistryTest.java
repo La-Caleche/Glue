@@ -113,6 +113,66 @@ public class ReloadableRegistryTest {
     }
 
     @Test
+    public void getOrRegister_miss_registersFallbackAsPermanentJavaEntry() {
+        ReloadableRegistry<String> reg = new ReloadableRegistry<>("test");
+
+        assertEquals("fallback", reg.getOrRegister(id("a"), () -> "fallback"));
+        assertEquals("fallback", reg.get(id("a")), "The fallback must persist for later lookups");
+    }
+
+    @Test
+    public void getOrRegister_existingEntry_returnsItWithoutInvokingFallback() {
+        ReloadableRegistry<String> reg = new ReloadableRegistry<>("test");
+        reg.register(id("a"), "java-a");
+
+        String result = reg.getOrRegister(id("a"), () -> fail("Fallback must not be invoked on a hit"));
+
+        assertEquals("java-a", result);
+    }
+
+    @Test
+    public void getOrRegister_jsonHit_doesNotRegisterFallback() {
+        ReloadableRegistry<String> reg = new ReloadableRegistry<>("test");
+        reg.reload(json("a", "json-a"));
+
+        assertEquals("json-a", reg.getOrRegister(id("a"), () -> "fallback"));
+
+        reg.reload(json()); // the JSON entry disappears
+        assertNull(reg.get(id("a")), "A JSON hit must not leak the fallback into the Java layer");
+    }
+
+    @Test
+    public void getOrRegister_registeredFallback_yieldsToJsonAndSurvivesItsRemoval() {
+        ReloadableRegistry<String> reg = new ReloadableRegistry<>("test");
+        reg.getOrRegister(id("a"), () -> "fallback");
+
+        reg.reload(json("a", "json-a"));
+        assertEquals("json-a", reg.get(id("a")), "JSON must override the registered fallback");
+
+        reg.reload(json());
+        assertEquals("fallback", reg.get(id("a")), "The fallback is permanent and outlives JSON removal");
+    }
+
+    @Test
+    public void getOrRegister_nullSupplierResult_throwsAndLeavesTheIdUnregistered() {
+        ReloadableRegistry<String> reg = new ReloadableRegistry<>("test");
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> reg.getOrRegister(id("a"), () -> null));
+
+        assertTrue(error.getMessage().contains("glue:a"), "The message must name the id, was: " + error.getMessage());
+        assertFalse(reg.containsKey(id("a")), "A rejected fallback must not leave a null entry behind");
+    }
+
+    @Test
+    public void getOrRegister_nullSupplier_throwsEvenOnAHit() {
+        ReloadableRegistry<String> reg = new ReloadableRegistry<>("test");
+        reg.register(id("a"), "java-a");
+
+        assertThrows(IllegalArgumentException.class, () -> reg.getOrRegister(id("a"), null));
+    }
+
+    @Test
     public void register_duplicateJava_lastWins() {
         ReloadableRegistry<String> reg = new ReloadableRegistry<>("test");
         reg.register(id("a"), "first");

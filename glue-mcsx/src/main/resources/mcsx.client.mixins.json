@@ -1,5 +1,6 @@
 {
   "package": "fr.lacaleche.glue.mcsx.client.mixin",
+  "plugin": "fr.lacaleche.glue.mcsx.client.mixin.McsxMixinPlugin",
   "required": true,
   "compatibilityLevel": "JAVA_21",
   "injectors": {
@@ -11,11 +12,10 @@
   "mixins": [
   ],
   "client": [
-    "GlCommandEncoderAccessor",
-    "MixinGlCommandEncoder",
-    "MixinKeyboardHandlerViewport",
-    "MixinMinecraft",
-    "MixinMouseHandlerViewport",
-    "MixinWindow"
+    "compat.axiom.AxiomEditorUiMixin",
+    "GuiOverlayMixin",
+    "KeyboardHandlerOverlayMixin",
+    "MinecraftOverlayMixin",
+    "MouseHandlerOverlayMixin"
   ]
 }

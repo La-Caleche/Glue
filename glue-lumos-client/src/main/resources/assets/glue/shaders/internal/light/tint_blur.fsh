@@ -31,8 +31,6 @@ void main() {
         sum += texture(Source, texCoord - offset).rgb * WEIGHTS[i];
     }
 
-    // Colour blurs; ALPHA does not. Alpha is the distance to the blocker, and averaging a
-    // distance across a silhouette produces a distance where no blocker exists -- which
-    // would let the glass tint itself again right where its edges are.
+    // Only transmittance colour is blurred; preserve the attachment's alpha channel.
     fragColor = vec4(sum, center.a);
 }

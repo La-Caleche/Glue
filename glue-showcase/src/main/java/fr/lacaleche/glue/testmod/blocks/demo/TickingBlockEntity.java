@@ -9,15 +9,14 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * Minimal shared block entity that does nothing but count client ticks.
  *
- * <p>Several demo blocks (outline, spinning, additive sprite) need only an
- * animation clock for their renderers — no persistent state. Rather than
- * duplicate an identical class per block, they all use this one, each
+ * <p>The outline and spinning demo blocks need only an animation clock for their renderers. Rather
+ * than duplicate an identical class per block, they use this one, each
  * registered under its own {@link BlockEntityType} (see
  * {@link fr.lacaleche.glue.testmod.registries.TestBlockEntities}).</p>
  *
- * <p>Blocks that need real state (e.g. the shader block's cycling index) keep
- * their own dedicated block entity instead — see
- * {@link TestShaderBlockEntity}.</p>
+ * <p>Blocks that need real state extend this class rather than restate the
+ * clock — see {@link TestShaderBlockEntity} (cycling shader index) and
+ * {@link TestAdditiveSpriteBlockEntity} (attached Lumos light).</p>
  */
 public class TickingBlockEntity extends BlockEntity {
 

@@ -145,7 +145,7 @@ public final class Light {
     }
 
     /**
-     * A cone light. {@code innerAngleDeg <= outerAngleDeg} are half-angles in degrees.
+     * A cone light. {@code innerAngleDeg < outerAngleDeg} are half-angles in degrees.
      */
     public static Light spot(double x, double y, double z,
                              float dirX, float dirY, float dirZ,

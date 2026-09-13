@@ -50,7 +50,15 @@ tasks.matching { it.name == "publish" }.configureEach {
 }
 
 // The publishable modules — everything but the showcase demo mod.
-val libraryModules = listOf("glue-core", "glue-render", "glue-lumos", "glue-lumos-client", "glue-mcsx")
+val libraryModules = listOf(
+    "glue-core",
+    "glue-render",
+    "glue-lumos",
+    "glue-lumos-client",
+    "glue-mcsx",
+    "glue-mcsx-dock",
+    "glue-gametest"
+)
 
 tasks.register("libraryJars") {
     group = "build"

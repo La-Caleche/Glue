@@ -221,19 +221,6 @@ public final class ShadowBaker {
         }
     }
 
-    public void clearOwners() {
-        clearOwners(spotSlots);
-        clearOwners(pointSlots);
-        frame.clear();
-    }
-
-    private static void clearOwners(List<Slot> slots) {
-        for (Slot slot : slots) {
-            slot.owner = null;
-            slot.maps = List.of();
-        }
-    }
-
     private static void invalidateIn(List<Slot> slots, BlockPos pos) {
         for (Slot slot : slots) {
             Light light = slot.owner;
@@ -250,10 +237,6 @@ public final class ShadowBaker {
             }
         }
     }
-
-    // ------------------------------------------------------------------
-    // Baking
-    // ------------------------------------------------------------------
 
     private boolean bakeSpot(Minecraft mc, Slot slot, Light light) {
         Vector3f dir = new Vector3f(light.directionX, light.directionY, light.directionZ);
@@ -340,10 +323,6 @@ public final class ShadowBaker {
         Vector3f up = Math.abs(dir.y) > 0.99f ? new Vector3f(0, 0, 1) : new Vector3f(0, 1, 0);
         return new Matrix4f().lookAt(new Vector3f(), new Vector3f(dir), up);
     }
-
-    // ------------------------------------------------------------------
-    // Slots
-    // ------------------------------------------------------------------
 
     private interface SlotBaker {
         boolean bake(Minecraft mc, Slot slot, Light light);

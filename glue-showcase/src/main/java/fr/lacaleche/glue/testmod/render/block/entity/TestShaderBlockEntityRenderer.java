@@ -42,27 +42,25 @@ public class TestShaderBlockEntityRenderer implements BlockEntityRenderer<TestSh
         if (RenderCompat.isRenderingShadowPass()) return;
 
         float time = (entity.getTicks() + partialTick) / 20f;
-        int shaderIndex = entity.getShaderIndex();
-        GluePipeline activePipeline = TestShaderPipelines.get(shaderIndex);
+        GluePipeline activePipeline = TestShaderPipelines.get(entity.getShaderIndex());
+        if (activePipeline == null) return;
 
         poseStack.pushPose();
         poseStack.translate(0.5, 2.1 + Math.sin(time * 2) * 0.15, 0.5);
         poseStack.mulPose(Axis.YP.rotationDegrees(time * 45f));
         poseStack.mulPose(Axis.XP.rotationDegrees(15f));
 
-        ShadedBufferSource shadedSource = activePipeline.wrap();
-
-        itemRenderer.renderStatic(
-                DISPLAY_ITEM,
-                ItemDisplayContext.FIXED,
-                packedLight,
-                packedOverlay,
-                poseStack,
-                shadedSource,
-                entity.getLevel(),
-                0);
-
-        shadedSource.endBatch();
+        try (ShadedBufferSource shadedSource = activePipeline.wrap()) {
+            itemRenderer.renderStatic(
+                    DISPLAY_ITEM,
+                    ItemDisplayContext.FIXED,
+                    packedLight,
+                    packedOverlay,
+                    poseStack,
+                    shadedSource,
+                    entity.getLevel(),
+                    0);
+        }
         poseStack.popPose();
     }
 }

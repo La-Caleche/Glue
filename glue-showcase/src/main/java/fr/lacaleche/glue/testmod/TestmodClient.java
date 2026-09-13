@@ -2,32 +2,35 @@ package fr.lacaleche.glue.testmod;
 
 import fr.lacaleche.glue.client.debug.DebugManager;
 import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
-import fr.lacaleche.glue.client.events.RenderEvents;
-import fr.lacaleche.glue.testmod.gametest.GameTestRunner;
-import fr.lacaleche.glue.testmod.mcsx.McsxDemos;
-import fr.lacaleche.glue.testmod.registries.*;
+import fr.lacaleche.glue.testmod.gametest.ShowcaseGameTests;
+import fr.lacaleche.glue.testmod.gametest.mcsx.McsxLifecycleGameTest;
+import fr.lacaleche.glue.testmod.gametest.mcsx.expedition.ExpeditionGameTest;
+import fr.lacaleche.glue.testmod.gametest.mcsx.playground.ModernUiGameTest;
+import fr.lacaleche.glue.testmod.gametest.mcsx.studio.AxiomCompatGameTest;
+import fr.lacaleche.glue.testmod.gametest.mcsx.studio.GlueStudioGameTest;
+import fr.lacaleche.glue.testmod.mcsx.expedition.ExpeditionDemo;
+import fr.lacaleche.glue.testmod.mcsx.studio.StudioSession;
+import fr.lacaleche.glue.testmod.registries.TestBlocksRenderer;
+import fr.lacaleche.glue.testmod.registries.TestKeybinds;
+import fr.lacaleche.glue.testmod.registries.TestShaders;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
 import fr.lacaleche.glue.testmod.render.AutoScreenshot;
-import fr.lacaleche.glue.testmod.render.GlueDebugDock;
-import fr.lacaleche.glue.testmod.render.LightShapePreviewRenderer;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Client entry point for the Glue test mod.
- *
- * <p>Wires up every demo: registers blocks/items/components/keybinds/shaders and
- * the post-effect debug HUD. This is the top of the dependency graph — start here
- * to trace what each feature demonstrates, or see {@code glue-showcase/README.md}.</p>
+ * Client entry point for the Glue test mod: wires up the client-only demos &mdash; keybinds,
+ * block-entity renderers and render layers, shader/post-effect registrations, the MCSX demos, and
+ * the scripted gametests. The synced-registry content (blocks, items, components, block entities,
+ * creative tab) is registered by {@link Testmod} so it exists on both sides. Start in either entry
+ * point to trace what each feature demonstrates, or see {@code glue-showcase/README.md}.
  */
 public class TestmodClient implements ClientModInitializer {
 
-    public static final String MOD_ID = "glue-test";
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    public static final String MOD_ID = Testmod.MOD_ID;
+    public static final Logger LOGGER = Testmod.LOGGER;
     private static TestmodClient instance;
     private RaycastDebugRenderer raycastDebugRenderer;
 
@@ -36,7 +39,7 @@ public class TestmodClient implements ClientModInitializer {
     }
 
     public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+        return Testmod.id(path);
     }
 
     @Override
@@ -46,30 +49,22 @@ public class TestmodClient implements ClientModInitializer {
         this.raycastDebugRenderer = new RaycastDebugRenderer();
         DebugManager.getInstance().register(this.raycastDebugRenderer);
 
-        TestKeybinds.registerKeybinds();
-
-        TestBlocks.registerBlocks();
-        TestItems.registerItems();
-        TestDataComponents.registerDataComponents();
-
-        TestItemGroups.registerItemGroups();
-
-        TestBlockEntities.registerBlockEntities();
+        TestKeybinds.register();
         TestBlocksRenderer.registerBlocksRenderer();
-
         TestShaders.registerShaders();
-        TestPostShaderHandler.INSTANCE.register();
 
-        // Debug dockspace (F12): MCSX panes fed by a per-tick snapshot pump, plus the
-        // in-world light shape preview the Lights pane drives.
-        DebugManager.getInstance().register(new LightShapePreviewRenderer());
-        ClientTickEvents.END_CLIENT_TICK.register(client -> GlueDebugDock.tick());
+        TestPostShaderHandler.INSTANCE.register();
+        ExpeditionDemo.INSTANCE.init();
+        StudioSession.INSTANCE.init();
 
         AutoScreenshot.init();
-        GameTestRunner.init();
+        ShowcaseGameTests.register();
+        ModernUiGameTest.register();
+        ExpeditionGameTest.register();
+        GlueStudioGameTest.register();
+        AxiomCompatGameTest.register();
+        McsxLifecycleGameTest.register();
         AdditiveSpriteRenderer.init();
-
-        McsxDemos.register();
     }
 
     public void toggleRaycastDebug() {

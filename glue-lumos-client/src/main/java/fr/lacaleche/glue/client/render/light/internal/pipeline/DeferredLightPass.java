@@ -62,13 +62,13 @@ final class DeferredLightPass {
                 // Only lights with no shadow map fall back to capsule blobs; a mapped light casts a
                 // real per-frame entity depth map, so collecting (and uploading) blobs for it is waste.
                 int blobCount = EntityShadowBlobs.collect(minecraft, light, camera, partialTick, blobData);
-                accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
+                accumulate(lightFramebuffer, frame, inverseViewProjection,
                         camera, light, bounds, null,
                         gbufferAlbedo, gbufferId, gbufferProps, blobCount, time);
                 continue;
             }
             for (ShadowParams map : maps) {
-                accumulate(lightFramebuffer, frame, viewProjection, inverseViewProjection,
+                accumulate(lightFramebuffer, frame, inverseViewProjection,
                         camera, light, bounds, map,
                         gbufferAlbedo, gbufferId, gbufferProps, 0, time);
             }
@@ -113,11 +113,11 @@ final class DeferredLightPass {
     }
 
     private void accumulate(int lightFramebuffer, LumosFrame frame,
-                            Matrix4f viewProjection, Matrix4f inverseViewProjection,
+                            Matrix4f inverseViewProjection,
                             Vector3d camera, Light light, int[] bounds, ShadowParams shadow,
                             int gbufferAlbedo, int gbufferId, int gbufferProps, int blobCount, float time) {
         deferred.render(lightFramebuffer, frame.sceneDepthTextureId(),
-                viewProjection, inverseViewProjection, camera, light,
+                inverseViewProjection, camera, light,
                 frame.width(), frame.height(), bounds, shadow,
                 gbufferAlbedo, gbufferId, gbufferProps,
                 blobData, blobCount, time);

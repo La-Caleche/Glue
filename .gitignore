@@ -5,6 +5,12 @@ build/
 out/
 classes/
 
+# documentation
+
+/docs/node_modules/
+/docs/dist/
+/docs/.vitepress/cache/
+
 # eclipse
 
 *.launch
@@ -50,3 +56,6 @@ repomix-output.xml
 *.diff
 logs/
 /reviews/
+
+design-system
+editor-design
