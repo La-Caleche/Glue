@@ -11,6 +11,7 @@ dependencies {
     implementation(project(path = ":glue-mcsx", configuration = "namedElements"))
     implementation(project(path = ":glue-mcsx-dock", configuration = "namedElements"))
     implementation(project(path = ":glue-gametest", configuration = "namedElements"))
+    implementation(project(path = ":jcef-experiment", configuration = "namedElements"))
 
     compileOnly(libs.iris)
 

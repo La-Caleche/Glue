@@ -35,3 +35,4 @@ rootProject.name = "glue"
 val modules = listOf("core", "render", "lumos", "lumos-client", "mcsx", "mcsx-dock", "gametest", "showcase")
 
 modules.forEach { include("glue-$it") }
+include("jcef-experiment")

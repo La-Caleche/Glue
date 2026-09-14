@@ -59,3 +59,6 @@ logs/
 
 design-system
 editor-design
+
+# Generated files left by the parked Obscura branch.
+/obscure-experiment/

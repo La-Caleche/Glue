@@ -16,6 +16,7 @@ import fr.lacaleche.glue.testmod.registries.TestShaders;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
 import fr.lacaleche.glue.testmod.render.AutoScreenshot;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
+import fr.lacaleche.glue.testmod.jcef.JcefDemo;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
@@ -65,6 +66,7 @@ public class TestmodClient implements ClientModInitializer {
         AxiomCompatGameTest.register();
         McsxLifecycleGameTest.register();
         AdditiveSpriteRenderer.init();
+        JcefDemo.init();
     }
 
     public void toggleRaycastDebug() {

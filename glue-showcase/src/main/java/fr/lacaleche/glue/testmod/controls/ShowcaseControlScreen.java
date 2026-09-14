@@ -12,6 +12,7 @@ import fr.lacaleche.glue.testmod.mcsx.ShowcaseUiScreen;
 import fr.lacaleche.glue.testmod.mcsx.expedition.ExpeditionDemo;
 import fr.lacaleche.glue.testmod.mcsx.playground.ModernUiDemo;
 import fr.lacaleche.glue.testmod.mcsx.studio.GlueStudio;
+import fr.lacaleche.glue.testmod.jcef.JcefDemo;
 import fr.lacaleche.glue.testmod.registries.TestKeybinds;
 import fr.lacaleche.glue.testmod.scene.BlockSceneTestScreen;
 import fr.lacaleche.glue.testmod.scene.FpsViewportTestScreen;
@@ -88,6 +89,8 @@ public final class ShowcaseControlScreen extends ShowcaseUiScreen {
                                                 ui.secondaryButton("showcase.controls.studio", this::openStudio),
                                                 ui.secondaryButton("showcase.controls.playground", this::openPlayground),
                                                 ui.secondaryButton("showcase.controls.expedition", this::openExpedition),
+                                                ui.literalButton("JCEF / Chromium experiment", () -> Minecraft.getInstance().schedule(() -> JcefDemo.open(Minecraft.getInstance(), false))),
+                                                ui.literalButton("JCEF browser / La Calèche", () -> Minecraft.getInstance().schedule(() -> JcefDemo.open(Minecraft.getInstance(), true))),
                                                 ui.secondaryButton("showcase.controls.files", this::openFileDialogs)
                                                         .tag(TAG_FILES)
                                         ).classes("control-section", "tools")

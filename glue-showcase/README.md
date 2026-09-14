@@ -17,7 +17,7 @@ cameras, transform gizmo, MCSX playground, expedition planner, native file-dialo
 Studio. The same screen also owns the flashlight, light stress ring, and warm spot-light actions,
 avoiding a separate global binding for every example.
 
-Every showcase UI, HUD, and Studio pane uses the same neutral MCSX default theme. The
+The MCSX showcase UIs, HUDs, and Studio panes use the same neutral MCSX default theme. The
 legacy blue/slate playground and amber Studio palettes are no longer separate theme paths; Studio's
 resource theme only makes the dock background transparent where its live world viewport requires it.
 
@@ -55,6 +55,20 @@ over the full 20-block ray.
 | Cycling all registered pipelines | `render/TestShaderPipelines.java` (used by the shader block) |
 | Post-processing effects (toggle + timed) | `render/TestPostShaderHandler.java` |
 | MCSX screens, playground, expedition HUD, isolated scene previews, and Glue Studio dockspace (all through F6) | `controls/`, `file/`, `scene/`, `mcsx/` (+ `assets/glue-test/mcsx/**`) |
+| Experimental JCEF/Chromium UI and native browser | `jcef/` and [`jcef-experiment`](../jcef-experiment/README.md) |
+
+## JCEF experiment
+
+F6 → **JCEF / Chromium experiment** opens the local React fixture. **JCEF browser / La Calèche**
+opens a real website. Client commands: `/jcef demo`, `/jcef browser`, `/jcef hud`, `/jcef close`.
+
+F3 expands the renderer metrics, F7 compares GPU/CPU channel conversion, F8 issues a pixel-correlated
+round-trip probe, and F9 switches CEF's 60/30 FPS cap. Ctrl+L focuses the address bar; F5 reloads.
+The first launch downloads the pinned native CEF runtime into the run profile.
+
+`glue-test:jcef` exercises local React/native input, popups, rendering, probes and lifecycle.
+`glue-test:jcef-sites` is the opt-in internet/large-surface test; its result distinguishes Google's
+challenge page from successful search results. See the module's [verification and measurements](../jcef-experiment/README.md).
 
 ## Scripted client tests
 
@@ -84,7 +98,7 @@ The available test ids are `glue-test:mcsx-demo`, `glue-test:mcsx-expedition`,
 The Axiom scenario requires Axiom 5.4.x in the run profile. Reports and screenshots are written under
 `run/screenshots/gametest/<namespace>_<path>/`.
 
-Every scenario outside `gametest/mcsx/`, except `glue-test:native-dialogs`, toggles the shaderpack through `glue-gametest`'s
+The JCEF scenarios run with or without Iris. The rendering scenarios in `gametest/ShowcaseGameTests.java`, except `glue-test:native-dialogs`, toggle the shaderpack through `glue-gametest`'s
 built-in `glue-gametest:iris-shaders` tool (it settles the rebuilt pipeline itself, so the
 scripts add no wait after it), which means those runs need Iris: add
 `-Pglue.showcase.iris=true`.

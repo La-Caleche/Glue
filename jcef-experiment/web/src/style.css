@@ -1,0 +1,29 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; font-family: Arial, sans-serif; color: #e8edf8; }
+main { padding: 24px; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+header strong { font-size: 24px; letter-spacing: 2px; } header span { color: #9aaac5; }
+.badge { font-size: 11px; padding: 10px 14px; background: #15382f; color: #8debc4; border-radius: 20px; }
+.card { width: 640px; padding: 24px; border: 1px solid #43506a; border-radius: 18px; background: #111b2de8; backdrop-filter: blur(12px); }
+.eyebrow { color: #a8a0ff; font-size: 11px; letter-spacing: 2px; }
+h1 { font-size: 29px; margin: 14px 0; } h1 span { background: linear-gradient(100deg, #9e8eff, #6fd9d2); background-clip: text; color: transparent; }
+p { font-size: 14px; line-height: 1.6; color: #b8c4d8; }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+.metrics > div { padding: 16px; background: #26334b; border-radius: 10px; }
+small { display: block; font-size: 10px; color: #aab6ce; margin-bottom: 10px; }
+.metrics strong { font-size: 26px; color: #c9c1ff; } em { font-size: 12px; font-style: normal; font-weight: normal; }
+.form-row { display: flex; gap: 16px; align-items: end; } label { font-size: 11px; color: #a8b5d0; flex: 1; }
+input:not([type=range]) { display: block; margin-top: 8px; width: 100%; height: 42px; background: #0e1524; color: #fff; border: 1px solid #536787; border-radius: 8px; padding: 10px; font-size: 16px; }
+button, select { height: 42px; padding: 0 16px; border: 0; border-radius: 8px; color: #fff; background: #7971e9; cursor: pointer; font-size: 14px; }
+button:hover { background: #a193ff; } button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #6ee7ce; }
+.power-label { display: block; margin: 20px 0 14px; } input[type=range] { display: block; width: 100%; margin-top: 10px; accent-color: #6fe0c3; }
+.actions { display: flex; gap: 10px; } .actions button, select { background: #303e58; }
+.track { margin-top: 20px; height: 20px; background: #1e2b41; border-radius: 10px; overflow: hidden; }
+.orb { width: 80px; height: 20px; background: linear-gradient(90deg, #8573f4, #5cd6ba); border-radius: 10px; }
+.animated { animation: slide 1.6s ease-in-out infinite alternate; } @keyframes slide { to { transform: translateX(470px); } }
+footer { font-size: 12px; color: #a2b1c9; margin-top: 18px; }
+aside { position: absolute; top: 90px; right: 24px; width: 280px; padding: 24px; border-radius: 16px; background: #111b2dde; border: 1px solid #43506a; }
+.gradient { height: 100px; border-radius: 16px; background: radial-gradient(ellipse at 30% 40%, #885bff, transparent 70%), radial-gradient(ellipse at 80% 70%, #39b69a, transparent 70%); }
+@media(max-width: 1040px) { aside { display: none; } }
+@media(max-width: 720px) { main { padding: 16px; } .card { width: 100%; padding: 16px; } .badge { display: none; } h1 { font-size: 23px; } }
+@media(max-height: 650px) { main { padding: 16px; } header { margin-bottom: 12px; } .card { padding: 18px; } h1 { font-size: 23px; margin: 10px 0; } .metrics { margin: 12px 0; } .metrics > div { padding: 10px; } .metrics strong { font-size: 21px; } input:not([type=range]), button, select { height: 36px; } .power-label { margin: 12px 0; } .track, footer { margin-top: 12px; } }

@@ -46,6 +46,7 @@ Glue is a library. Public behavior and supported APIs are what `docs/` documents
 | `glue-mcsx-dock` | `glue-mcsx-dock` | client | `glue-mcsx` | Retained dock layouts, tabs, splits, floating windows, persistence, and editor interaction. |
 | `glue-gametest` | `glue-gametest` | client, development | none | Scripted live-client tests, tools, screenshots, and reports. |
 | `glue-showcase` | `glue-showcase` | both, development | all library modules | Sole run configuration, demos, and integration scenarios; not published by release CI. |
+| `jcef-experiment` | `jcef-experiment` | client, experimental | none | Independent JCEF offscreen browser, damage-aware uploads, GPU channel conversion and telemetry. |
 
 Keep environment boundaries explicit. Shared models belong in both-side modules; rendering and UI
 implementations belong in client modules. `glue-core` contains the legacy client-only
