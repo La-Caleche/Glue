@@ -2,7 +2,7 @@
 layout: home
 title: Glue Documentation
 titleTemplate: false
-description: Build focused Fabric features with Glue, from a first registered item to rendering, lighting, UI, and live-client tests.
+description: Build focused Fabric features with Glue, from a first registered item to rendering, lighting, and live-client tests.
 hero:
   name: Glue
   text: Start with one working feature
@@ -24,9 +24,6 @@ features:
   - title: Add colored light
     details: Keep light state on the server or spawn local visual lights, then render them through Lumos on supported clients.
     link: ./lumos/index.md
-  - title: Build native interfaces
-    details: Compose reactive ModernUI screens with MCSX, or add retained dock workspaces for editor-style tools.
-    link: ./mcsx/index.md
   - title: Test in a real client
     details: Script interactions, screenshots, tools, and frame-sensitive checks with the development-only test harness.
     link: ./gametest/index.md
@@ -51,7 +48,7 @@ real item available through `/give`. It uses the sample mod **Light Workshop**, 
 | Finish a small item tutorial | [Build the Lumen Probe](./workshop/probe.md) |
 | Learn the Core path in order | [Core Overview](./core/index.md) |
 | Add an optional pedestal block | [Blocks and Block Entities](./core/blocks.md) |
-| Pick a rendering, lighting, UI, or testing module | [Module Guide](./modules.md) |
+| Pick a rendering, lighting, or testing module | [Module Guide](./modules.md) |
 
 Glue documents supported public behavior. Packages named `internal` are implementation details,
 not extension points. Keep shared content in client-and-server modules; load rendering, UI, and

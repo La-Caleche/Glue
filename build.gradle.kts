@@ -55,8 +55,6 @@ val libraryModules = listOf(
     "glue-render",
     "glue-lumos",
     "glue-lumos-client",
-    "glue-mcsx",
-    "glue-mcsx-dock",
     "glue-gametest"
 )
 

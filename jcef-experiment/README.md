@@ -11,8 +11,8 @@ It is excluded from `libraryJars` and publishing tasks.
 .\gradlew.bat :glue-showcase:runClient
 ```
 
-- F6 → **JCEF / Chromium experiment**: local React UI.
-- F6 → **JCEF browser / La Calèche**: web navigation.
+- F6: local React UI.
+- `/jcef browser`: web navigation, starting at La Calèche.
 - `/jcef demo`, `/jcef browser`, `/jcef hud`, `/jcef close` provide the same entry points.
 - Ctrl+L selects the address; Enter navigates; F5 reloads; Escape closes the screen (or a native
   select popup first).

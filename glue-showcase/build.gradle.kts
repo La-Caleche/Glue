@@ -8,8 +8,6 @@ dependencies {
     implementation(project(path = ":glue-render", configuration = "namedElements"))
     implementation(project(path = ":glue-lumos", configuration = "namedElements"))
     implementation(project(path = ":glue-lumos-client", configuration = "namedElements"))
-    implementation(project(path = ":glue-mcsx", configuration = "namedElements"))
-    implementation(project(path = ":glue-mcsx-dock", configuration = "namedElements"))
     implementation(project(path = ":glue-gametest", configuration = "namedElements"))
     implementation(project(path = ":jcef-experiment", configuration = "namedElements"))
 

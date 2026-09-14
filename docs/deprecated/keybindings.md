@@ -10,11 +10,6 @@ public static final KeybindingsRegistry KEYS = new KeybindingsRegistry("mymod", 
 
 The constructor registers a `ClientTickEvents.END_CLIENT_TICK` listener that checks all registered keybinds each tick.
 
-When an interactive MCSX overlay is ungrabbed, its ModernUI hierarchy receives keyboard events first.
-Keys consumed by a focused control, shortcut or focus navigation stay in the overlay; terminally
-unhandled key streams continue through Minecraft and therefore still reach registered bindings.
-Printable keys do not leak into gameplay while an MCSX text editor has focus.
-
 ## Registering Keybinds
 
 ```java

@@ -61,13 +61,10 @@ client entrypoint. Do not place client imports in `LightWorkshop` or its common 
    [Rendering Events](../rendering/events.md) and [Block Outlines](../rendering/block-outlines.md),
    then combine them in [Add Visual Feedback](./rendering.md).
 5. Add the required Lumos modules and [Light the Probe](./lighting.md).
-6. [Install MCSX and build its first screen](../mcsx/index.md), expand it into the
-   [Probe Inspector](../mcsx/components.md), learn the [Dockspace owner](../dockspace/index.md), then
-   [assemble the interface](./interface.md).
-7. Complete [GameTest Setup](../gametest/setup.md) and [test the workshop](./testing.md) in a live
+6. Complete [GameTest Setup](../gametest/setup.md) and [test the workshop](./testing.md) in a live
    development client.
 
-<DocImage title="Light Workshop milestone map" description="A milestone diagram showing setup and the Lumen Probe leading through Core foundations, rendering feedback, Lumos lighting, the MCSX and Dockspace interface, and a final live-client GameTest." />
+<DocImage title="Light Workshop milestone map" description="A milestone diagram showing setup and the Lumen Probe leading through Core foundations, rendering feedback, Lumos lighting, and a final live-client GameTest." />
 
 ::: details Scope of the first milestone
 The first probe proves dependency resolution, entrypoint initialization, Glue item registration,
@@ -79,7 +76,7 @@ item without changing its registry ID.
 ::: warning Client-only milestones
 The initial Core milestones can load on a client or dedicated server. The combined single-project
 tutorial becomes client-only at the Rendering milestone, when it adds its first hard client-only
-dependency. Keep server support by moving Rendering, the Lumos renderer, MCSX, and Dockspace into a
+dependency. Keep server support by moving Rendering and the Lumos renderer into a
 separate client-only companion mod, as described in each dependency step.
 :::
 

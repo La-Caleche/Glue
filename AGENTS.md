@@ -20,8 +20,8 @@ and do not reproduce them in new APIs.
 ## Project Snapshot
 
 Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
-provides typed registries, rendering and shader infrastructure, Lumos deferred lighting, MCSX UI and
-docking, native dialogs, and a scripted in-game test harness. The build uses Gradle Kotlin DSL,
+provides typed registries, rendering and shader infrastructure, Lumos deferred lighting,
+native dialogs, and a scripted in-game test harness. The build uses Gradle Kotlin DSL,
 Fabric Loom, and the in-house `fr.lacaleche.caldle` plugin.
 
 - Maven group: `fr.lacaleche.glue`
@@ -42,8 +42,6 @@ Glue is a library. Public behavior and supported APIs are what `docs/` documents
 | `glue-render` | `glue-render` | client | `glue-core` | Pipelines, post effects, materials, outlines, scenes, render events, compatibility, and native dialogs. |
 | `glue-lumos` | `glue-lumos` | both | `glue-core` | Shared light model, codecs, synchronization, and persistence. |
 | `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light renderer, material passes, shadows, and GLSL. |
-| `glue-mcsx` | `glue-mcsx` | client | `glue-core` | Java-first ModernUI components, reactive values, Taffy layout, themes, and `.mcss`. |
-| `glue-mcsx-dock` | `glue-mcsx-dock` | client | `glue-mcsx` | Retained dock layouts, tabs, splits, floating windows, persistence, and editor interaction. |
 | `glue-gametest` | `glue-gametest` | client, development | none | Scripted live-client tests, tools, screenshots, and reports. |
 | `glue-showcase` | `glue-showcase` | both, development | all library modules | Sole run configuration, demos, and integration scenarios; not published by release CI. |
 | `jcef-experiment` | `jcef-experiment` | client, experimental | none | Independent JCEF offscreen browser, damage-aware uploads, GPU channel conversion and telemetry. |

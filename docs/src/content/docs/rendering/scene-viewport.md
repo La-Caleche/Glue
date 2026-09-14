@@ -12,9 +12,8 @@ This task produces a full-screen orbit preview centered on the Light Workshop pe
 viewport for model viewers, editor previews, and transform tools that should render client-side
 geometry without moving the real player or changing the world.
 
-`AbstractViewportScreen` is an isolated custom scene. It is not `GameViewport`, which confines the
-live game world, HUD, and open screens to a rectangle; that integration is covered under
-[dockspace interaction](../dockspace/interaction.md#embed-the-game-viewport).
+`AbstractViewportScreen` is an isolated custom scene. `GameViewport` instead confines the live game
+world, HUD, and open screens to a rectangle; see [Constrain the Live Game](#constrain-the-live-game).
 
 ## Build the Orbit Preview
 
@@ -224,6 +223,33 @@ There is no history change callback or cleanup method. The controller or screen 
 after execute, undo, redo, and clear. Keep a history containing client scene commands on the client
 thread.
 :::
+
+## Constrain the Live Game
+
+`GameViewport` renders the real world into an offscreen target, then presents it in the requested
+window rectangle. The HUD and open Minecraft screens use that rectangle too. It uses the real player
+camera rather than an independent `BlockSceneRenderer` camera.
+
+Set positive bounds in physical framebuffer pixels with a top-left origin:
+
+```java
+GameViewport.set(new GameViewport.Bounds(40, 40, 640, 360));
+```
+
+The host owns this process-wide setting. Update it when its destination changes, and release it when
+the host closes:
+
+```java
+GameViewport.clear();
+```
+
+`clear()` is idempotent. `isActive()` reports whether bounds are set and `bounds()` returns those
+bounds, or `null`. Bounds are published atomically and sampled once per rendered frame.
+
+While the world target is active, the window reports its dimensions so camera aspect and downstream
+renderers agree. Derive new bounds from the host's physical destination rather than repeatedly
+shrinking those virtualized window dimensions. Input is mapped into the same destination rectangle;
+the host remains responsible for choosing when gameplay should capture the pointer.
 
 ## Next Steps
 

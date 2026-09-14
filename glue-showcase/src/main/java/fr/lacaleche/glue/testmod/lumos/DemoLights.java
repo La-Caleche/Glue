@@ -17,8 +17,7 @@ import java.util.List;
 /**
  * Owns the showcase's <b>visual</b> demo lights: {@link Lumos#spawn}ed, seen by this client alone,
  * gone with the session. World lights &mdash; {@link Lumos#place}d, saved and synced &mdash; are
- * demonstrated by Glue Studio, which places and edits them through the client request channel
- * {@code Testmod} opens.
+ * available through the client request channel {@code Testmod} opens.
  *
  * <p>It keeps its own list because {@link Lumos#active} reports every light in the world, including
  * the server's, and a demo may only clean up what it spawned. Anything that mutates a demo light goes

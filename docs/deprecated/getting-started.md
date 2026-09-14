@@ -23,8 +23,6 @@ glue/
 ├── glue-render/                          # Pipelines, post effects, scenes, outlines, file dialogs (client)
 ├── glue-lumos/                           # Light model, persistence and sync (both sides)
 ├── glue-lumos-client/                    # Deferred colored-light renderer (client)
-├── glue-mcsx/                            # Java-first ModernUI components and reactive state (client)
-├── glue-mcsx-dock/                       # Optional retained dock workspaces (client)
 ├── glue-gametest/                        # Scripted in-game test harness (client, dev)
 └── glue-showcase/                        # Runnable feature demonstrations
 ```
@@ -56,15 +54,12 @@ dependencies {
     // Add only when the corresponding features are used.
     modImplementation("fr.lacaleche.glue:glue-render:${glueVersion}")
     modImplementation("fr.lacaleche.glue:glue-lumos-client:${glueVersion}")
-    modImplementation("fr.lacaleche.glue:glue-mcsx:${glueVersion}")
-    modImplementation("fr.lacaleche.glue:glue-mcsx-dock:${glueVersion}")
 }
 ```
 
 Each module pulls its own dependencies transitively. Rendering consumers depend on `glue-render`;
 to render dynamic lights depend on `glue-lumos-client` (it pulls `glue-lumos` + `glue-render`).
 Server-side code that only describes lights depends on the model module `glue-lumos` alone.
-Dock workspace consumers depend on `glue-mcsx-dock`, which pulls the base `glue-mcsx` UI module.
 `glue-core` underlies all of them.
 
 `glue-gametest` is published through the same repository but is a development library: it drives a
@@ -74,15 +69,13 @@ setup.
 
 ## Mod Initialization
 
-The modules provide seven entry points, all registered automatically by Fabric — your mod never
+The modules provide five entry points, all registered automatically by Fabric — your mod never
 calls them:
 
 - `Glue` (common) — registers data component types and internal registries
 - `GlueLumos` (common) — registers the light payload types and the server-side persistence
 - `GlueClient` (client) — registers outline renderers, deferred draw queue, FBO debug HUD, block selection events
 - `GlueLumosClient` (client) — registers the deferred-light pass and owns its GL cleanup
-- `Mcsx` (client) — registers MCSX themes, stylesheets and cursor resources
-- `McsxDock` (client) — identifies the optional dock-workspace feature module
 - `GlueGameTest` (client) — arms the scripted test runner when `-Dglue.gametest=<name>` is set, and
   is inert otherwise
 
@@ -93,9 +86,7 @@ Declare the modules used by your mod in `fabric.mod.json`:
     "depends": {
         "glue": "*",
         "glue-render": "*",
-        "glue-lumos-client": "*",
-        "glue-mcsx": "*",
-        "glue-mcsx-dock": "*"
+        "glue-lumos-client": "*"
     }
 }
 ```

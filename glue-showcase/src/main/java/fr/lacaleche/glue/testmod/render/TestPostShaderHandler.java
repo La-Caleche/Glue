@@ -21,7 +21,7 @@ public class TestPostShaderHandler {
 
     // Effects built in Java rather than loaded from JSON. CHROMATIC is the direct-path twin of the
     // registry-driven glue-test:chromatic definition — same chain, duration and reverse envelope —
-    // so the Effects pane triggers one effect through both registration paths; SHATTERED and IMPACT
+    // so the showcase commands trigger one effect through both registration paths; SHATTERED and IMPACT
     // need per-frame uniform writers, which JSON cannot express.
     public static final TimedPostEffect CHROMATIC = TimedPostEffect.builder(TestShaders.CHROMATIC_ABERRATION)
             .ubo("ChromaticConfig", 4)

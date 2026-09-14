@@ -8,18 +8,9 @@ import fr.lacaleche.glue.gametest.GameTests;
 import fr.lacaleche.glue.gametest.IrisShadersTool;
 import fr.lacaleche.glue.gametest.TestContext;
 import fr.lacaleche.glue.lumos.Light;
-import fr.lacaleche.glue.mcsx.client.component.Button;
-import fr.lacaleche.glue.mcsx.client.component.Text;
-import fr.lacaleche.glue.testmod.TestmodClient;
-import fr.lacaleche.glue.testmod.controls.ShowcaseControlScreen;
-import fr.lacaleche.glue.testmod.gametest.mcsx.McsxGameTestSupport;
-import fr.lacaleche.glue.testmod.gametest.mcsx.RealInput;
 import fr.lacaleche.glue.testmod.lumos.DemoLights;
-import fr.lacaleche.glue.testmod.registries.TestKeybinds;
-import fr.lacaleche.glue.testmod.scene.BlockSceneTestScreen;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -30,12 +21,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -63,79 +52,6 @@ public final class ShowcaseGameTests {
         GameTests.register("glue-test:glass-quality", ShowcaseGameTests::glassQuality);
         GameTests.register("glue-test:spot-perf", ShowcaseGameTests::spotPerf);
         GameTests.register("glue-test:viewport-sky", ShowcaseGameTests::viewportSky);
-        GameTests.register("glue-test:showcase-smoke", ShowcaseGameTests::showcaseSmoke);
-    }
-
-    private static GameTest showcaseSmoke() {
-        AtomicReference<ShowcaseControlScreen> controlsUi = new AtomicReference<>();
-        AtomicReference<Screen> controls = new AtomicReference<>();
-        GameTest test = GameTest.create("glue-test:showcase-smoke")
-                .waitForWorld()
-                .run("open the showcase controls", ctx -> {
-                    controlsUi.set(ShowcaseControlScreen.open(ctx.client()));
-                    controls.set(ctx.client().screen);
-                })
-                .waitUntil("the showcase controls open",
-                        ctx -> controls.get() != null && ctx.client().screen == controls.get());
-        McsxGameTestSupport.uiUntil(test, "wait until the showcase controls are laid out", () ->
-                controlsUi.get().requireView().getWidth() > 0);
-        McsxGameTestSupport.ui(test, "assert registered keybind chrome", () -> {
-            Text openKey = McsxGameTestSupport.tagged(
-                    controlsUi.get(), ShowcaseControlScreen.TAG_OPEN_KEY, Text.class
-            );
-            Text raycastKey = McsxGameTestSupport.tagged(
-                    controlsUi.get(), ShowcaseControlScreen.TAG_RAYCAST_KEY, Text.class
-            );
-            McsxGameTestSupport.requireEquals(
-                    TestKeybinds.openShowcaseKey().getString(),
-                    openKey.getText().toString(),
-                    "Open showcase binding"
-            );
-            McsxGameTestSupport.requireEquals(
-                    TestKeybinds.toggleRaycastDebugKey().getString(),
-                    raycastKey.getText().toString(),
-                    "Raycast debug binding"
-            );
-        });
-        test.waitTicks(5).screenshot("controls");
-        McsxGameTestSupport.ui(test, "open the orbit scene from MCSX controls", () ->
-                McsxGameTestSupport.tagged(
-                        controlsUi.get(), ShowcaseControlScreen.TAG_ORBIT, Button.class
-                ).performClick());
-        test.waitUntil("the vanilla orbit scene opens",
-                        ctx -> ctx.client().screen instanceof BlockSceneTestScreen)
-                .waitTicks(40)
-                .screenshot("orbit-scene")
-                .run("close the orbit scene", ctx -> RealInput.tap(ctx.client(), GLFW.GLFW_KEY_ESCAPE))
-                .waitUntil("the orbit scene closes", ctx -> ctx.client().screen == null)
-                .run("reopen the showcase controls", ctx -> {
-                    controlsUi.set(ShowcaseControlScreen.open(ctx.client()));
-                    controls.set(ctx.client().screen);
-                })
-                .waitUntil("the showcase controls reopen",
-                        ctx -> controls.get() != null && ctx.client().screen == controls.get());
-        McsxGameTestSupport.ui(test, "open the file-dialog screen from MCSX controls", () ->
-                McsxGameTestSupport.tagged(
-                        controlsUi.get(), ShowcaseControlScreen.TAG_FILES, Button.class
-                ).performClick());
-        test.waitUntil("the file-dialog screen opens",
-                        ctx -> ctx.client().screen != controls.get())
-                .waitTicks(20)
-                .screenshot("file-dialogs")
-                .run("return from the file-dialog screen", ctx ->
-                        RealInput.tap(ctx.client(), GLFW.GLFW_KEY_ESCAPE))
-                .waitUntil("the file-dialog screen returns to controls",
-                        ctx -> ctx.client().screen == controls.get());
-        McsxGameTestSupport.ui(test, "close the showcase controls", () ->
-                McsxGameTestSupport.tagged(
-                        controlsUi.get(), ShowcaseControlScreen.TAG_CLOSE, Button.class
-                ).performClick());
-        test.waitUntil("the showcase controls close", ctx -> ctx.client().screen == null)
-                .run("enable raycast debug", ctx -> TestmodClient.getInstance().toggleRaycastDebug())
-                .waitTicks(5)
-                .screenshot("raycast-debug")
-                .run("disable raycast debug", ctx -> TestmodClient.getInstance().toggleRaycastDebug());
-        return test;
     }
 
     /**

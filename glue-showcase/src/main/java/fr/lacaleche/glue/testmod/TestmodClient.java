@@ -3,13 +3,6 @@ package fr.lacaleche.glue.testmod;
 import fr.lacaleche.glue.client.debug.DebugManager;
 import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
 import fr.lacaleche.glue.testmod.gametest.ShowcaseGameTests;
-import fr.lacaleche.glue.testmod.gametest.mcsx.McsxLifecycleGameTest;
-import fr.lacaleche.glue.testmod.gametest.mcsx.expedition.ExpeditionGameTest;
-import fr.lacaleche.glue.testmod.gametest.mcsx.playground.ModernUiGameTest;
-import fr.lacaleche.glue.testmod.gametest.mcsx.studio.AxiomCompatGameTest;
-import fr.lacaleche.glue.testmod.gametest.mcsx.studio.GlueStudioGameTest;
-import fr.lacaleche.glue.testmod.mcsx.expedition.ExpeditionDemo;
-import fr.lacaleche.glue.testmod.mcsx.studio.StudioSession;
 import fr.lacaleche.glue.testmod.registries.TestBlocksRenderer;
 import fr.lacaleche.glue.testmod.registries.TestKeybinds;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
@@ -23,7 +16,7 @@ import org.slf4j.Logger;
 
 /**
  * Client entry point for the Glue test mod: wires up the client-only demos &mdash; keybinds,
- * block-entity renderers and render layers, shader/post-effect registrations, the MCSX demos, and
+ * block-entity renderers and render layers, shader/post-effect registrations, the JCEF experiment, and
  * the scripted gametests. The synced-registry content (blocks, items, components, block entities,
  * creative tab) is registered by {@link Testmod} so it exists on both sides. Start in either entry
  * point to trace what each feature demonstrates, or see {@code glue-showcase/README.md}.
@@ -55,16 +48,10 @@ public class TestmodClient implements ClientModInitializer {
         TestShaders.registerShaders();
 
         TestPostShaderHandler.INSTANCE.register();
-        ExpeditionDemo.INSTANCE.init();
-        StudioSession.INSTANCE.init();
+        ShowcaseCommands.register();
 
         AutoScreenshot.init();
         ShowcaseGameTests.register();
-        ModernUiGameTest.register();
-        ExpeditionGameTest.register();
-        GlueStudioGameTest.register();
-        AxiomCompatGameTest.register();
-        McsxLifecycleGameTest.register();
         AdditiveSpriteRenderer.init();
         JcefDemo.init();
     }

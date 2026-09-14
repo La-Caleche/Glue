@@ -73,13 +73,6 @@ private void chooseTexture() {
 Disable the button while `dialogOpen` is true. Do not use `thenAccept` for cleanup: it is skipped on
 exceptional completion.
 
-For an MCSX `UiScreen`, the same completion must cross to ModernUI's UI thread instead of mutating a
-bound `Signal` from the dialog worker. `Signal.postSet(...)` is sufficient for a value already built
-by the completion; use `Core.postOnUiThread(...)` when one completion updates several signals or
-resolves translated display text as one UI operation. Continue to use `Minecraft.execute(...)` for
-world, renderer, or other client-thread state. The showcase's native-dialog screen demonstrates the
-MCSX form with disabled buttons and a reactive result label.
-
 ## Choose the Dialog Type
 
 ::: details Open, save, and folder methods

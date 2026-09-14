@@ -48,26 +48,24 @@ class ShowcaseContentResourcesTest {
     }
 
     @Test
-    void controlAndComponentTranslationsArePackaged() throws IOException {
-        JsonObject translations = resourceJson("assets/glue-test/lang/en_us.json");
-
-        assertTrue(translations.has("key.glue-test.open_showcase"));
-        assertTrue(translations.has("key.glue-test.toggle_raycast_debug"));
-        assertTrue(translations.has("showcase.controls.title"));
-        assertTrue(translations.has("showcase.controls.studio"));
-        assertTrue(translations.has("showcase.files.title"));
-        assertTrue(translations.has("item.glue-test.test_component.tooltip.use"));
-        for (int preset = 0; preset < 5; preset++) {
-            assertTrue(translations.has("item.glue-test.test_component.preset." + preset));
+    void keybindingAndComponentTranslationsArePackaged() throws IOException {
+        for (String locale : List.of("en_us", "fr_fr")) {
+            JsonObject translations = resourceJson("assets/glue-test/lang/" + locale + ".json");
+            assertTrue(translations.has("key.glue-test.open_showcase"));
+            assertTrue(translations.has("key.glue-test.toggle_raycast_debug"));
+            assertTrue(translations.has("item.glue-test.test_component.tooltip.use"));
+            for (int preset = 0; preset < 5; preset++) {
+                assertTrue(translations.has("item.glue-test.test_component.preset." + preset));
+            }
         }
     }
 
     @Test
-    void descriptorRequiresEveryDirectGlueModule() throws IOException {
+    void descriptorRequiresEveryDirectModule() throws IOException {
         JsonObject dependencies = resourceJson("fabric.mod.json").getAsJsonObject("depends");
 
         for (String mod : List.of("glue", "glue-render", "glue-lumos", "glue-lumos-client",
-                "glue-mcsx", "glue-mcsx-dock", "glue-gametest")) {
+                "glue-gametest", "jcef-experiment")) {
             assertTrue(dependencies.has(mod), "Missing required dependency " + mod);
         }
     }

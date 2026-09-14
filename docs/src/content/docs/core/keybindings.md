@@ -89,4 +89,4 @@ The translation key is always `key.<modId>.<name>`. The category string is used 
 
 - [Store the probe's active state on an item stack](./items.md#add-one-immutable-setting).
 - [Use undo history for editor-like actions](./utilities.md#make-an-action-undoable).
-- [Build a native client screen](../mcsx/index.md).
+- [Render a custom scene](../rendering/scene-viewport.md).

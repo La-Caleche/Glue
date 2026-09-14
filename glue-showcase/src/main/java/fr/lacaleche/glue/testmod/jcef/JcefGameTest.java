@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import fr.lacaleche.glue.gametest.GameTest;
 import fr.lacaleche.glue.gametest.GameTests;
 import fr.lacaleche.glue.gametest.TestContext;
-import fr.lacaleche.glue.testmod.gametest.mcsx.RealInput;
+import fr.lacaleche.glue.testmod.gametest.RealInput;
 import fr.lacaleche.jcef.CefScreen;
 import fr.lacaleche.jcef.CefSurface;
 import net.minecraft.client.Minecraft;
@@ -35,12 +35,16 @@ final class JcefGameTest {
 
     private GameTest build() {
         GameTest test = GameTest.create("glue-test:jcef").waitForWorld()
-                .run("open the native Chromium React demo", ctx -> {
+                .run("open the native Chromium React demo through F6", ctx -> {
                     ctx.client().setScreen(null);
                     this.commands = JcefDemo.receivedCommands();
-                    this.screen = JcefDemo.open(ctx.client(), false);
+                    RealInput.tap(ctx.client(), GLFW.GLFW_KEY_F6);
                 })
-                .waitUntil("CEF produces the local page", ctx -> this.ready(), GameTest.LONG_TIMEOUT * 5)
+                .waitUntil("CEF produces the local page", ctx -> {
+                    if (!(ctx.client().screen instanceof CefScreen browser)) return false;
+                    this.screen = browser;
+                    return this.ready();
+                }, GameTest.LONG_TIMEOUT * 5)
                 .waitTicks(20).screenshot("chromium-react");
         this.inspect(test, "hover a Chromium button through the host mouse handler", rect("increment"), box -> this.movePointer(box));
         test.waitUntil("Chromium hand cursor reaches GLFW", ctx ->

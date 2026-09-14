@@ -15,8 +15,8 @@ import org.slf4j.LoggerFactory;
  * The showcase's both-sides initializer. Registers everything that lives in synced registries
  * (blocks, items, data components, block entities, creative tab) so the demo content exists on
  * dedicated servers too, and opens the Lumos client request channel &mdash; closed by default
- * &mdash; to operators at permission level 4: that is what lets Glue Studio, opened through the F6
- * showcase controls, place, edit, and remove world lights. Every request is still validated server-side
+ * &mdash; to operators at permission level 4 for placing, editing, and removing world lights.
+ * Every request is still validated server-side
  * (well-formed, near the player, dimension cap).
  */
 public class Testmod implements ModInitializer {

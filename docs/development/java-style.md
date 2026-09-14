@@ -135,8 +135,8 @@ Do not reorder an existing type solely to enforce this list.
   resources.
 - Do not start unmanaged threads or asynchronous work without a concrete need and cancellation path.
 - Prefer thread confinement and immutable snapshots over broad locking.
-- Marshal work onto Minecraft's client thread, ModernUI's UI thread, or the render thread before
-  touching APIs confined to that domain.
+- Marshal work onto Minecraft's client thread or the render thread before touching APIs confined
+  to that domain. Native integrations must respect their own callback-thread contracts.
 - Use atomic and concurrent types only for demonstrated cross-thread state.
 
 ## Comments and API Documentation

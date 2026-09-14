@@ -1,31 +1,25 @@
 # Glue Showcase
 
-A runnable module (`glue-showcase`) that exercises every public Glue feature in-game. Its content
+A runnable module (`glue-showcase`) with content, rendering and lighting examples. Its content
 continues to use the `glue-test` resource namespace to avoid an unrelated asset migration.
 Each demo is intentionally small and maps to one library feature so it can be
 read as living documentation. Entry points: **`Testmod`** (both sides) registers the
 synced content — blocks, items, data components, block entities, creative tab — and
-opens the Lumos client request channel to operators, which is what lets Glue Studio
-edit world lights; **`TestmodClient`** registers every client-only demo in
+opens the Lumos client request channel to operators; **`TestmodClient`** registers every client-only demo in
 `onInitializeClient()`. The module runs on both sides: `:glue-showcase:runClient` and
 `:glue-showcase:runServer`.
 
 ## Controls
 
-Press **F6** by default to open the MCSX-based Glue Showcase control center. It launches the FPS and orbit
-cameras, transform gizmo, MCSX playground, expedition planner, native file-dialog example, and Glue
-Studio. The same screen also owns the flashlight, light stress ring, and warm spot-light actions,
-avoiding a separate global binding for every example.
+Press **F6** by default to open the JCEF React experiment directly.
 
-The MCSX showcase UIs, HUDs, and Studio panes use the same neutral MCSX default theme. The
-legacy blue/slate playground and amber Studio palettes are no longer separate theme paths; Studio's
-resource theme only makes the dock background transparent where its live world viewport requires it.
+Lighting and post-effect examples use client commands:
 
-Showcase-owned menus use `UiScreen`; Back actions restore the previous hosted screen, while
-transitions that intentionally resume gameplay dismiss the screen stack. The FPS, orbit, and gizmo
-previews remain ordinary `AbstractViewportScreen` implementations and close back to gameplay. This
-is separate from Studio's `GameViewport`: Studio confines the live world to a dock pane, whereas the
-scene previews render their own isolated camera and texture.
+- `/showcase lights flashlight`, `ring`, `spot`, or `clear`.
+- `/showcase effects blur` or `grayscale` toggles a steady post effect.
+- `/showcase effects chromatic`, `shattered`, or `impact` triggers a Java-built timed effect.
+- `/showcase effects chromatic-registry`, `vortex`, or `pulse` exercises registry-driven effects.
+- `/showcase raycast` toggles raycast debugging.
 
 Press **R** by default to toggle the raycast debug HUD independently. It compares vanilla, oversized-outline,
 and final block hits, labels every candidate shape in the world, and reports linear hit distances
@@ -54,13 +48,12 @@ over the full 20-block ray.
 | Data-driven `GluePipeline` loading | `AdditiveSpriteRenderer.java` (+ `glue/pipelines/*.json`) |
 | Cycling all registered pipelines | `render/TestShaderPipelines.java` (used by the shader block) |
 | Post-processing effects (toggle + timed) | `render/TestPostShaderHandler.java` |
-| MCSX screens, playground, expedition HUD, isolated scene previews, and Glue Studio dockspace (all through F6) | `controls/`, `file/`, `scene/`, `mcsx/` (+ `assets/glue-test/mcsx/**`) |
 | Experimental JCEF/Chromium UI and native browser | `jcef/` and [`jcef-experiment`](../jcef-experiment/README.md) |
 
 ## JCEF experiment
 
-F6 → **JCEF / Chromium experiment** opens the local React fixture. **JCEF browser / La Calèche**
-opens a real website. Client commands: `/jcef demo`, `/jcef browser`, `/jcef hud`, `/jcef close`.
+**F6** or `/jcef demo` opens the local React fixture; `/jcef browser` opens La Calèche.
+`/jcef hud` opens the read-only web HUD and `/jcef close` closes that HUD.
 
 F3 expands the renderer metrics, F7 compares GPU/CPU channel conversion, F8 issues a pixel-correlated
 round-trip probe, and F9 switches CEF's 60/30 FPS cap. Ctrl+L focuses the address bar; F5 reloads.
@@ -72,30 +65,28 @@ challenge page from successful search results. See the module's [verification an
 
 ## Scripted client tests
 
-The showcase registers all scripted scenarios with the shared `glue-gametest` runner. MCSX drivers
-live under `gametest/mcsx/`; the other scenarios live in `gametest/ShowcaseGameTests.java`.
+The showcase registers its rendering scenarios from `gametest/ShowcaseGameTests.java` and its browser
+scenarios from `jcef/JcefGameTest.java` with the shared `glue-gametest` runner.
 
 Run one against an existing singleplayer world:
 
 ```shell
-./gradlew :glue-showcase:runClient -Pglue.gametest=glue-test:mcsx-demo '-Pglue.showcase.quickplay=New World'
+./gradlew :glue-showcase:runClient -Pglue.gametest=glue-test:jcef '-Pglue.showcase.quickplay=New World'
 ```
 
 <details>
 <summary>PowerShell</summary>
 
 ```powershell
-.\gradlew.bat :glue-showcase:runClient '-Pglue.gametest=glue-test:mcsx-demo' '-Pglue.showcase.quickplay=New World'
+.\gradlew.bat :glue-showcase:runClient '-Pglue.gametest=glue-test:jcef' '-Pglue.showcase.quickplay=New World'
 ```
 
 </details>
 
-The available test ids are `glue-test:mcsx-demo`, `glue-test:mcsx-expedition`,
-`glue-test:mcsx-studio`, `glue-test:mcsx-axiom`, `glue-test:mcsx-lifecycle`,
-`glue-test:native-dialogs`, `glue-test:iris-hud`, `glue-test:lumos-smoke`, `glue-test:albedo-issue`,
-`glue-test:glass-quality`, `glue-test:spot-perf`, `glue-test:viewport-sky` and
-`glue-test:showcase-smoke`.
-The Axiom scenario requires Axiom 5.4.x in the run profile. Reports and screenshots are written under
+The available test ids are `glue-test:jcef`, `glue-test:jcef-sites`, `glue-test:native-dialogs`,
+`glue-test:iris-hud`, `glue-test:lumos-smoke`, `glue-test:albedo-issue`, `glue-test:glass-quality`,
+`glue-test:spot-perf`, and `glue-test:viewport-sky`.
+Reports and screenshots are written under
 `run/screenshots/gametest/<namespace>_<path>/`.
 
 The JCEF scenarios run with or without Iris. The rendering scenarios in `gametest/ShowcaseGameTests.java`, except `glue-test:native-dialogs`, toggle the shaderpack through `glue-gametest`'s
@@ -146,7 +137,7 @@ shaders/post/<name>.fsh          GLSL fragment shader
 
 A post chain can also be registered **in Java** with `POST.register("name")`
 instead of a `glue/post_chains/*.json` file — both produce a `PostShaderHandle`
-in the same registry. Glue Studio's **Effects** pane shows one of each path:
+in the same registry. The `/showcase effects` commands expose each path:
 
 - **Departure Vortex** — JSON timed effect → JSON post chain (full data-driven path).
 - **Denial Pulse** — JSON timed effect → Java-registered chain (`end_locked_pulse`).
@@ -162,7 +153,7 @@ The registered handles and timed definitions are exercised directly by
 
 ## Deferred lights (`glue-lumos`)
 
-Use the **F6** control center to spawn the demo scene: three **static** shadowed point lights
+Use `/showcase lights ring` to spawn the demo scene: three **static** shadowed point lights
 plus a 24-light unshadowed stress ring, or a warm **spot** along your view. The flashlight action
 controls a spot attached to the player's eyes via `Lumos.attach`, re-sampled every rendered frame; pressing again
 restyles it in place through `LightHandle.light()`, cycling colors before
@@ -192,35 +183,6 @@ Light is tinted by the surface it lands on through the shared material G-buffer,
 linear albedo, normals, material id, ownership depth and material properties in the geometry pass.
 It is then exponentially rolled off in linear space so overlapping lights saturate in colour rather
 than blowing out.
-
-The **Glue Studio** action in the F6 control center opens (`mcsx/studio/`), the `glue-mcsx-dock` demo: editor chrome pinned around a
-live game **Viewport**. The game genuinely renders inside that pane — `GameViewport` confines the
-world pass to the pane's rectangle at its own resolution and aspect, and maps the HUD into it too, so
-the hotbar and crosshair sit with the world they belong to while the dock keeps the rest of the frame
-at full resolution. Every light you add and every post effect you fire is visible immediately, in
-place. Move or resize the pane and the game follows it.
-
-Its eight panes drive the showcase itself rather than a mock document: the **Viewport**, a **Lights**
-list, an **Inspector** that restyles the selected light and re-bakes its shadow map, a **Create** pane
-covering both light kinds, an **Effects** pane wired to every post-effect registration path, a
-**Blocks** palette, a **Radar** plotting every emitter with its real colour and range, and a
-**Console**. World lights remain server-owned, saved with the dimension and synced to every player;
-`Testmod` opts the showcase server into the validated Lumos request channel.
-
-Clicking the viewport (or **Fly**) hands the player back to you while the workspace stays open, and
-Escape releases. Ungrabbed, ModernUI receives keys first and only the keys it consumes stay in the
-workspace; unhandled bindings continue through Minecraft, so movement and ordinary mod keybinds work
-without grabbing the cursor. Idle Escape opens the pause screen and never closes Studio; F6 closes
-the showcase-owned Studio and returns to the control center. Handing focus over is not emulated: `ViewportController` only decides who owns the
-input, through `GameFocus`; vanilla then reads its own bindings, runs `handleKeybinds` and turns the
-player from the grabbed cursor, so every binding — rebound ones included — behaves as it does outside
-the workspace. Screens opened while flying — chat, the inventory — lay out inside the viewport pane
-and the workspace around them stays fully interactive; closing them returns to mouselook.
-
-`StudioSession` owns the whole model: it mirrors the demo lights, synced world lights, post-effect
-state and player pose into reactive values on the client tick, and marshals every edit back onto the
-client thread. The radar is a plain ModernUI `View` that reads the workspace's own `Value<Theme>`, so
-a resource reload restyles it with the rest of the dock instead of repainting hardcoded colours.
 
 Entities participate in shadow-map rendering, and nearby block changes invalidate affected light maps.
 An active Iris shaderpack uses Lumos's reduced compatibility path; full parity with the vanilla render

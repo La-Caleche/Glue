@@ -3,10 +3,10 @@
 **Glue** is a Fabric utility library for Minecraft 1.21.8 that simplifies mod development by providing typed registry wrappers, rendering utilities, shader systems, and Iris/Oculus compatibility.
 
 The repository publishes `glue-core`, `glue-render`, `glue-lumos`, `glue-lumos-client`,
-`glue-mcsx`, `glue-mcsx-dock`, and `glue-gametest`. Choose the narrowest module that provides the
+and `glue-gametest`. Choose the narrowest module that provides the
 required feature; each module declares its own dependencies, including the Glue modules it is built
 on. `glue-core` and `glue-lumos` load on both client and dedicated server; `glue-render`,
-`glue-lumos-client`, `glue-mcsx`, `glue-mcsx-dock`, and `glue-gametest` are client-only.
+`glue-lumos-client` and `glue-gametest` are client-only.
 `glue-gametest` is a development library: depend on it from a testmod or development source set, not
 from the code you release.
 
@@ -31,5 +31,4 @@ from the code you release.
 17. [File Dialogs](file-dialogs.md)
 18. [Mod Compatibility (Reflection)](mod-compat.md)
 19. [Sodium Material Adapter](sodium-material-adapter.md)
-20. [MCSX v2 Java UI Library](mcsx/README.md)
-21. [Scripted In-Game Tests](gametest.md)
+20. [Scripted In-Game Tests](gametest.md)

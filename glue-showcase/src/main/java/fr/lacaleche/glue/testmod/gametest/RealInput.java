@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.testmod.gametest.mcsx;
+package fr.lacaleche.glue.testmod.gametest;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
@@ -9,10 +9,7 @@ import java.lang.reflect.Method;
 
 /**
  * Drives the same {@code MouseHandler} and {@code KeyboardHandler} entry points GLFW calls, so a test
- * exercises the whole real input pipeline — mixin arbitration, overlay event synthesis, coordinate
- * mapping and view-root dispatch — rather than injecting into the view tree directly. That
- * distinction is what a dispatch-level test cannot see: a workspace whose views work perfectly can
- * still be unreachable from the mouse.
+ * exercises coordinate mapping and screen dispatch rather than calling a widget directly.
  *
  * <p>The two {@code MouseHandler} entry points are private, so they are reached reflectively by
  * their Mojang-mapped names. That holds in the development environment this module is the only

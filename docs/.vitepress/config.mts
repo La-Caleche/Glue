@@ -121,7 +121,6 @@ ${rendered}</figure>`;
       { text: 'Modules', link: '/modules' },
       { text: 'Rendering', link: '/rendering/' },
       { text: 'Lumos', link: '/lumos/' },
-      { text: 'MCSX', link: '/mcsx/' },
     ],
     sidebar: [
       {
@@ -141,7 +140,6 @@ ${rendered}</figure>`;
           { text: 'Build the Lumen Probe', link: '/workshop/probe' },
           { text: 'Add Visual Feedback', link: '/workshop/rendering' },
           { text: 'Light the Probe', link: '/workshop/lighting' },
-          { text: 'Build the Interface', link: '/workshop/interface' },
           { text: 'Test the Workshop', link: '/workshop/testing' },
         ],
       },
@@ -180,27 +178,6 @@ ${rendered}</figure>`;
           { text: 'Overview', link: '/lumos/' },
           { text: 'Lights and Persistence', link: '/lumos/lights' },
           { text: 'Materials and Compatibility', link: '/lumos/materials-and-compatibility' },
-        ],
-      },
-      {
-        text: 'MCSX',
-        collapsed: true,
-        items: [
-          { text: 'Overview', link: '/mcsx/' },
-          { text: 'Components', link: '/mcsx/components' },
-          { text: 'Reactivity', link: '/mcsx/reactivity' },
-          { text: 'Themes and Styles', link: '/mcsx/themes-and-styles' },
-          { text: 'Overlays and HUDs', link: '/mcsx/overlays' },
-        ],
-      },
-      {
-        text: 'Dockspace',
-        collapsed: true,
-        items: [
-          { text: 'Overview', link: '/dockspace/' },
-          { text: 'Layout and Panes', link: '/dockspace/layout-and-panes' },
-          { text: 'Persistence', link: '/dockspace/persistence' },
-          { text: 'Interaction', link: '/dockspace/interaction' },
         ],
       },
       {

@@ -2,7 +2,7 @@
 
 Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
 provides typed registries, rendering pipelines and post effects, Lumos deferred colored lighting,
-MCSX UI and docking, native dialogs, and scripted live-client tests.
+native dialogs, and scripted live-client tests.
 
 - [Documentation](docs/README.md)
 - [Getting started](docs/src/content/docs/getting-started.md)
@@ -19,12 +19,10 @@ separate Fabric mod.
 | `glue-render` | `glue-render` | client | `glue-core` | Pipelines, post effects, materials, outlines, scenes, compatibility, and native dialogs. |
 | `glue-lumos` | `glue-lumos` | both | `glue-core` | Light model, synchronization, and persistence. |
 | `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light rendering and shadows. |
-| `glue-mcsx` | `glue-mcsx` | client | `glue-core` | ModernUI components, reactive values, Taffy layout, themes, and stylesheets. |
-| `glue-mcsx-dock` | `glue-mcsx-dock` | client | `glue-mcsx` | Retained dock workspaces and persistence. |
 | `glue-gametest` | `glue-gametest` | client, development | - | Scripted client tests, tools, screenshots, and reports. |
 | `glue-showcase` | `glue-showcase` | both, development | all modules | Runnable demos and integration scenarios. |
 
-The seven library artifacts are published. `glue-showcase` is built as a development artifact but is
+The five library artifacts are published. `glue-showcase` is built as a development artifact but is
 not published by release CI. Fabric API is required; Iris and Sodium integrations are optional and
 runtime-guarded. Packages named `internal` are not supported API.
 
@@ -56,8 +54,6 @@ dependencies {
     modImplementation("fr.lacaleche.glue:glue-render:<version>")
     modImplementation("fr.lacaleche.glue:glue-lumos:<version>")
     modImplementation("fr.lacaleche.glue:glue-lumos-client:<version>")
-    modImplementation("fr.lacaleche.glue:glue-mcsx:<version>")
-    modImplementation("fr.lacaleche.glue:glue-mcsx-dock:<version>")
 }
 ```
 
@@ -91,7 +87,7 @@ from `REPOSILITE_TOKEN_NAME` / `REPOSILITE_TOKEN_SECRET`, or from
 
 </details>
 
-- `libraryJars` writes the seven remapped library jars to `build/libs/`.
+- `libraryJars` writes the five remapped library jars to `build/libs/`.
 - `remapJar` also builds the showcase jar.
 - `build` and `check` are currently blocked by a PMD snapshot in the Caldle plugin; CI uses `test`
   plus remapped jars as the verification gate.
@@ -122,6 +118,6 @@ integrations in the development profile.
 ## Release
 
 `app.version` in `gradle.properties` is the release version. A pushed tag triggers CI publication of
-the seven library modules and stores the remapped showcase jar as an artifact. Before tagging, verify
+the five library modules and stores the remapped showcase jar as an artifact. Before tagging, verify
 that the tag name exactly matches `app.version`; use an annotated, unprefixed tag to match existing
 releases.

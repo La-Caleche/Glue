@@ -21,8 +21,6 @@
         "glue-lumos": "${version}",
         "glue-render": "${version}",
         "glue-lumos-client": "${version}",
-        "glue-mcsx": "${version}",
-        "glue-mcsx-dock": "${version}",
         "glue-gametest": "${version}",
         "jcef-experiment": "${version}"
     }
