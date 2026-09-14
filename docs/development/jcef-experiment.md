@@ -12,3 +12,8 @@ unperformed.
 Standard Chromium cursor requests now reach GLFW through a screen-owned cache, with restoration and
 cleanup on exit. The local client scenario covers cursor changes and reopening. The module README
 also records the maintainer's subsequent manual validation of smooth 1080p YouTube playback.
+
+After the legacy UI removal, F6 opens Chromium directly. Surface lifecycle/rendering and telemetry
+aggregation are separated; closing before native acquisition cancels that surface without cancelling
+shared CEF startup. Closed surfaces reject new diagnostics and stop dispatching queued messages.
+The local scenario now covers early closure and native reopening in 71 steps.

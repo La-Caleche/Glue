@@ -9,6 +9,7 @@ import fr.lacaleche.glue.testmod.gametest.RealInput;
 import fr.lacaleche.jcef.CefScreen;
 import fr.lacaleche.jcef.CefSurface;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import org.lwjgl.glfw.GLFW;
 
 import javax.imageio.ImageIO;
@@ -35,6 +36,24 @@ final class JcefGameTest {
 
     private GameTest build() {
         GameTest test = GameTest.create("glue-test:jcef").waitForWorld()
+                .waitUntil("the test player is alive and out of free fall", ctx -> {
+                    LocalPlayer player = ctx.player();
+                    if (player.isDeadOrDying()) {
+                        player.respawn();
+                        return false;
+                    }
+                    return player.onGround() || player.isInWater() || player.isSpectator()
+                            || player.getAbilities().flying;
+                })
+                .run("close a surface while CEF acquisition is pending", ctx -> {
+                    this.closing = new CefSurface("about:blank", false, 32, 32, null);
+                    this.closing.close();
+                })
+                .waitUntil("early close completes normally", ctx -> {
+                    if (!this.closing.stopped().isDone()) return false;
+                    this.closing.stopped().join();
+                    return true;
+                })
                 .run("open the native Chromium React demo through F6", ctx -> {
                     ctx.client().setScreen(null);
                     this.commands = JcefDemo.receivedCommands();

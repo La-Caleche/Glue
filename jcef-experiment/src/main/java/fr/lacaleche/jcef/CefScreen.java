@@ -1,7 +1,7 @@
 package fr.lacaleche.jcef;
 
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -50,13 +50,17 @@ public final class CefScreen extends Screen {
     protected void init() {
         if (this.cursor == null) this.cursor = new CefCursor(this.minecraft.getWindow().getWindow());
         this.cursor.reset();
-        if (this.surface == null) this.surface = new CefSurface(this.initialUrl, true, this.webWidth(), this.webHeight(), this.messageOrigin);
-        else this.surface.resize(this.webWidth(), this.webHeight());
+        if (this.surface == null) {
+            this.surface = new CefSurface(this.initialUrl, true, this.webWidth(), this.webHeight(), this.messageOrigin);
+        } else {
+            this.surface.resize(this.webWidth(), this.webHeight());
+        }
         String text = this.address == null ? this.initialUrl : this.address.getValue();
         this.back = this.addRenderableWidget(Button.builder(Component.literal("<"), button -> this.surface.back()).bounds(4, 4, 20, 20).build());
         this.forward = this.addRenderableWidget(Button.builder(Component.literal(">"), button -> this.surface.forward()).bounds(26, 4, 20, 20).build());
         this.reload = this.addRenderableWidget(Button.builder(Component.literal("Reload"), button -> {
-            if (this.surface.isLoading()) this.surface.stopLoading(); else this.surface.reload();
+            if (this.surface.isLoading()) this.surface.stopLoading();
+            else this.surface.reload();
         }).bounds(48, 4, 42, 20).build());
         this.addRenderableWidget(Button.builder(Component.literal("Demo"), button -> this.navigate(this.demoUrl)).bounds(92, 4, 36, 20).build());
         this.addRenderableWidget(Button.builder(Component.literal("Google"), button -> this.navigate("https://www.google.com/")).bounds(130, 4, 44, 20).build());
@@ -89,9 +93,8 @@ public final class CefScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.surface.draw(graphics, 0, this.viewY(), this.width, this.viewHeight());
         graphics.fill(0, 0, this.width, this.viewY(), 0xFF131C2A);
-        String status = !this.addressError.isEmpty() ? this.addressError : !this.surface.error().isEmpty() ? this.surface.error()
-                : !this.surface.isReady() ? CefRuntime.status() : this.surface.isLoading() ? "Loading…" : this.surface.title();
-        graphics.drawString(this.font, this.font.plainSubstrByWidth(status, this.width - 8), 4, 28, 0xFFCFDCEC, false);
+        graphics.drawString(this.font, this.font.plainSubstrByWidth(this.statusText(), this.width - 8),
+                4, 28, 0xFFCFDCEC, false);
         drawMetrics(graphics, this.surface, this.height - this.debugHeight(), this.width, this.detailed);
         super.render(graphics, mouseX, mouseY, partialTick);
         this.updateCursor(mouseX, mouseY);
@@ -110,7 +113,10 @@ public final class CefScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double x, double y, int button) {
-        if (!this.inside(x, y)) { this.surface.focus(false); return super.mouseClicked(x, y, button); }
+        if (!this.inside(x, y)) {
+            this.surface.focus(false);
+            return super.mouseClicked(x, y, button);
+        }
         this.setFocused(null);
         this.surface.focus(true);
         long now = System.nanoTime();
@@ -166,9 +172,18 @@ public final class CefScreen extends Screen {
                     ? CefSurface.UploadMode.CPU_RGBA : CefSurface.UploadMode.GPU_BGRA);
             return true;
         }
-        if (key == GLFW.GLFW_KEY_F8) { this.surface.probe(); return true; }
-        if (key == GLFW.GLFW_KEY_F9) { this.surface.setFpsLimit(this.surface.fpsLimit() == 60 ? 30 : 60); return true; }
-        if (key == GLFW.GLFW_KEY_F5) { this.surface.reload(); return true; }
+        if (key == GLFW.GLFW_KEY_F8) {
+            this.surface.probe();
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_F9) {
+            this.surface.setFpsLimit(this.surface.fpsLimit() == 60 ? 30 : 60);
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_F5) {
+            this.surface.reload();
+            return true;
+        }
         if (key == GLFW.GLFW_KEY_L && (modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
             this.surface.focus(false);
             this.setFocused(this.address);
@@ -177,7 +192,10 @@ public final class CefScreen extends Screen {
             this.address.setHighlightPos(0);
             return true;
         }
-        if (this.address.isFocused() && key == GLFW.GLFW_KEY_ENTER) { this.navigate(this.address.getValue()); return true; }
+        if (this.address.isFocused() && key == GLFW.GLFW_KEY_ENTER) {
+            this.navigate(this.address.getValue());
+            return true;
+        }
         if (this.getFocused() != null) return super.keyPressed(key, scanCode, modifiers);
         this.surface.key(key, scanCode, modifiers, false);
         return true;
@@ -198,10 +216,14 @@ public final class CefScreen extends Screen {
     }
 
     @Override
-    public boolean isPauseScreen() { return false; }
+    public boolean isPauseScreen() {
+        return false;
+    }
 
     @Override
-    public void onClose() { this.minecraft.setScreen(this.previous); }
+    public void onClose() {
+        this.minecraft.setScreen(this.previous);
+    }
 
     @Override
     public void removed() {
@@ -210,8 +232,14 @@ public final class CefScreen extends Screen {
 
     /** Client-thread teardown, also used before GLFW terminates during client shutdown. */
     public void closeSurface() {
-        if (this.cursor != null) { this.cursor.close(); this.cursor = null; }
-        if (this.surface != null) { this.surface.close(); this.surface = null; }
+        if (this.cursor != null) {
+            this.cursor.close();
+            this.cursor = null;
+        }
+        if (this.surface != null) {
+            this.surface.close();
+            this.surface = null;
+        }
     }
 
     public CefSurface surface() { return this.surface; }
@@ -230,17 +258,23 @@ public final class CefScreen extends Screen {
             this.addressError = "";
             this.surface.navigate(target);
             this.surface.focus(true);
-        } catch (IllegalArgumentException exception) { this.addressError = exception.getMessage(); }
+        } catch (IllegalArgumentException exception) {
+            this.addressError = exception.getMessage();
+        }
     }
 
     public static void drawMetrics(GuiGraphics graphics, CefSurface surface, int y, int width, boolean detailed) {
-        CefSurface.Metrics m = surface.metrics();
+        CefSurface.Metrics metrics = surface.metrics();
         Minecraft client = Minecraft.getInstance();
         String[] lines = {
-                String.format(Locale.ROOT, "Game %d | CEF %.1f FPS | Upload %.1f | %s", client.getFps(), m.paintFps(), m.uploadFps(), surface.uploadMode()),
-                String.format(Locale.ROOT, "Capture %.2f | Stage %.2f | Convert %.2f | Upload %.2f ms", m.captureMs(), m.stagingMs(), m.conversionMs(), m.uploadMs()),
-                String.format(Locale.ROOT, "Dirty %.1f%% | Coalesced %d | Age %.0f ms", m.dirtyPercent(), m.coalesced(), surface.frameAgeMs()),
-                String.format(Locale.ROOT, "Probe: JS ack %.1f | Paint %.1f | Upload %.1f ms", m.probeAckMs(), m.probePaintMs(), m.probeUploadMs()),
+                String.format(Locale.ROOT, "Game %d | CEF %.1f FPS | Upload %.1f | %s",
+                        client.getFps(), metrics.paintFps(), metrics.uploadFps(), surface.uploadMode()),
+                String.format(Locale.ROOT, "Capture %.2f | Stage %.2f | Convert %.2f | Upload %.2f ms",
+                        metrics.captureMs(), metrics.stagingMs(), metrics.conversionMs(), metrics.uploadMs()),
+                String.format(Locale.ROOT, "Dirty %.1f%% | Coalesced %d | Age %.0f ms",
+                        metrics.dirtyPercent(), metrics.coalesced(), surface.frameAgeMs()),
+                String.format(Locale.ROOT, "Probe: JS ack %.1f | Paint %.1f | Upload %.1f ms",
+                        metrics.probeAckMs(), metrics.probePaintMs(), metrics.probeUploadMs()),
                 "F3 details | F7 swizzle | F8 probe | F9 cap " + surface.fpsLimit()
         };
         graphics.fill(0, y, width, y + (detailed ? 54 : 14), 0xE00D1420);
@@ -248,6 +282,13 @@ public final class CefScreen extends Screen {
             graphics.drawString(client.font, client.font.plainSubstrByWidth(lines[i], width - 8),
                     4, y + 3 + i * 10, 0xFFE7EDF8, false);
         }
+    }
+
+    private String statusText() {
+        if (!this.addressError.isEmpty()) return this.addressError;
+        if (!this.surface.error().isEmpty()) return this.surface.error();
+        if (!this.surface.isReady()) return CefRuntime.status();
+        return this.surface.isLoading() ? "Loading…" : this.surface.title();
     }
 
     private int debugHeight() { return this.detailed ? 54 : 14; }

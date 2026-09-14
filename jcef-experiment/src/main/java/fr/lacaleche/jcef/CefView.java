@@ -14,9 +14,9 @@ import org.cef.handler.CefScreenInfo;
 
 import java.awt.Component;
 import java.awt.Cursor;
+import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -83,7 +83,9 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler {
     }
 
     @Override
-    public Component getUIComponent() { return this.component; }
+    public Component getUIComponent() {
+        return this.component;
+    }
 
     @Override
     public void setFocus(boolean focused) {
@@ -93,7 +95,9 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler {
     }
 
     @Override
-    public CefRenderHandler getRenderHandler() { return this; }
+    public CefRenderHandler getRenderHandler() {
+        return this;
+    }
 
     @Override
     public CompletableFuture<BufferedImage> createScreenshot(boolean nativeResolution) {
@@ -101,8 +105,11 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler {
             BufferedImage image = this.main.screenshot();
             if (this.popupVisible && this.popup.capturedFrames() > 0) {
                 Graphics2D graphics = image.createGraphics();
-                try { graphics.drawImage(this.popup.screenshot(), this.popupBounds.x, this.popupBounds.y, null); }
-                finally { graphics.dispose(); }
+                try {
+                    graphics.drawImage(this.popup.screenshot(), this.popupBounds.x, this.popupBounds.y, null);
+                } finally {
+                    graphics.dispose();
+                }
             }
             return CompletableFuture.completedFuture(image);
         } catch (RuntimeException exception) {
@@ -111,10 +118,14 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler {
     }
 
     @Override
-    public Rectangle getViewRect(CefBrowser browser) { return new Rectangle(this.viewport); }
+    public Rectangle getViewRect(CefBrowser browser) {
+        return new Rectangle(this.viewport);
+    }
 
     @Override
-    public Point getScreenPoint(CefBrowser browser, Point viewPoint) { return new Point(viewPoint); }
+    public Point getScreenPoint(CefBrowser browser, Point viewPoint) {
+        return new Point(viewPoint);
+    }
 
     @Override
     public boolean getScreenInfo(CefBrowser browser, CefScreenInfo info) {
@@ -123,10 +134,14 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler {
     }
 
     @Override
-    public void onPopupShow(CefBrowser browser, boolean show) { this.popupVisible = show; }
+    public void onPopupShow(CefBrowser browser, boolean show) {
+        this.popupVisible = show;
+    }
 
     @Override
-    public void onPopupSize(CefBrowser browser, Rectangle size) { this.popupBounds = new Rectangle(size); }
+    public void onPopupSize(CefBrowser browser, Rectangle size) {
+        this.popupBounds = new Rectangle(size);
+    }
 
     @Override
     public void onPaint(CefBrowser browser, boolean isPopup, Rectangle[] rectangles, ByteBuffer buffer, int width, int height) {
@@ -153,10 +168,14 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler {
     }
 
     @Override
-    public void setOnPaintListener(Consumer<CefPaintEvent> listener) { this.addOnPaintListener(listener); }
+    public void setOnPaintListener(Consumer<CefPaintEvent> listener) {
+        this.addOnPaintListener(listener);
+    }
 
     @Override
-    public void removeOnPaintListener(Consumer<CefPaintEvent> listener) { this.addOnPaintListener(listener); }
+    public void removeOnPaintListener(Consumer<CefPaintEvent> listener) {
+        this.addOnPaintListener(listener);
+    }
 
     @Override
     public boolean onCursorChange(CefBrowser browser, int cursorType) {
@@ -180,6 +199,9 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler {
         super.onBeforeClose();
         this.main.close();
         this.popup.close();
+        this.messages.clear();
+        this.pendingProbe.set(null);
+        this.probePaint = null;
         this.disposed.complete(null);
     }
 

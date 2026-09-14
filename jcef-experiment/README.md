@@ -49,6 +49,16 @@ holds the mailbox monitor during GPU submission. CPU buffers are reused; close r
 references, while direct-buffer reclamation remains JVM-managed. GPU textures have explicit close.
 CEF popup surfaces are captured and composited separately.
 
+`CefSurface` owns acquisition and rendering; its client-thread `SurfaceMetrics` companion aggregates
+delivery/probe measurements. `CefSurface.registerPipelines()` explicitly registers both pipelines at
+client initialization, before the shader resource reload. Popup clipping is restored even if GUI
+submission fails.
+
+Closing before native browser acquisition cancels only that surface's pending creation, leaving the
+process-wide runtime available for the next surface. Once a browser exists, closure requests native
+disposal asynchronously; `stopped()` signals completion. Closed surfaces stop dispatching queued messages
+and reject new diagnostic evaluations/screenshots. Native disposal clears message and probe state.
+
 **GPU_BGRA** uploads the original BGRA bytes and swizzles channels in GLSL. **CPU_RGBA** performs an
 integer-wise CPU swizzle before upload. Both use the same capture/damage path and correct
 premultiplied-alpha blending. F7 compares the conversion location, **not the complete Graphene stack**.
@@ -106,11 +116,14 @@ Minecraft with a successful Gradle status.
 Verified on Windows 11 / i9-10900K / RTX 4080 SUPER:
 
 - Mailbox unit tests cover copied ownership, skipped-frame damage, packed rows, resize and late callbacks.
-- **68-step local client scenario passed**: React state, Unicode editing, native range control,
+- **71-step local client scenario passed**: early close during startup, F6 launch, React state, Unicode editing, native range control,
   native select popup, animation, both swizzle modes, pixel probes, resize, HUD ownership and reopening.
   Cursor coverage verifies Chromium hand/text/crosshair requests, GLFW application, dynamic CSS
   cursor changes without mouse movement, toolbar restoration and close/reopen with an active cursor.
-- **40-step real-site scenario passed** with Iris/Sodium loaded, no active shaderpack: La Calèche,
+  The local fixture waits for a living player out of free fall, requesting respawn if necessary before
+  opening the browser, so a previous camera scenario cannot replace it with a death screen mid-test.
+- Before the internal cleanup, the **40-step real-site scenario passed** with Iris/Sodium loaded,
+  no active shaderpack: La Calèche,
   large-surface rendering, native capture, Google input/submission and YouTube initial UI.
 - CEF reached `TERMINATED` on shutdown. An initial native focus re-entry loop was corrected by
   deduplicating `setFocus` echoes from `CefClient.onGotFocus`.

@@ -21,15 +21,16 @@ import java.nio.IntBuffer;
 /** Uses only Blaze3D state-managed APIs. BGRA and premultiplied alpha stay intact until sampling. */
 final class SurfaceRenderer implements AutoCloseable {
 
-    private static final RenderPipeline BGRA = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
+    private static final RenderPipeline BGRA = RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
             .withLocation(ResourceLocation.fromNamespaceAndPath("jcef-experiment", "pipeline/bgra"))
             .withFragmentShader(ResourceLocation.fromNamespaceAndPath("jcef-experiment", "core/web"))
             .withShaderDefine("SOURCE_BGRA")
-            .withBlend(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA).build());
-    private static final RenderPipeline RGBA = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
+            .withBlend(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA).build();
+    private static final RenderPipeline RGBA = RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
             .withLocation(ResourceLocation.fromNamespaceAndPath("jcef-experiment", "pipeline/rgba"))
             .withFragmentShader(ResourceLocation.fromNamespaceAndPath("jcef-experiment", "core/web"))
-            .withBlend(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA).build());
+            .withBlend(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA).build();
+    private static boolean registered;
 
     private GpuTexture texture;
     private GpuTextureView view;
@@ -38,7 +39,10 @@ final class SurfaceRenderer implements AutoCloseable {
     private int height;
 
     static void registerPipelines() {
-        // Initializes the two static pipelines before Minecraft's shader resource reload.
+        if (registered) return;
+        RenderPipelines.register(BGRA);
+        RenderPipelines.register(RGBA);
+        registered = true;
     }
 
     Upload upload(FrameMailbox.Transfer frame, CefSurface.UploadMode mode) {

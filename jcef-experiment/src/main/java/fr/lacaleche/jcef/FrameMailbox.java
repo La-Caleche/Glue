@@ -21,7 +21,6 @@ final class FrameMailbox implements AutoCloseable {
     private long sequence;
     private long capturedAt;
     private long captureNanos;
-    private long copiedBytes;
     private boolean closed;
 
     synchronized void capture(Rectangle[] rectangles, ByteBuffer source, int width, int height) {
@@ -48,7 +47,6 @@ final class FrameMailbox implements AutoCloseable {
         this.sequence++;
         this.capturedAt = System.nanoTime();
         this.captureNanos = this.capturedAt - started;
-        this.copiedBytes += changed.bytes();
     }
 
     synchronized Transfer take() {
@@ -74,8 +72,6 @@ final class FrameMailbox implements AutoCloseable {
     }
 
     synchronized long capturedFrames() { return this.sequence; }
-
-    synchronized long copiedBytes() { return this.copiedBytes; }
 
     synchronized BufferedImage screenshot() {
         if (this.image == null) throw new IllegalStateException("No CEF paint received");
