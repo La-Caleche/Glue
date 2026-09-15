@@ -11,7 +11,9 @@ opens the Lumos client request channel to operators; **`TestmodClient`** registe
 
 ## Controls
 
-Press **F6** by default to open the JCEF React experiment directly.
+Press **F6** by default to open the existing browser demo through Glue Web. Build its optional
+React fixture manually first; see [`web-demo/`](../web-demo/README.md). It is served from disk by
+the showcase, not packaged or compiled by a library.
 
 Lighting and post-effect examples use client commands:
 
@@ -48,20 +50,21 @@ over the full 20-block ray.
 | Data-driven `GluePipeline` loading | `AdditiveSpriteRenderer.java` (+ `glue/pipelines/*.json`) |
 | Cycling all registered pipelines | `render/TestShaderPipelines.java` (used by the shader block) |
 | Post-processing effects (toggle + timed) | `render/TestPostShaderHandler.java` |
-| Experimental JCEF/Chromium UI and native browser | `jcef/` and [`jcef-experiment`](../jcef-experiment/README.md) |
+| Chromium surfaces and native browser | `jcef/` and [`glue-web`](../glue-web/README.md) |
 
-## JCEF experiment
+## Browser demo
 
 **F6** or `/jcef demo` opens the local React fixture; `/jcef browser` opens La Calèche.
 `/jcef hud` opens the read-only web HUD and `/jcef close` closes that HUD.
 
-F3 expands the renderer metrics, F7 compares GPU/CPU channel conversion, F8 issues a pixel-correlated
-round-trip probe, and F9 switches CEF's 60/30 FPS cap. Ctrl+L focuses the address bar; F5 reloads.
-The first launch downloads the pinned native CEF runtime into the run profile.
+F3 expands delivery metrics and F9 switches the 60/30 FPS cap. Ctrl+L focuses the address bar; F5
+reloads. Mod startup preloads the native runtime in the background into `run/glue-web/`, with a small
+global progress indicator. The experimental
+F7/F8 comparison/probe controls are retired; their measurements remain in `web-demo/PERFORMANCE.md`.
 
-`glue-test:jcef` exercises local React/native input, popups, rendering, probes and lifecycle.
+`glue-test:jcef` exercises the existing local page, native input, messages, popups, rendering and lifecycle.
 `glue-test:jcef-sites` is the opt-in internet/large-surface test; its result distinguishes Google's
-challenge page from successful search results. See the module's [verification and measurements](../jcef-experiment/README.md).
+challenge page from successful search results. See the [library guide](../glue-web/README.md).
 
 ## Scripted client tests
 
@@ -83,7 +86,7 @@ Run one against an existing singleplayer world:
 
 </details>
 
-The available test ids are `glue-test:jcef`, `glue-test:jcef-sites`, `glue-test:native-dialogs`,
+The available test ids are `glue-test:web-startup`, `glue-test:jcef`, `glue-test:jcef-sites`, `glue-test:native-dialogs`,
 `glue-test:iris-hud`, `glue-test:lumos-smoke`, `glue-test:albedo-issue`, `glue-test:glass-quality`,
 `glue-test:spot-perf`, and `glue-test:viewport-sky`.
 Reports and screenshots are written under

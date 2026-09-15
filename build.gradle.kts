@@ -55,6 +55,7 @@ val libraryModules = listOf(
     "glue-render",
     "glue-lumos",
     "glue-lumos-client",
+    "glue-web",
     "glue-gametest"
 )
 

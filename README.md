@@ -2,7 +2,7 @@
 
 Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
 provides typed registries, rendering pipelines and post effects, Lumos deferred colored lighting,
-native dialogs, and scripted live-client tests.
+native dialogs, Chromium web surfaces, and scripted live-client tests.
 
 - [Documentation](docs/README.md)
 - [Getting started](docs/src/content/docs/getting-started.md)
@@ -19,10 +19,11 @@ separate Fabric mod.
 | `glue-render` | `glue-render` | client | `glue-core` | Pipelines, post effects, materials, outlines, scenes, compatibility, and native dialogs. |
 | `glue-lumos` | `glue-lumos` | both | `glue-core` | Light model, synchronization, and persistence. |
 | `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light rendering and shadows. |
+| `glue-web` | `glue-web` | client | - | Offscreen Chromium surfaces, input, cursors and web messaging. |
 | `glue-gametest` | `glue-gametest` | client, development | - | Scripted client tests, tools, screenshots, and reports. |
 | `glue-showcase` | `glue-showcase` | both, development | all modules | Runnable demos and integration scenarios. |
 
-The five library artifacts are published. `glue-showcase` is built as a development artifact but is
+The six library artifacts are published. `glue-showcase` is built as a development artifact but is
 not published by release CI. Fabric API is required; Iris and Sodium integrations are optional and
 runtime-guarded. Packages named `internal` are not supported API.
 
@@ -54,6 +55,7 @@ dependencies {
     modImplementation("fr.lacaleche.glue:glue-render:<version>")
     modImplementation("fr.lacaleche.glue:glue-lumos:<version>")
     modImplementation("fr.lacaleche.glue:glue-lumos-client:<version>")
+    modImplementation("fr.lacaleche.glue:glue-web:<version>")
 }
 ```
 
@@ -87,7 +89,7 @@ from `REPOSILITE_TOKEN_NAME` / `REPOSILITE_TOKEN_SECRET`, or from
 
 </details>
 
-- `libraryJars` writes the five remapped library jars to `build/libs/`.
+- `libraryJars` writes the six remapped library jars to `build/libs/`.
 - `remapJar` also builds the showcase jar.
 - `build` and `check` are currently blocked by a PMD snapshot in the Caldle plugin; CI uses `test`
   plus remapped jars as the verification gate.
@@ -115,9 +117,13 @@ stops for the Minecraft EULA; set `eula=true` in `run-server/eula.txt` before re
 `glue.showcase.iris` and `glue.showcase.sodium` in `gradle.properties` control the optional rendering
 integrations in the development profile.
 
+The existing browser demo uses the optional root-level [web fixture](web-demo/README.md). Its Node
+build is manual; Gradle compiles and packages all libraries without Node or pnpm. The published
+[Glue Web API](docs/src/content/docs/web/index.md) contains no application pages or HTTP demo server.
+
 ## Release
 
 `app.version` in `gradle.properties` is the release version. A pushed tag triggers CI publication of
-the five library modules and stores the remapped showcase jar as an artifact. Before tagging, verify
+the six library modules and stores the remapped showcase jar as an artifact. Before tagging, verify
 that the tag name exactly matches `app.version`; use an annotated, unprefixed tag to match existing
 releases.

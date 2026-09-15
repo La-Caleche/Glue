@@ -22,6 +22,6 @@
         "glue-render": "${version}",
         "glue-lumos-client": "${version}",
         "glue-gametest": "${version}",
-        "jcef-experiment": "${version}"
+        "glue-web": "${version}"
     }
 }

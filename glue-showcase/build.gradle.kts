@@ -9,7 +9,7 @@ dependencies {
     implementation(project(path = ":glue-lumos", configuration = "namedElements"))
     implementation(project(path = ":glue-lumos-client", configuration = "namedElements"))
     implementation(project(path = ":glue-gametest", configuration = "namedElements"))
-    implementation(project(path = ":jcef-experiment", configuration = "namedElements"))
+    implementation(project(path = ":glue-web", configuration = "namedElements"))
 
     compileOnly(libs.iris)
 

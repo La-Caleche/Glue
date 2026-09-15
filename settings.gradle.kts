@@ -32,7 +32,6 @@ plugins {
 
 rootProject.name = "glue"
 
-val modules = listOf("core", "render", "lumos", "lumos-client", "gametest", "showcase")
+val modules = listOf("core", "render", "lumos", "lumos-client", "web", "gametest", "showcase")
 
 modules.forEach { include("glue-$it") }
-include("jcef-experiment")

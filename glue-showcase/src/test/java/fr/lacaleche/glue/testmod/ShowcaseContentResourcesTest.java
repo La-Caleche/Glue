@@ -65,7 +65,7 @@ class ShowcaseContentResourcesTest {
         JsonObject dependencies = resourceJson("fabric.mod.json").getAsJsonObject("depends");
 
         for (String mod : List.of("glue", "glue-render", "glue-lumos", "glue-lumos-client",
-                "glue-gametest", "jcef-experiment")) {
+                "glue-gametest", "glue-web")) {
             assertTrue(dependencies.has(mod), "Missing required dependency " + mod);
         }
     }

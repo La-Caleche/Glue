@@ -2,18 +2,19 @@ package fr.lacaleche.glue.testmod.jcef;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import fr.lacaleche.glue.gametest.GameTest;
 import fr.lacaleche.glue.gametest.GameTests;
 import fr.lacaleche.glue.gametest.TestContext;
+import fr.lacaleche.glue.testmod.Testmod;
 import fr.lacaleche.glue.testmod.gametest.RealInput;
-import fr.lacaleche.jcef.CefScreen;
-import fr.lacaleche.jcef.CefSurface;
+import fr.lacaleche.glue.web.WebCursor;
+import fr.lacaleche.glue.web.WebSurface;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import org.lwjgl.glfw.GLFW;
 
 import javax.imageio.ImageIO;
-import java.awt.Cursor;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
@@ -24,18 +25,21 @@ import java.util.function.Consumer;
 final class JcefGameTest {
 
     private CefScreen screen;
-    private CefSurface closing;
+    private WebSurface closing;
+    private WebSurface shutdownSurface;
     private int commands;
-    private int probe;
     private long frames;
 
     static void register() {
+        RuntimeStartupGameTest.register();
         GameTests.register("glue-test:jcef", () -> new JcefGameTest().build());
         GameTests.register("glue-test:jcef-sites", () -> new JcefGameTest().sites());
     }
 
     private GameTest build() {
         GameTest test = GameTest.create("glue-test:jcef").waitForWorld()
+                .waitUntil("Chromium preloaded without opening a surface",
+                        ctx -> WebSurface.runtimeStatus().startsWith("Chromium "), GameTest.LONG_TIMEOUT * 5)
                 .waitUntil("the test player is alive and out of free fall", ctx -> {
                     LocalPlayer player = ctx.player();
                     if (player.isDeadOrDying()) {
@@ -46,7 +50,7 @@ final class JcefGameTest {
                             || player.getAbilities().flying;
                 })
                 .run("close a surface while CEF acquisition is pending", ctx -> {
-                    this.closing = new CefSurface("about:blank", false, 32, 32, null);
+                    this.closing = WebSurface.builder(URI.create("about:blank")).size(32, 32).transparent(false).open();
                     this.closing.close();
                 })
                 .waitUntil("early close completes normally", ctx -> {
@@ -67,19 +71,21 @@ final class JcefGameTest {
                 .waitTicks(20).screenshot("chromium-react");
         this.inspect(test, "hover a Chromium button through the host mouse handler", rect("increment"), box -> this.movePointer(box));
         test.waitUntil("Chromium hand cursor reaches GLFW", ctx ->
-                        this.screen.surface().cursorType() == Cursor.HAND_CURSOR
-                                && this.screen.appliedCursorShape() == GLFW.GLFW_POINTING_HAND_CURSOR)
+                        this.screen.surface().cursor() == WebCursor.HAND
+                                && this.screen.appliedCursor() == WebCursor.HAND)
                 .run("move from web content into the native toolbar", ctx -> RealInput.moveToFramebuffer(ctx.client(), 4, 4))
-                .waitUntil("native toolbar restores the default cursor", ctx -> this.screen.appliedCursorShape() == GLFW.GLFW_ARROW_CURSOR);
+                .waitUntil("native toolbar restores the default cursor", ctx -> this.screen.appliedCursor() == WebCursor.ARROW);
         this.inspect(test, "hover the web text editor", rect("callsign"), box -> this.movePointer(box));
         test.waitUntil("Chromium text cursor reaches GLFW", ctx ->
-                this.screen.surface().cursorType() == Cursor.TEXT_CURSOR
-                        && this.screen.appliedCursorShape() == GLFW.GLFW_IBEAM_CURSOR);
+                this.screen.surface().cursor() == WebCursor.TEXT
+                        && this.screen.appliedCursor() == WebCursor.TEXT);
         this.inspect(test, "change the CSS cursor without moving the pointer",
                 "(()=>{document.getElementById('callsign').style.cursor='crosshair';return {};})()", ignored -> {});
-        test.waitUntil("asynchronous cursor updates reach the host", ctx -> this.screen.appliedCursorShape() == GLFW.GLFW_CROSSHAIR_CURSOR);
+        test.waitUntil("asynchronous cursor updates reach the host", ctx -> this.screen.appliedCursor() == WebCursor.CROSSHAIR);
         this.inspect(test, "restore the editor cursor", "(()=>{document.getElementById('callsign').style.removeProperty('cursor');return {};})()", ignored -> {});
-        test.waitUntil("the cached text cursor is reusable", ctx -> this.screen.appliedCursorShape() == GLFW.GLFW_IBEAM_CURSOR);
+        test.waitUntil("the cached text cursor is reusable", ctx -> this.screen.appliedCursor() == WebCursor.TEXT);
+        this.inspect(test, "host messages reach the page event listener", "demoSnapshot()",
+                snapshot -> require(snapshot.get("fps").getAsInt() > 0, "Published game state"));
         this.inspect(test, "click the native Chromium button", rect("increment"), box -> this.click(box, 0.5));
         test.waitUntil("native page sends a command to Java", ctx -> JcefDemo.receivedCommands() > this.commands);
         this.inspect(test, "native click updates React", "demoSnapshot()", snapshot -> require(snapshot.get("count").getAsInt() == 1, "Click count"));
@@ -113,16 +119,8 @@ final class JcefGameTest {
         this.inspect(test, "native select retains its value", "demoSnapshot()", snapshot -> require(snapshot.get("effect").getAsString().equals("Ocean"), "Select value: " + snapshot));
         this.inspect(test, "start CSS animation", "(()=>{document.getElementById('animate').click();return {};})()", ignored -> this.frames = this.screen.surface().uploadedFrames());
         test.waitTicks(30).expect("Chromium keeps producing animated frames", ctx -> this.screen.surface().uploadedFrames() - this.frames > 10)
-                .run("measure a pixel-correlated round trip", ctx -> this.probe = this.screen.surface().probe())
-                .waitUntil("probe reaches the uploaded texture", ctx -> this.probe != 0 && this.screen.surface().completedProbe() == this.probe)
-                .waitTicks(25).run("record GPU-swizzle metrics", ctx -> ctx.log("GPU BGRA: " + this.screen.surface().metrics()))
-                .screenshot("chromium-gpu-swizzle")
-                .run("switch to the CPU-conversion comparison", ctx -> this.screen.surface().setUploadMode(CefSurface.UploadMode.CPU_RGBA))
-                .waitTicks(30)
-                .run("probe CPU-swizzle presentation", ctx -> this.probe = this.screen.surface().probe())
-                .waitUntil("CPU probe reaches texture", ctx -> this.screen.surface().completedProbe() == this.probe)
-                .waitTicks(25).run("record CPU-swizzle metrics", ctx -> ctx.log("CPU RGBA: " + this.screen.surface().metrics()))
-                .screenshot("chromium-cpu-swizzle")
+                .run("record delivery metrics", ctx -> ctx.log("Web delivery: " + this.screen.surface().metrics()))
+                .screenshot("chromium-surface")
                 .run("resize the native viewport", ctx -> this.screen.surface().resize(800, 600))
                 .waitTicks(15);
         this.inspect(test, "CEF viewport follows resize", "({width:innerWidth,height:innerHeight})", size -> require(size.get("width").getAsInt() == 800 && size.get("height").getAsInt() == 600, "Viewport size"));
@@ -138,10 +136,15 @@ final class JcefGameTest {
                 .waitUntil("reopened page paints", ctx -> this.ready()).waitTicks(10);
         this.inspect(test, "reopened React state is fresh", "demoSnapshot()", snapshot -> require(snapshot.get("count").getAsInt() == 0, "Reopened state"));
         this.inspect(test, "hover a button after recreating native cursors", rect("increment"), box -> this.movePointer(box));
-        return test.waitUntil("reopened screen owns a new hand cursor", ctx -> this.screen.appliedCursorShape() == GLFW.GLFW_POINTING_HAND_CURSOR)
+        return test.waitUntil("reopened screen owns a new hand cursor", ctx -> this.screen.appliedCursor() == WebCursor.HAND)
                 .run("close while a custom cursor is active", ctx -> { this.closing = this.screen.surface(); this.screen.onClose(); })
-                .expect("closing releases the custom cursor", ctx -> this.screen.appliedCursorShape() == GLFW.GLFW_ARROW_CURSOR)
-                .waitUntil("all native browsers are closed", ctx -> this.closing.stopped().isDone());
+                .expect("closing releases the custom cursor", ctx -> this.screen.appliedCursor() == WebCursor.ARROW)
+                .waitUntil("all hosted native browsers are closed", ctx -> this.closing.stopped().isDone())
+                .run("open an unhosted surface for module-owned shutdown", ctx -> {
+                    this.shutdownSurface = WebSurface.builder(URI.create("about:blank")).size(32, 32).open();
+                    this.shutdownSurface.stopped().thenRun(() -> Testmod.LOGGER.info("Module-owned web surface disposed"));
+                })
+                .waitUntil("the module-owned surface is ready", ctx -> this.shutdownSurface.isReady());
     }
 
     private GameTest sites() {
@@ -149,20 +152,15 @@ final class JcefGameTest {
                 .run("open La Calèche in Chromium", ctx -> { ctx.client().setScreen(null); this.screen = JcefDemo.open(ctx.client(), true); })
                 .waitUntil("La Calèche loads", ctx -> this.ready(), GameTest.LONG_TIMEOUT * 5)
                 .waitTicks(60)
-                .run("enable telemetry and pixel probe", ctx -> { this.screen.keyPressed(GLFW.GLFW_KEY_F3, 0, 0); this.probe = this.screen.surface().probe(); })
-                .waitUntil("site probe is presented", ctx -> this.probe > 0 && this.screen.surface().completedProbe() == this.probe)
+                .run("enable telemetry", ctx -> this.screen.keyPressed(GLFW.GLFW_KEY_F3, 0, 0))
                 .waitTicks(40).screenshot("lacaleche-chromium")
                 .run("record real-site delivery metrics", ctx -> ctx.log("La Calèche: " + this.screen.surface().metrics()))
                 .run("render La Calèche at the reported 2560x1178 resolution", ctx -> this.screen.surface().resize(2560, 1178))
                 .waitTicks(100)
-                .run("probe the larger surface", ctx -> this.probe = this.screen.surface().probe())
-                .waitUntil("large-surface probe is presented", ctx -> this.screen.surface().completedProbe() == this.probe)
                 .waitTicks(40)
                 .run("record large-surface metrics", ctx -> ctx.log("La Calèche 2560x1178: " + this.screen.surface().metrics()))
                 .run("compare 30 FPS native pacing", ctx -> this.screen.surface().setFpsLimit(30))
                 .waitTicks(60)
-                .run("probe the paced large surface", ctx -> this.probe = this.screen.surface().probe())
-                .waitUntil("paced probe is presented", ctx -> this.screen.surface().completedProbe() == this.probe)
                 .waitTicks(40)
                 .run("record paced metrics", ctx -> ctx.log("La Calèche 2560x1178 cap30: " + this.screen.surface().metrics()));
         test.step("save the native-resolution Chromium image", GameTest.DEFAULT_TIMEOUT, new GameTest.StepTick() {
@@ -225,7 +223,7 @@ final class JcefGameTest {
             private CompletableFuture<JsonElement> result;
             @Override
             public boolean tick(TestContext context) {
-                if (this.result == null) this.result = screen.surface().evaluate(expression);
+                if (this.result == null) this.result = screen.surface().evaluate(expression).thenApply(JsonParser::parseString);
                 if (!this.result.isDone()) return false;
                 assertion.accept(this.result.join().getAsJsonObject());
                 return true;

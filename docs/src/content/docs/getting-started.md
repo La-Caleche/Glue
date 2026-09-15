@@ -145,7 +145,7 @@ corresponding mod ID.
 ```
 
 ::: warning Keep dedicated servers free of client artifacts
-Do not make a shared or server mod require `glue-render` or `glue-lumos-client`.
+Do not make a shared or server mod require `glue-render`, `glue-lumos-client`, or `glue-web`.
 A client entrypoint isolates client classes, but it does not make a hard Fabric
 dependency server-safe. Keep the imports behind that entrypoint and put required client-only mod IDs
 in a separate mod or module whose descriptor has `"environment": "client"`. If one descriptor must

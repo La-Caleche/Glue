@@ -121,6 +121,7 @@ ${rendered}</figure>`;
       { text: 'Modules', link: '/modules' },
       { text: 'Rendering', link: '/rendering/' },
       { text: 'Lumos', link: '/lumos/' },
+      { text: 'Web', link: '/web/' },
     ],
     sidebar: [
       {
@@ -189,6 +190,11 @@ ${rendered}</figure>`;
           { text: 'Write a Test', link: '/gametest/writing' },
           { text: 'Reports and Automation', link: '/gametest/reports' },
         ],
+      },
+      {
+        text: 'Web',
+        collapsed: true,
+        items: [{ text: 'Browser Surfaces', link: '/web/' }],
       },
     ],
     search: {

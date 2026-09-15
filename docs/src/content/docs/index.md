@@ -15,6 +15,9 @@ hero:
       text: Install Glue
       link: ./getting-started.md
 features:
+  - title: Embed web content
+    details: Own Chromium surfaces with native inputs, cursors and explicit messages, using a Glue API.
+    link: ./web/index.md
   - title: Register game content
     details: Build items, blocks, data components, keybindings, shapes, and undoable tools with the shared Core module.
     link: ./core/index.md
