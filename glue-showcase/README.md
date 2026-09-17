@@ -11,9 +11,8 @@ opens the Lumos client request channel to operators; **`TestmodClient`** registe
 
 ## Controls
 
-Press **F6** by default to open the existing browser demo through Glue Web. Build its optional
-React fixture manually first; see [`web-demo/`](../web-demo/README.md). It is served from disk by
-the showcase, not packaged or compiled by a library.
+Press **F6** by default to open the Glue Web hub. It opens the web demos and toggles the web HUD,
+minimap and toasts; see [Web demos](#web-demos).
 
 Lighting and post-effect examples use client commands:
 
@@ -50,49 +49,72 @@ over the full 20-block ray.
 | Data-driven `GluePipeline` loading | `AdditiveSpriteRenderer.java` (+ `glue/pipelines/*.json`) |
 | Cycling all registered pipelines | `render/TestShaderPipelines.java` (used by the shader block) |
 | Post-processing effects (toggle + timed) | `render/TestPostShaderHandler.java` |
-| Chromium surfaces and native browser | `jcef/` and [`glue-web`](../glue-web/README.md) |
+| `WebScreen`, `WebHud`, `WebOverlay`, `WebWidget`, `@WebAction`, native slots | Java `web/` demo packages and the [`web/` frontend](web/README.md) |
 
-## Browser demo
+## Web demos
 
-**F6** or `/jcef demo` opens the local React fixture; `/jcef browser` opens La Calèche.
-`/jcef hud` opens the read-only web HUD and `/jcef close` closes that HUD.
+Frontend sources live in [`web/`](web/README.md). The input lab is plain HTML/JavaScript under
+`web/public/`; the seven richer pages use React components and separate styles under `web/src/`,
+organized by demo. A small shared hook connects React to the framework-neutral Glue bridge.
 
-F3 expands delivery metrics and F9 switches the 60/30 FPS cap. Ctrl+L focuses the address bar; F5
-reloads. Mod startup preloads the native runtime in the background into `run/glue-web/`, with a small
-global progress indicator. The experimental
-F7/F8 comparison/probe controls are retired; their measurements remain in `web-demo/PERFORMANCE.md`.
+Showcase resource tasks install the pinned frontend dependencies and run Vite, so a compatible Node
+version (`^20.19.0 || >=22.12.0`) and pnpm 11.5.2 are required. Output is generated under
+`build/generated/webResources/assets/glue-showcase/web/` and packaged only in the showcase jar.
+The client serves this generated directory directly. Run `pnpm --dir glue-showcase/web watch` from
+the repository root while editing, then press F5 in a page. Library tasks never invoke Node.
 
-`glue-test:jcef` exercises the existing local page, native input, messages, popups, rendering and lifecycle.
-`glue-test:jcef-sites` is the opt-in internet/large-surface test; its result distinguishes Google's
-challenge page from successful search results. See the [library guide](../glue-web/README.md).
+Java examples are grouped under `fr.lacaleche.glue.testmod.web`: `hub`, `lab`, `browser`, `hud`,
+`inventory`, `waypoint` and `toast`. `WebDemos` wires registration and entry points; their live tests
+are under `gametest/web/`.
+
+| Demo | Opens with | Shows |
+|---|---|---|
+| React hub, `index.html` | F6, `/web hub` | A `WebScreen` whose actions open the other demos and toggle the layers. |
+| Vanilla input lab, `lab.html` | Hub, `/web lab` | Native input, select popups, cursors, actions with results and refusals, state and events, with no framework or compilation. |
+| Vitals HUD, `hud.html` | Hub, `/web hud` | A `WebHud` replacing the hotbar and status bars. Items are native slots above the page; vanilla returns for spectators and on jumping mounts. |
+| Minimap, `minimap.html` | Hub, `/web minimap` | A second `WebHud`. Java samples the terrain into a texture drawn behind the page's brass bezel, compass and waypoint pins. |
+| Toasts, `toasts.html` | Actions, `/web toast <message>` | A `WebOverlay` above every screen. Toasts raised before the page connects wait in a queue. |
+| Field notes, `panel.html` | Survival inventory | A `WebWidget` beside the inventory. It marks camps and opens the waypoint manager. |
+| Waypoints, `waypoints.html` and `confirm.html` | Hub, field notes, `/web waypoints` | Stacked web screens: the removal dialog returns to the unchanged manager. |
+| Browser | Hub, `/web browser [url]` | Vanilla toolbar widgets around a `WebWidget` that grants no bridge, even to this mod's pages. |
+
+The two HUDs start disabled so the other showcase scenarios keep the vanilla HUD. Waypoints are kept
+for the current connection only. In the browser, F3 expands delivery metrics, F9 switches the 60/30
+FPS cap, F5 reloads and Ctrl+L focuses the address bar. Mod startup preloads the native runtime into
+`run/glue-web/`, with a small global progress indicator.
+
+`glue-test:web` drives every demo above with real mouse and keyboard input. `glue-test:web-sites` is
+the opt-in internet test; its result distinguishes Google's challenge page from successful search
+results. `glue-test:web-startup` inspects the runtime indicator. See the
+[library guide](../docs/src/content/docs/web/index.md).
 
 ## Scripted client tests
 
 The showcase registers its rendering scenarios from `gametest/ShowcaseGameTests.java` and its browser
-scenarios from `jcef/JcefGameTest.java` with the shared `glue-gametest` runner.
+scenarios from `gametest/web/WebGameTest.java` with the shared `glue-gametest` runner.
 
 Run one against an existing singleplayer world:
 
 ```shell
-./gradlew :glue-showcase:runClient -Pglue.gametest=glue-test:jcef '-Pglue.showcase.quickplay=New World'
+./gradlew :glue-showcase:runClient -Pglue.gametest=glue-test:web '-Pglue.showcase.quickplay=New World'
 ```
 
 <details>
 <summary>PowerShell</summary>
 
 ```powershell
-.\gradlew.bat :glue-showcase:runClient '-Pglue.gametest=glue-test:jcef' '-Pglue.showcase.quickplay=New World'
+.\gradlew.bat :glue-showcase:runClient '-Pglue.gametest=glue-test:web' '-Pglue.showcase.quickplay=New World'
 ```
 
 </details>
 
-The available test ids are `glue-test:web-startup`, `glue-test:jcef`, `glue-test:jcef-sites`, `glue-test:native-dialogs`,
+The available test ids are `glue-test:web`, `glue-test:web-sites`, `glue-test:web-startup`, `glue-test:native-dialogs`,
 `glue-test:iris-hud`, `glue-test:lumos-smoke`, `glue-test:albedo-issue`, `glue-test:glass-quality`,
 `glue-test:spot-perf`, and `glue-test:viewport-sky`.
 Reports and screenshots are written under
 `run/screenshots/gametest/<namespace>_<path>/`.
 
-The JCEF scenarios run with or without Iris. The rendering scenarios in `gametest/ShowcaseGameTests.java`, except `glue-test:native-dialogs`, toggle the shaderpack through `glue-gametest`'s
+The web scenarios run with or without Iris. The rendering scenarios in `gametest/ShowcaseGameTests.java`, except `glue-test:native-dialogs`, toggle the shaderpack through `glue-gametest`'s
 built-in `glue-gametest:iris-shaders` tool (it settles the rebuilt pipeline itself, so the
 scripts add no wait after it), which means those runs need Iris: add
 `-Pglue.showcase.iris=true`.

@@ -13,20 +13,48 @@ default:
       - .gradle-home/wrapper
 
 stages:
+  - frontend
   - check
   - publish
 
+showcase-web:
+  stage: frontend
+  image: node:24-bookworm
+  cache:
+    key:
+      files:
+        - glue-showcase/web/pnpm-lock.yaml
+    paths:
+      - .pnpm-store/
+  script:
+    - npm install --global pnpm@11.5.2
+    - pnpm --dir glue-showcase/web install --frozen-lockfile --store-dir "$CI_PROJECT_DIR/.pnpm-store"
+    - pnpm --dir glue-showcase/web build
+  artifacts:
+    paths:
+      - glue-showcase/build/generated/webResources/
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
 check:
   stage: check
+  needs:
+    - job: showcase-web
+      artifacts: true
   script:
     # build/check are blocked by a PMD snapshot in the caldle plugin; test + remapJar is the gate
     # (remapJar also validates resource expansion and jar packaging).
-    - ./gradlew test remapJar
+    # The frontend job already built the resource input; the Java image needs no Node installation.
+    - ./gradlew test remapJar -x :glue-showcase:installWeb -x :glue-showcase:buildWeb
   rules:
     - if: $CI_COMMIT_BRANCH
 
 publish:
   stage: publish
+  needs:
+    - job: showcase-web
+      artifacts: true
   script:
     - ./gradlew test
         :glue-core:publish
@@ -36,6 +64,8 @@ publish:
         :glue-web:publish
         :glue-gametest:publish
         :glue-showcase:remapJar
+        -x :glue-showcase:installWeb
+        -x :glue-showcase:buildWeb
   artifacts:
     paths:
       - build/libs/*.jar

@@ -1,0 +1,74 @@
+body {
+    display: grid;
+    place-items: center;
+    background: radial-gradient(ellipse at 30% 20%, rgb(13 31 30 / .55), rgb(13 31 30 / .8));
+}
+.hub {
+    display: grid;
+    grid-template-columns: 1fr 118px;
+    gap: 0 14px;
+    width: min(380px, calc(100vw - 16px));
+    padding: 12px 14px 8px;
+}
+header { grid-column: 1 / -1; display: flex; align-items: end; gap: 10px; }
+header p { max-width: 32em; }
+.mark {
+    width: 26px;
+    height: 26px;
+    border: 2px solid var(--brass);
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--brass) 0 2px, transparent 2.5px),
+        conic-gradient(from 45deg, var(--health) 0 25%, var(--food) 0 50%, var(--air) 0 75%, var(--xp) 0);
+    box-shadow: inset 0 0 0 3px var(--slate);
+}
+.pages { display: grid; gap: 4px; align-content: start; }
+.page {
+    display: grid;
+    grid-template-columns: 58px 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 3px;
+    border: 0;
+    border-radius: 2px;
+    text-align: left;
+    background: none;
+    cursor: pointer;
+}
+.page:hover { background: rgb(201 164 92 / .1); }
+.page strong {
+    display: grid;
+    place-items: center;
+    height: 17px;
+    border: 1px solid var(--brass-dim);
+    border-radius: 2px;
+    font-weight: 600;
+}
+.page:hover strong { border-color: var(--brass); color: var(--brass-bright); }
+.layers { display: grid; gap: 5px; align-content: start; }
+.switch { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.switch input {
+    appearance: none;
+    flex: none;
+    width: 18px;
+    height: 10px;
+    margin: 0;
+    border: 1px solid var(--brass-dim);
+    border-radius: 5px;
+    background: var(--slate-deep);
+    cursor: pointer;
+    transition: background 120ms;
+}
+.switch input::before {
+    content: "";
+    display: block;
+    width: 6px;
+    height: 6px;
+    margin: 1px;
+    border-radius: 50%;
+    background: var(--bone-dim);
+    transition: transform 120ms;
+}
+.switch input:checked { border-color: var(--brass); background: var(--brass-dim); }
+.switch input:checked::before { background: var(--brass-bright); transform: translateX(8px); }
+.rule { grid-column: 1 / -1; }
+footer { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 8px; }

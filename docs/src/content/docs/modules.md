@@ -17,7 +17,7 @@ For the first Light Workshop milestone, the answer is only `glue-core`.
 | Add pipelines, post effects, materials, outlines, scene tools, compatibility, or native dialogs | `glue-render` | `glue-render` | client only |
 | Model, save, and synchronize Lumos lights without requiring a renderer | `glue-lumos` | `glue-lumos` | client and server |
 | Render Lumos colored lights, material passes, and shadows | `glue-lumos-client` | `glue-lumos-client` | client only |
-| Embed Chromium content with native input, cursors and an explicit message bridge | `glue-web` | `glue-web` | client only |
+| Build screens, HUDs, overlays and widgets from web pages connected to Java | `glue-web` | `glue-web` | client only |
 | Run scripted interactions, screenshots, tools, and reports in development | `glue-gametest` | `glue-gametest` | client only, development |
 
 All six rows are published under Maven group `fr.lacaleche.glue`. Use one Glue version across the

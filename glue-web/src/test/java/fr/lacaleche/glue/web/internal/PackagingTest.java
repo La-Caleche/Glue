@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class PackagingTest {
 
     @Test
-    void bundlesNativeAbiAndPrivateInstallerDependenciesWithoutDemoOrGameClasses() throws IOException {
+    void bundlesNativeAbiBridgeAndPrivateInstallerDependenciesWithoutDemoOrGameClasses() throws IOException {
         try (ZipFile jar = new ZipFile(System.getProperty("glue.web.bundledJar"))) {
             assertNotNull(jar.getEntry("org/cef/CefApp.class"));
             assertNotNull(jar.getEntry("fr/lacaleche/glue/web/internal/shaded/jcefgithub/CefAppBuilder.class"));
@@ -21,6 +21,8 @@ class PackagingTest {
             assertNotNull(jar.getEntry("fr/lacaleche/glue/web/internal/shaded/commonsio/build/AbstractStreamBuilder.class"));
             assertNotNull(jar.getEntry("assets/glue-web/shaders/core/web.fsh"));
             assertNotNull(jar.getEntry("glue-web.client.mixins.json"));
+            assertNotNull(jar.getEntry("fr/lacaleche/glue/web/internal/mixin/GuiOverlayMixin.class"));
+            assertNotNull(jar.getEntry("assets/glue-web/web/bridge.js"));
             assertNotNull(jar.getEntry("assets/glue-web/lang/fr_fr.json"));
             assertNotNull(jar.getEntry("assets/glue-web/lang/en_us.json"));
             assertNull(jar.getEntry("org/apache/commons/io/build/AbstractStreamBuilder.class"));

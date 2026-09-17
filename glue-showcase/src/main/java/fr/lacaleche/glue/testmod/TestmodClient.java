@@ -9,14 +9,14 @@ import fr.lacaleche.glue.testmod.registries.TestShaders;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
 import fr.lacaleche.glue.testmod.render.AutoScreenshot;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
-import fr.lacaleche.glue.testmod.jcef.JcefDemo;
+import fr.lacaleche.glue.testmod.web.WebDemos;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 
 /**
  * Client entry point for the Glue test mod: wires up the client-only demos &mdash; keybinds,
- * block-entity renderers and render layers, shader/post-effect registrations, the JCEF experiment, and
+ * block-entity renderers and render layers, shader/post-effect registrations, the Glue Web demos, and
  * the scripted gametests. The synced-registry content (blocks, items, components, block entities,
  * creative tab) is registered by {@link Testmod} so it exists on both sides. Start in either entry
  * point to trace what each feature demonstrates, or see {@code glue-showcase/README.md}.
@@ -53,7 +53,7 @@ public class TestmodClient implements ClientModInitializer {
         AutoScreenshot.init();
         ShowcaseGameTests.register();
         AdditiveSpriteRenderer.init();
-        JcefDemo.init();
+        WebDemos.init();
     }
 
     public void toggleRaycastDebug() {

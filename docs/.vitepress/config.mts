@@ -194,7 +194,7 @@ ${rendered}</figure>`;
       {
         text: 'Web',
         collapsed: true,
-        items: [{ text: 'Browser Surfaces', link: '/web/' }],
+        items: [{ text: 'Web Interfaces', link: '/web/' }],
       },
     ],
     search: {

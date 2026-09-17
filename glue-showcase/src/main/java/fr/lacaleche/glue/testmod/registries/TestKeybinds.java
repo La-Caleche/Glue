@@ -2,13 +2,13 @@ package fr.lacaleche.glue.testmod.registries;
 
 import fr.lacaleche.glue.registries.KeybindingsRegistry;
 import fr.lacaleche.glue.testmod.TestmodClient;
-import fr.lacaleche.glue.testmod.jcef.JcefDemo;
+import fr.lacaleche.glue.testmod.web.WebDemos;
 import org.lwjgl.glfw.GLFW;
 
 /**
  * Demonstrates Glue's {@link KeybindingsRegistry} without reserving a key for every demo.
  *
- * <p>R toggles raycast debugging and F6 opens the JCEF experiment.</p>
+ * <p>R toggles raycast debugging and F6 opens the Glue Web hub.</p>
  */
 public final class TestKeybinds {
 
@@ -31,7 +31,7 @@ public final class TestKeybinds {
                 "open_showcase",
                 "key.categories.glue_test",
                 GLFW.GLFW_KEY_F6,
-                client -> JcefDemo.open(client, false)
+                client -> WebDemos.openHub()
         );
     }
 }

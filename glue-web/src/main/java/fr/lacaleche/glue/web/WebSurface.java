@@ -1,30 +1,34 @@
 package fr.lacaleche.glue.web;
 
-import fr.lacaleche.glue.web.internal.BrowserSession;
-import fr.lacaleche.glue.web.internal.SurfaceOptions;
-import fr.lacaleche.glue.web.internal.WebOrigin;
+import fr.lacaleche.glue.web.bridge.WebSlot;
+import fr.lacaleche.glue.web.internal.browser.BrowserSession;
+import fr.lacaleche.glue.web.internal.browser.SurfaceOptions;
 import net.minecraft.client.gui.GuiGraphics;
 
 import java.awt.image.BufferedImage;
 import java.net.URI;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 
 /**
  * An owned offscreen browser. All instance methods belong to Minecraft's client thread;
  * returned futures may be observed from other threads.
- * The host closes each surface; Fabric also closes remaining surfaces at client shutdown.
- * Native acquisition is asynchronous and never blocks the render thread.
+ *
+ * <p>Sizes are CSS pixels. The scale is the page's device pixel ratio, so the browser renders
+ * {@code width * scale} by {@code height * scale} pixels. Hosts use the GUI scale, which makes one CSS
+ * pixel one GUI pixel. The owner closes each surface; Fabric also closes remaining surfaces at client
+ * shutdown. Native acquisition is asynchronous and never blocks the render thread.</p>
  */
 public final class WebSurface implements AutoCloseable {
 
+    /** Largest browser size in each direction, before and after scaling. */
     public static final int MAX_DIMENSION = 4096;
 
     private final BrowserSession session;
 
     private WebSurface(SurfaceOptions options) {
-        this.session = BrowserSession.open(options);
+        this.session = BrowserSession.open(options, this);
     }
 
     public static Builder builder(URI address) {
@@ -40,12 +44,27 @@ public final class WebSurface implements AutoCloseable {
         return this.session.isReady();
     }
 
+    /** Whether a complete paint has arrived, even before the first draw. */
+    public boolean hasFrame() {
+        return this.session.hasFrame();
+    }
+
+    /** Handles the trusted page's close request on the client thread; unset hosts refuse it. */
+    public void onCloseRequest(Runnable handler) {
+        this.session.onCloseRequest(handler);
+    }
+
     public boolean isLoading() {
         return this.session.isLoading();
     }
 
     public boolean isClosed() {
         return this.session.isClosed();
+    }
+
+    /** Whether the current document imported the bridge and was accepted by this surface. */
+    public boolean isConnected() {
+        return this.session.isConnected();
     }
 
     public String url() {
@@ -72,6 +91,20 @@ public final class WebSurface implements AutoCloseable {
         return this.session.hasPopup();
     }
 
+    /** Page width in CSS pixels. */
+    public int width() {
+        return this.session.width();
+    }
+
+    /** Page height in CSS pixels. */
+    public int height() {
+        return this.session.height();
+    }
+
+    public double scale() {
+        return this.session.scale();
+    }
+
     public int fpsLimit() {
         return this.session.fpsLimit();
     }
@@ -94,6 +127,11 @@ public final class WebSurface implements AutoCloseable {
 
     public WebCursor appliedCursor() {
         return this.session.appliedCursor();
+    }
+
+    /** Slots the page reported, positioned by the latest {@link #draw}; hosts use them for hit testing. */
+    public List<WebSlot> slots() {
+        return this.session.slots();
     }
 
     /** Native browser creation, not document load completion. The returned future is a defensive copy. */
@@ -135,12 +173,20 @@ public final class WebSurface implements AutoCloseable {
         this.session.setFpsLimit(fps);
     }
 
-    /** Browser pixels are independent of the GUI-space destination passed to draw. */
+    /** Changes the page size in CSS pixels, keeping the scale. */
     public void resize(int width, int height) {
-        this.session.resize(width, height);
+        this.session.resize(width, height, this.session.scale());
     }
 
-    /** Draws the latest image and popup in GUI coordinates, preserving the host's scissor stack. */
+    /** Changes the page size in CSS pixels and its device pixel ratio. */
+    public void resize(int width, int height, double scale) {
+        this.session.resize(width, height, scale);
+    }
+
+    /**
+     * Draws the latest image, its popup and native slots in GUI coordinates, preserving the host's
+     * scissor stack. The GUI rectangle is independent of the page size.
+     */
     public void draw(GuiGraphics graphics, int x, int y, int width, int height) {
         this.session.draw(graphics, x, y, width, height);
     }
@@ -153,12 +199,12 @@ public final class WebSurface implements AutoCloseable {
         this.session.setCursorActive(active);
     }
 
-    /** Button is GLFW 0/1/2, or -1 for move/exit. Modifiers use GLFW modifier bits. */
+    /** Coordinates are CSS pixels. Button is GLFW 0/1/2, or -1 for move/exit. Modifiers use GLFW bits. */
     public void mouse(WebPointerEvent event, int x, int y, int button, int modifiers, int clicks) {
         this.session.mouse(Objects.requireNonNull(event, "event"), x, y, button, modifiers, clicks);
     }
 
-    /** Wheel deltas use Chromium's 120-unit wheel notches. Coordinates are browser pixels. */
+    /** Wheel deltas use Chromium's 120-unit wheel notches. Coordinates are CSS pixels. */
     public void wheel(int x, int y, int modifiers, int deltaX, int deltaY) {
         this.session.wheel(x, y, modifiers, deltaX, deltaY);
     }
@@ -177,12 +223,13 @@ public final class WebSurface implements AutoCloseable {
     }
 
     /**
-     * Sends a string as the detail of a window 'glue:web-message' CustomEvent. Returns false while
-     * loading or outside the configured message origin. Closed surfaces reject new messages.
-     * The page owns its event listener.
+     * Sends an event with a JSON-encoded value to the connected page's {@code on(event, listener)}.
+     * Returns false, without queuing, while no trusted document is connected.
+     *
+     * @throws IllegalArgumentException for an invalid name or a value above 1 MiB of JSON
      */
-    public boolean postMessage(String message) {
-        return this.session.postMessage(message);
+    public boolean emit(String event, Object data) {
+        return this.session.emit(event, data);
     }
 
     /** Evaluates JavaScript and returns JSON-encoded by-value output ("null" for undefined). */
@@ -190,7 +237,7 @@ public final class WebSurface implements AutoCloseable {
         return this.session.evaluate(script);
     }
 
-    /** Owned native-resolution CPU image, including the popup; fails until a frame exists. */
+    /** Owned browser-resolution CPU image, including the popup; fails until a frame exists. */
     public CompletableFuture<BufferedImage> screenshot() {
         return this.session.screenshot();
     }
@@ -201,20 +248,17 @@ public final class WebSurface implements AutoCloseable {
         this.session.close();
     }
 
-    public static final class Builder {
+    public static final class Builder extends WebBuilder<Builder> {
 
-        private final URI address;
         private int width = 800;
         private int height = 600;
-        private int fps = 60;
-        private boolean transparent = true;
-        private WebOrigin origin;
-        private Consumer<String> messages;
+        private double scale = 1;
 
         private Builder(URI address) {
-            this.address = SurfaceOptions.address(address);
+            super(address);
         }
 
+        /** Page size in CSS pixels; defaults to 800x600. Each dimension is in 1..4096. */
         public Builder size(int width, int height) {
             SurfaceOptions.validateSize(width, height);
             this.width = width;
@@ -222,28 +266,21 @@ public final class WebSurface implements AutoCloseable {
             return this;
         }
 
-        public Builder frameRate(int fps) {
-            SurfaceOptions.validateFrameRate(fps);
-            this.fps = fps;
-            return this;
-        }
-
-        public Builder transparent(boolean transparent) {
-            this.transparent = transparent;
-            return this;
-        }
-
-        /** Enables window.glueQuery only for this HTTP(S) origin; delivery runs on the client tick. */
-        public Builder onMessage(URI origin, Consumer<String> handler) {
-            this.origin = WebOrigin.from(origin);
-            this.messages = Objects.requireNonNull(handler, "handler");
+        /** Device pixel ratio; defaults to 1. The scaled size must stay within 4096 pixels. */
+        public Builder scale(double scale) {
+            SurfaceOptions.validateScale(1, 1, scale);
+            this.scale = scale;
             return this;
         }
 
         /** Opens a new independent surface using a snapshot of these options. */
         public WebSurface open() {
-            return new WebSurface(new SurfaceOptions(this.address, this.width, this.height, this.fps,
-                    this.transparent, this.origin, this.messages));
+            return new WebSurface(this.options(this.width, this.height, this.scale));
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
         }
     }
 }

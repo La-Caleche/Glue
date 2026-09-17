@@ -19,5 +19,5 @@
   "item.glue-test.test_component.tooltip.use": "Right-click to cycle; sneak-right-click to reset",
   "key.categories.glue_test": "Glue Test",
   "key.glue-test.toggle_raycast_debug": "Toggle Raycast Debug",
-  "key.glue-test.open_showcase": "Open Chromium Experiment"
+  "key.glue-test.open_showcase": "Open Glue Web Hub"
 }

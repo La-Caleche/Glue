@@ -1,0 +1,56 @@
+body { --size: 104px; --hole: 36px; }
+.instrument { position: relative; width: var(--size); height: var(--size); }
+/* Java draws terrain behind the page; the bezel covers the area outside the dial. */
+.terrain { position: absolute; inset: calc(var(--size) / 2 - var(--hole)); }
+.bezel {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle closest-side,
+        transparent calc(var(--hole) - .5px), #0b1716 var(--hole),
+        var(--brass-dim) calc(var(--hole) + 1px), var(--brass) calc(var(--hole) + 3px),
+        #9a7c43 calc(var(--hole) + 9px), var(--brass-bright) calc(var(--hole) + 14px),
+        #5f4c28 calc(var(--hole) + 15.5px), transparent calc(var(--hole) + 16px));
+    filter: drop-shadow(0 1px 2px rgb(0 0 0 / .6));
+}
+.cardinal {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 10px;
+    margin: -5px 0 0 -5px;
+    color: var(--slate-deep);
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 10px;
+    text-align: center;
+    transform: rotate(var(--angle)) translateY(-44px) rotate(calc(-1 * var(--angle)));
+}
+.cardinal.is-north { color: #8b1d17; }
+.pin, .player { position: absolute; left: 50%; top: 50%; transform: translate(var(--x), var(--y)); }
+.pin {
+    width: 6px;
+    height: 6px;
+    margin: -6px 0 0 -3px;
+    border: 1px solid rgb(0 0 0 / .6);
+    border-radius: 50% 50% 50% 0;
+    background: var(--swatch);
+    transform: translate(var(--x), var(--y)) rotate(-45deg);
+}
+.pin.is-far { width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; transform: translate(var(--x), var(--y)); }
+.player { width: 0; height: 0; transition: transform 50ms linear; }
+.player::before {
+    content: "";
+    position: absolute;
+    left: -3.5px;
+    top: -4.5px;
+    border-style: solid;
+    border-width: 0 3.5px 9px;
+    border-color: transparent transparent var(--bone);
+    filter: drop-shadow(0 0 1px #000);
+    transform: rotate(var(--heading));
+    transform-origin: 3.5px 4.5px;
+}
+.readout { display: grid; justify-items: center; width: var(--size); margin-top: 1px; text-shadow: 0 1px 1px #000; }
+.biome { max-width: 100%; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.coordinates { color: var(--bone-dim); font-size: 7px; white-space: pre; }

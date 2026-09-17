@@ -19,7 +19,7 @@ separate Fabric mod.
 | `glue-render` | `glue-render` | client | `glue-core` | Pipelines, post effects, materials, outlines, scenes, compatibility, and native dialogs. |
 | `glue-lumos` | `glue-lumos` | both | `glue-core` | Light model, synchronization, and persistence. |
 | `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light rendering and shadows. |
-| `glue-web` | `glue-web` | client | - | Offscreen Chromium surfaces, input, cursors and web messaging. |
+| `glue-web` | `glue-web` | client | - | Web screens, HUDs, overlays and widgets with Java actions and native slots. |
 | `glue-gametest` | `glue-gametest` | client, development | - | Scripted client tests, tools, screenshots, and reports. |
 | `glue-showcase` | `glue-showcase` | both, development | all modules | Runnable demos and integration scenarios. |
 
@@ -117,9 +117,9 @@ stops for the Minecraft EULA; set `eula=true` in `run-server/eula.txt` before re
 `glue.showcase.iris` and `glue.showcase.sodium` in `gradle.properties` control the optional rendering
 integrations in the development profile.
 
-The existing browser demo uses the optional root-level [web fixture](web-demo/README.md). Its Node
-build is manual; Gradle compiles and packages all libraries without Node or pnpm. The published
-[Glue Web API](docs/src/content/docs/web/index.md) contains no application pages or HTTP demo server.
+The showcase frontend lives in [`glue-showcase/web/`](glue-showcase/web/README.md): one plain HTML/JS
+input lab and React demos built with Vite. Showcase resource tasks require Node and pnpm; library
+tasks remain independent of frontend tooling. See the [Glue Web guide](docs/src/content/docs/web/index.md).
 
 ## Release
 
