@@ -2,8 +2,8 @@
 
 The Glue documentation is a VitePress project. Published Markdown lives in `src/content/docs/`.
 
-- `deprecated/` contains the previous documentation for migration reference and is not published.
 - `development/` contains contributor guidance and is not part of the public site.
+- Retired APIs and historical investigations remain in Git history, not alongside current guides.
 
 ## Requirements
 
@@ -21,6 +21,16 @@ pnpm build
 ```
 
 Run these commands from `docs/`. The production site is written to `docs/dist/`.
+
+`build` also checks the generated HTML's local links, heading anchors and assets. It verifies that
+every page declares a favicon and that the published PNG matches the library icon byte for byte.
+`dev` and `build` copy `glue-core/src/main/resources/assets/glue/icon.png` to the generated
+`docs/public/icon.png`; do not edit that generated file. Vite's public directory is explicitly set to
+`docs/public/` because Markdown uses a separate `srcDir`.
+
+The workshop is a tutorial project created by the reader; `glue-showcase` contains the runnable
+integration examples. Keep their instructions separate. Public guides should describe completed
+steps and supported APIs, not illustration requests or internal review notes.
 
 ## Container publication and deployment
 

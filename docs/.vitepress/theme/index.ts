@@ -1,11 +1,7 @@
 import DefaultTheme from 'vitepress/theme';
 import type { Theme } from 'vitepress';
-import DocImage from './components/DocImage.vue';
 import './custom.css';
 
 export default {
   extends: DefaultTheme,
-  enhanceApp({ app }) {
-    app.component('DocImage', DocImage);
-  },
 } satisfies Theme;

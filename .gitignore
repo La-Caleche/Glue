@@ -9,6 +9,7 @@ classes/
 
 /docs/node_modules/
 /docs/dist/
+/docs/public/icon.png
 /docs/.vitepress/cache/
 /docs-image.env
 

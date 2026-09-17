@@ -132,12 +132,6 @@ returns `true` and enables the effect; the next returns `false` and disables it.
 With the effect active, terrain and entities are grayscale. The first-person hand, screen effects,
 HUD status, screens, and toasts remain in color because Glue applies the chain earlier in the frame.
 
-<DocImage title="Toggleable grayscale workshop" description="A split in-game comparison of the same Light Workshop view: full color with the effect off and grayscale world geometry with the orange HUD text still in color when on." />
-
-Replace this placeholder with two 960x720 captures from the same frame position. Keep the HUD in
-both and label the halves `OFF` and `ON`; the `ON` world must be grayscale while the HUD remains
-orange.
-
 ## Keep the Basic Toggle Basic
 
 `toggle(handle)` owns membership in the active list. `isToggled(handle)` reads that state.

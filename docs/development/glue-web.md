@@ -103,8 +103,6 @@ serves that output; Vite's build watcher plus F5 handles live editing. Java demo
 features: hub, lab, browser, HUDs, inventory, waypoints, toasts and game tests. See the
 [frontend guide](../../glue-showcase/web/README.md) for commands and the source map.
 
-Earlier experimental measurements are archived in [`glue-web-performance.md`](glue-web-performance.md).
-
 ## Verification
 
 ```powershell
@@ -120,17 +118,3 @@ panel, the stacked waypoint dialog and an untrusted page in the browser screen, 
 keyboard input. `glue-test:web-sites` is the opt-in internet scenario. `glue-test:web-startup`
 inspects the runtime indicator. After a run, check the client log for the module-owned surface's
 disposal and CEF `TERMINATED`, not just Gradle's exit code. Native validation has used Windows.
-
-### Package and React refactor validation (2026-09-17)
-
-- Glue Web's **38 unit tests** passed, including public API boundaries and host option snapshots.
-- Showcase tests and both remapped jars passed; the showcase jar contains the Vite chunks and the
-  unbundled lab, while the library jar contains only library resources and implementation dependencies.
-- `glue-test:web` passed **127/127** steps without Iris/Sodium. It checks the React hub, vanilla lab,
-  native input and slots, actions, events, stacked screens and cleanup. Hub, HUD, inventory/toast and
-  stacked-dialog captures were inspected. The module-owned browser was disposed and CEF terminated.
-- `glue-test:web-startup` passed **32/32** steps with Iris/Sodium, no shaderpack. A first attempt was
-  interrupted by Minecraft's pause-on-focus-loss menu; the fixture now requests and checks OS focus
-  before testing gameplay input. The indicator assertions remain intact.
-- The new GitLab frontend job has not been executed on a runner. Native testing for this refactor
-  remains Windows-only; external-site playback and shaderpack-active rendering were not revalidated.

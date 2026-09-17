@@ -64,8 +64,6 @@ Add the generated mapping key and the exact category string to the client langua
 **Toggle Light Workshop**, initially bound to `O`. Pressing it in a world alternates the action-bar
 message between on and off.
 
-<DocImage title="Toggle Light Workshop in Controls" description="The Minecraft 1.21.8 Key Binds screen filtered to the Light Workshop category, showing Toggle Light Workshop bound to the O key without a conflict indicator." />
-
 ::: warning Client-only API inside Core
 `KeybindingsRegistry` is packaged in `glue-core`, but it is annotated for the client environment
 and imports Minecraft client classes. Reference it only from client source and a client entrypoint,

@@ -24,12 +24,6 @@ play or performance measurement.
 The overlay does not require F3. Glue draws it at `RENDER_HUD`, before F3 text and later HUD layers.
 Key processing pauses while a game screen is open.
 
-<DocImage title="Annotated framebuffer debug HUD" description="The F8 overlay in vanilla mode with Main Color, Main Depth, GBuffer Albedo+N, MaterialID, and MaterialProps tiles, plus callouts for mode, page, filter, grid size, texture dimensions, and sidebar visibility." />
-
-Replace this placeholder with a 1440x900 capture from a Light Workshop scene after the material
-targets have been allocated. Annotate the header mode, one color tile, the contrast depth tile, one
-material tile, texture dimensions, and the sidebar visibility marker.
-
 ## Diagnose One Question at a Time
 
 - If a [pipeline](./pipelines.md) disappears, confirm main color is present and compare relevant

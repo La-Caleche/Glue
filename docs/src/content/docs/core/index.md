@@ -26,8 +26,6 @@ lifecycle details.
 Read [Registries](./registries.md) when you want to understand why the first item registration
 works, or when you need block entities, particles, menus, or client resource registries.
 
-<DocImage title="Glue Core learner path" description="A left-to-right diagram showing Light Workshop launch, Lumen Probe item, optional pedestal block, remappable probe key, and a final tools stage for shapes, math, and undo history." />
-
 ## Keep Code on the Correct Side
 
 Most `glue-core` APIs are common code and can load on a client or dedicated server. Register items,

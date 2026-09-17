@@ -201,12 +201,6 @@ The copper display keeps its texture and lighting, gains a warm orange tint, and
 the scene. With an active Iris pack, Glue captures and composites this custom draw through its
 managed compatibility path.
 
-<DocImage title="Pedestal core shader result" description="The Light Workshop pedestal with an orange selection line and a rotating copper display shaded warmer and brighter than an untinted copper item beside it." />
-
-Replace this placeholder with a 1440x800 comparison screenshot. Show the pipeline-rendered display
-on the left and the normal item render on the right under the same lighting; label the custom side
-`lightworkshop:pedestal_glow`.
-
 ## Own the Draw Correctly
 
 `ShadedBufferSource` owns native vertex buffers. Always use try-with-resources. `close()` flushes a
@@ -232,11 +226,6 @@ Resolve `ClientPipelines.pedestalGlow()` when drawing rather than storing the re
   belongs to your renderer and must be restored completely.
 - Build/register Java fallbacks during client initialization. Resolve and draw on the client render
   thread; pipeline render-type caches and buffer sources are render-thread confined.
-
-<DocImage title="Managed pipeline render flow" description="A render-flow diagram where a textured RenderType enters ShadedBufferSource, is rerouted through GluePipeline, then draws directly without Iris or is captured and composited with Iris." />
-
-Replace this placeholder with a 1300x520 flow diagram. Draw separate **Vanilla** and **Iris pack**
-branches and annotate the shared source as `close() flushes + frees native buffers`.
 
 ::: details Pipeline JSON schema
 

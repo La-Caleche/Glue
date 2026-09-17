@@ -1,9 +1,9 @@
 :root {
   --vp-layout-max-width: 1440px;
-  --vp-c-brand-1: #49657a;
-  --vp-c-brand-2: #3b566a;
-  --vp-c-brand-3: #2c4659;
-  --vp-c-brand-soft: rgba(73, 101, 122, 0.14);
+  --vp-c-brand-1: #37651c;
+  --vp-c-brand-2: #477e25;
+  --vp-c-brand-3: #35651d;
+  --vp-c-brand-soft: rgba(109, 158, 49, 0.14);
   --vp-c-bg: #fbfcfc;
   --vp-c-bg-alt: #f4f6f7;
   --vp-c-bg-elv: #ffffff;
@@ -14,7 +14,7 @@
   --vp-c-text-1: #20252a;
   --vp-c-text-2: #565f67;
   --vp-c-text-3: #626a71;
-  --vp-home-hero-name-color: #263e50;
+  --vp-home-hero-name-color: #37651c;
   --glue-code-border: #cbd2d7;
   --glue-code-chrome: #e8ecef;
   --glue-code-tab: #f7f9fa;
@@ -22,10 +22,10 @@
 }
 
 .dark {
-  --vp-c-brand-1: #b5c5d0;
-  --vp-c-brand-2: #9bafbf;
-  --vp-c-brand-3: #8099aa;
-  --vp-c-brand-soft: rgba(155, 175, 191, 0.16);
+  --vp-c-brand-1: #bfdf76;
+  --vp-c-brand-2: #a5cf51;
+  --vp-c-brand-3: #477e25;
+  --vp-c-brand-soft: rgba(165, 207, 81, 0.16);
   --vp-c-bg: #121518;
   --vp-c-bg-alt: #181c20;
   --vp-c-bg-elv: #20252a;
@@ -36,7 +36,7 @@
   --vp-c-text-1: #f5f7f8;
   --vp-c-text-2: #b4bcc3;
   --vp-c-text-3: #9aa3ab;
-  --vp-home-hero-name-color: #dce6ed;
+  --vp-home-hero-name-color: #bfdf76;
   --glue-code-border: #343c43;
   --glue-code-chrome: #20262b;
   --glue-code-tab: #151a1e;
@@ -46,6 +46,16 @@
 .VPNavBarTitle .title {
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.VPNavBarTitle .logo,
+.VPHomeHero .image-src {
+  image-rendering: pixelated;
+}
+
+.VPHomeHero .image-src {
+  max-width: 192px;
+  max-height: 192px;
 }
 
 .VPHomeHero .name,

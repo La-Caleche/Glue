@@ -8,11 +8,13 @@ environment: client and server
 
 # Getting Started
 
-By the end of this page, **Light Workshop** compiles with `glue-core`, Fabric loads the matching
-`glue` mod, and a common entrypoint writes a success message during launch.
+Add Glue to an existing Fabric mod, declare the matching Fabric dependency, and verify a launch.
+The snippets use `lightworkshop` as an example mod ID; keep your own ID in an existing project.
 
 Glue targets Minecraft 1.21.8, Java 21, Fabric Loader, Fabric API, and official Mojang mappings.
-You also need read credentials for the private La Calèche Maven repository.
+Start from a working Loom project with `mappings(loom.officialMojangMappings())`; these snippets extend
+that project rather than replace its build file. You also need read credentials for the private
+La Calèche Maven repository.
 
 ## 1. Add Repository Access
 
@@ -66,7 +68,7 @@ normal Fabric requirements in Light Workshop's descriptor.
     "main": ["dev.example.lightworkshop.LightWorkshop"]
   },
   "depends": {
-    "fabricloader": ">=0.14.6",
+    "fabricloader": ">=0.17",
     "minecraft": "~1.21.8",
     "java": ">=21",
     "fabric-api": "*",
@@ -83,6 +85,7 @@ Keep the first launch deliberately small. Content registration begins in the nex
 package dev.example.lightworkshop;
 
 import net.fabricmc.api.ModInitializer;
+import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,6 +96,10 @@ public final class LightWorkshop implements ModInitializer {
     @Override
     public void onInitialize() {
         LOGGER.info("Light Workshop is ready");
+    }
+
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
     }
 }
 ```

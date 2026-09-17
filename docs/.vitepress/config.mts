@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   lang: 'en-US',
@@ -8,7 +9,10 @@ export default defineConfig({
   outDir: 'dist',
   cleanUrls: true,
   lastUpdated: true,
-  head: [['link', { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }]],
+  head: [['link', { rel: 'icon', href: '/icon.png', type: 'image/png', sizes: '512x512' }]],
+  vite: {
+    publicDir: fileURLToPath(new URL('../public', import.meta.url)),
+  },
   markdown: {
     lineNumbers: true,
     config(markdown) {
@@ -114,14 +118,19 @@ ${rendered}</figure>`;
   },
   themeConfig: {
     siteTitle: 'Glue',
-    logo: '/favicon.svg',
+    logo: { src: '/icon.png', alt: 'Glue' },
     nav: [
-      { text: 'Guide', link: '/getting-started' },
-      { text: 'Tutorial', link: '/workshop/' },
+      { text: 'Get Started', link: '/getting-started' },
       { text: 'Modules', link: '/modules' },
-      { text: 'Rendering', link: '/rendering/' },
-      { text: 'Lumos', link: '/lumos/' },
-      { text: 'Web', link: '/web/' },
+      { text: 'Examples', link: '/showcase' },
+      { text: 'Workshop', link: '/workshop/' },
+      { text: 'API Guides', items: [
+        { text: 'Core', link: '/core/' },
+        { text: 'Rendering', link: '/rendering/' },
+        { text: 'Lumos', link: '/lumos/' },
+        { text: 'Web', link: '/web/' },
+        { text: 'GameTest', link: '/gametest/' },
+      ] },
     ],
     sidebar: [
       {
@@ -131,17 +140,18 @@ ${rendered}</figure>`;
           { text: 'Overview', link: '/' },
           { text: 'Install Glue', link: '/getting-started' },
           { text: 'Choose Modules', link: '/modules' },
+          { text: 'Runnable Examples', link: '/showcase' },
         ],
       },
       {
         text: 'Light Workshop',
-        collapsed: false,
+        collapsed: true,
         items: [
           { text: 'Tutorial Overview', link: '/workshop/' },
           { text: 'Build the Lumen Probe', link: '/workshop/probe' },
-          { text: 'Add Visual Feedback', link: '/workshop/rendering' },
-          { text: 'Light the Probe', link: '/workshop/lighting' },
-          { text: 'Test the Workshop', link: '/workshop/testing' },
+          { text: 'Add a Probe HUD', link: '/workshop/rendering' },
+          { text: 'Toggle a Local Light', link: '/workshop/lighting' },
+          { text: 'Test the Light Lifecycle', link: '/workshop/testing' },
         ],
       },
       {
@@ -194,7 +204,14 @@ ${rendered}</figure>`;
       {
         text: 'Web',
         collapsed: true,
-        items: [{ text: 'Web Interfaces', link: '/web/' }],
+        items: [
+          { text: 'Overview and Setup', link: '/web/' },
+          { text: 'Local Pages', link: '/web/#local-pages' },
+          { text: 'Actions, State and Events', link: '/web/#page-bridge' },
+          { text: 'Native Slots', link: '/web/#native-slots' },
+          { text: 'Screens, HUDs and Widgets', link: '/web/#hosts' },
+          { text: 'Raw Surfaces', link: '/web/#raw-surfaces' },
+        ],
       },
     ],
     search: {

@@ -26,35 +26,23 @@ optional and has no public Glue compatibility API.
 | Reading Iris framebuffer IDs or implementation objects | Do not. Those public methods implement Glue itself and are not consumer extension points. |
 | Calling a small API from another optional mod without hard linkage | Use the advanced `ModCompatManager` recipe with a safe fallback. |
 
-<DocImage title="Renderer compatibility decision tree" description="A decision tree routing Glue pipeline and post-effect users to managed integration, custom renderer callbacks to a shadow-pass guard, and raw Iris framebuffer access to a stop sign labeled internal." />
-
-Replace this placeholder with a 1400x650 flowchart. Use green paths for managed APIs, orange for the
-supported `RenderCompat` checks, and red for borrowed Iris targets and private implementation access.
-
 ## Guard a Custom Renderer
 
 Minecraft can call a block-entity renderer during an Iris shadow pass. If the Light Workshop display
 should appear only in the normal scene, return before submitting it:
 
+At the start of the renderer's `render` callback:
+
 ```java
-import fr.lacaleche.glue.compat.RenderCompat;
-
-@Override
-public void render(/* current BlockEntityRenderer parameters */) {
-    if (RenderCompat.isRenderingShadowPass()) return;
-
-    renderPedestalDisplay();
-}
+if (RenderCompat.isRenderingShadowPass()) return;
 ```
+
+Import `fr.lacaleche.glue.compat.RenderCompat`. The
+[pipeline example](./pipelines.md#_5-draw-through-the-pipeline) shows the full callback signature.
 
 With Iris absent or no shadow pass active, the method returns `false` and the display renders
 normally. With an active shadow pass, the custom submission is skipped rather than drawn into the
 shadow map and potentially rendered twice.
-
-<DocImage title="Shadow-pass guard result" description="A before-and-after Iris comparison where the unguarded pedestal display appears as a duplicate or unwanted shadow artifact and the guarded display appears once in the normal scene." />
-
-Replace this placeholder with matched 1000x700 Iris captures. Circle the duplicate artifact in red
-on the left and label the clean right image `isRenderingShadowPass()`.
 
 ## Let Managed APIs Do Their Work
 
@@ -106,20 +94,6 @@ supported Iris Fabric platform only.
 
 `RenderCompat` also exposes public methods used by Glue's own renderer. They are not supported
 consumer extension points:
-
-::: details Glue-internal integration methods
-
-| Method | Internal contract |
-| --- | --- |
-| `resetFrameCache()` | Invalidates Glue's reflected depth IDs. Glue already calls it at `WorldRenderEvents.START`. |
-| `getIrisMainDepthGlId()` | Returns `-1` or a borrowed frame-cached Iris depth texture ID. |
-| `getIrisSceneDepthGlId()` | Returns `-1` or Iris's borrowed no-hand scene-depth texture ID. |
-| `getIrisRenderTargetArray()` | Returns `null` or reflected Iris implementation objects. |
-| `getIrisTargetTextures(target, name)` | Returns `null` or `{mainId, altId, width, height}` read from implementation fields. |
-
-Do not retain or delete returned GL IDs, retain target objects, or add another frame-cache reset.
-Texture allocation can change between frames and during pack or resource reloads.
-:::
 
 Glue guards published `IrisApi` and `IrisProgram` access by installation state. Iris implementation
 layout is reflected through `ModCompatManager` behind fallbacks. Consumer code should not import Iris

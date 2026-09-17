@@ -60,21 +60,56 @@ the `ItemsRegistry` mod ID.
 
 ## Complete the Block Checklist
 
-Registration is only the Java half of a finished block. Add these resources before testing:
+Registration is only the Java half. This minimal resource set gives the pedestal a full-cube model
+using vanilla amethyst, an inventory model and a survival drop. Custom artwork can come later.
 
-- `assets/lightworkshop/blockstates/lumen_pedestal.json` selects the block model.
-- `assets/lightworkshop/models/block/lumen_pedestal.json` describes the placed model.
-- `assets/lightworkshop/items/lumen_pedestal.json` selects the item model on Minecraft 1.21.8.
-- `assets/lightworkshop/models/item/lumen_pedestal.json` describes the inventory model.
-- `assets/lightworkshop/textures/block/lumen_pedestal.png` supplies the texture.
-- `assets/lightworkshop/lang/en_us.json` defines `block.lightworkshop.lumen_pedestal`.
-- `data/lightworkshop/loot_table/blocks/lumen_pedestal.json` makes the block drop itself when that is the intended behavior.
-- The creative-tab display callback accepts `WorkshopBlocks.LUMEN_PEDESTAL_ITEM` if it should appear beside the probe.
+::: code-group
+```json [assets/lightworkshop/blockstates/lumen_pedestal.json]
+{
+  "variants": {
+    "": { "model": "lightworkshop:block/lumen_pedestal" }
+  }
+}
+```
+```json [assets/lightworkshop/models/block/lumen_pedestal.json]
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": { "all": "minecraft:block/amethyst_block" }
+}
+```
+```json [assets/lightworkshop/items/lumen_pedestal.json]
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "lightworkshop:block/lumen_pedestal"
+  }
+}
+```
+```json [data/lightworkshop/loot_table/blocks/lumen_pedestal.json]
+{
+  "type": "minecraft:block",
+  "pools": [{
+    "rolls": 1,
+    "entries": [{ "type": "minecraft:item", "name": "lightworkshop:lumen_pedestal" }],
+    "conditions": [{ "condition": "minecraft:survives_explosion" }]
+  }]
+}
+```
+```json [data/minecraft/tags/block/mineable/pickaxe.json]
+{
+  "replace": false,
+  "values": ["lightworkshop:lumen_pedestal"]
+}
+```
+:::
+
+Paths are relative to `src/main/resources/`. Merge
+`"block.lightworkshop.lumen_pedestal": "Lumen Pedestal"` into `assets/lightworkshop/lang/en_us.json`.
+The item definition points directly to the block model, so this version needs no separate item model
+or PNG. Add `WorkshopBlocks.LUMEN_PEDESTAL_ITEM` to the creative tab if desired.
 
 **Expected result:** `/give @s lightworkshop:lumen_pedestal` returns the block item, placing it
 creates the pedestal, and breaking it in survival follows the loot table.
-
-<DocImage title="Completed Lumen Pedestal block" description="A placed lightworkshop:lumen_pedestal in a Minecraft 1.21.8 world with the matching named block item selected in the hotbar and no missing-model texture." />
 
 ::: details Block-item overloads
 `ItemsRegistry.register(block)` uses new default `Item.Properties`. The
@@ -113,11 +148,30 @@ public static final BlockEntityType<LumenPedestalBlockEntity> LUMEN_PEDESTAL =
 Initialize the block-entity holder after `WorkshopBlocks`. The alternate
 `register(path, blockEntityType)` overload accepts a type built elsewhere.
 
-::: details The block class must create its entity
-Registering a `BlockEntityType` does not turn a plain `Block` into an entity block. The block must
-implement Minecraft's entity-block contract and create `LumenPedestalBlockEntity` for the matching
-state. Add that behavior only with the block entity, not to the simple first version.
-:::
+The block must also create its entity. Replace the plain block class with this version when adding
+the registered type (add `implements GlueBlock` and its outline method as well if using that feature):
+
+```java [PedestalBlock.java]
+package dev.example.lightworkshop.block;
+
+import dev.example.lightworkshop.registry.WorkshopBlockEntities;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+
+public final class PedestalBlock extends Block implements EntityBlock {
+    public PedestalBlock(Properties properties) {
+        super(properties);
+    }
+
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return WorkshopBlockEntities.LUMEN_PEDESTAL.create(pos, state);
+    }
+}
+```
 
 ## Configure Client Rendering
 

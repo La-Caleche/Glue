@@ -14,11 +14,6 @@ environment:
 
 # Control Light Lifetime and Persistence
 
-| Artifact | Fabric mod ID | Environment |
-| --- | --- | --- |
-| `glue-lumos` | `glue-lumos` | Client and server |
-| `glue-lumos-client` | `glue-lumos-client` | Client only |
-
 Start with [Add Your First Lumos Light](./index.md) if you have not yet spawned and removed one local
 point light.
 
@@ -31,7 +26,7 @@ state: a client `LightHandle` for the visual effect and a server-assigned `long`
 ## Attach a Flashlight
 
 An attachment samples position and direction every rendered frame, including partial tick. The
-definition's initial transform is only a placeholder:
+attachment supplies the live transform instead of the definition's initial position and direction:
 
 ```java [src/client/java/dev/example/lightworkshop/client/FlashlightController.java]
 package dev.example.lightworkshop.client;
@@ -72,8 +67,6 @@ Looking around should move a warm cone smoothly with the camera instead of jumpi
 tick. Because this example disables the real shadow map, nearby living entities can still contribute
 approximate capsule shadows, including the player holding the flashlight. Anchor exclusion currently
 applies only to mapped entity shadows. No other client sees the light, and it is not saved.
-
-<DocImage title="Attached flashlight result" description="A warm cone begins at the player's eyes and follows the crosshair across a wall; turning it off leaves the original vanilla scene." />
 
 ## Own and Clean Up the Handle
 
@@ -141,8 +134,6 @@ existing light. `Lumos.remove(level, id)` reports whether the ID existed.
 
 Everyone in the dimension should see the lamp after the server accepts it. It should remain after a
 save and reload, and removing its owning object should remove the Lumos entry by the stored ID.
-
-<DocImage title="World-light ownership" description="The logical server assigns a per-dimension ID, the lamp owner saves that ID, and clients only render synchronized copies." />
 
 ## Keep Client Requests Server-Authoritative
 
@@ -217,8 +208,6 @@ interpolated eye position and view direction.
 For a custom source, fill the reusable transform every sample and return `false` when it ends:
 
 ```java
-package dev.example.lightworkshop.client;
-
 LightHandle handle = Lumos.attach(level, definition, (world, partialTick, out) -> {
     if (!active) return false;
     out.position(x, y, z).direction(directionX, directionY, directionZ);

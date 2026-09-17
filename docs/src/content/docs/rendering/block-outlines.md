@@ -53,12 +53,6 @@ public final class PedestalBlock extends Block implements GlueBlock {
 Reload client resources with F3+T, place the pedestal, and point at it. Glue draws the block's normal
 selection shape in orange. Point at a neighboring vanilla block to see the standard outline again.
 
-<DocImage title="Orange pedestal outline comparison" description="A split comparison: the Light Workshop pedestal selected with a bright orange outline, and a neighboring vanilla block selected with the normal dark line." />
-
-Replace this placeholder with two 900x700 crops taken from the same camera position. Label the left
-side `lightworkshop:pedestal` and the right side `vanilla block`; keep the crosshair and full outline
-visible in both.
-
 ## Keep Shared and Client Code Separate
 
 The block returns only a `ResourceLocation`. Glue resolves that ID from the client outline registry
@@ -123,7 +117,7 @@ propagates and does not trigger the `glue:base` fallback.
 
 ## Next Steps
 
-- Combine this outline with the HUD status in the [Rendering Milestone](../workshop/rendering.md).
+- Add target-aware HUD feedback with [Rendering Events](./events.md).
 - Animate displayed geometry with [Transform Stack](./transforms.md).
 - Read [Rendering Events](./events.md#use-post-world-rendering-safely) before adding custom world
   passes around selection rendering.

@@ -53,20 +53,10 @@ The item appears above the center of the pedestal and turns smoothly. The render
 `itemRenderer` and the block entity registration are ordinary Minecraft setup; Glue only adapts the
 pose passed to this callback.
 
-<DocImage title="Rotating pedestal display" description="A copper bulb centered above the orange-outlined Light Workshop pedestal, with a curved arrow indicating rotation around the item's vertical axis." />
-
-Replace this placeholder with a 1280x720 in-game screenshot. Capture the selected pedestal and add
-a thin orange Y-axis plus a clockwise rotation arrow through the displayed item.
-
 ## Read Transform Order Literally
 
 Calls apply in the same order as calls on `PoseStack`. In the example, translation establishes the
 item's center, rotation changes its orientation there, and scale changes its local size.
-
-<DocImage title="Transform order comparison" description="Two three-step diagrams: translate then rotate keeps the item over the pedestal, while rotate then translate swings the item around the block origin." />
-
-Replace this placeholder with a 1200x500 diagram. Use identical pedestal and item silhouettes in
-both rows, label each matrix operation, and mark the unintended orbit in red.
 
 For geometry already expressed in unit-block coordinates, Glue also provides a direct centered
 rotation around `(0.5, 0.5, 0.5)`:

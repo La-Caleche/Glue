@@ -32,12 +32,6 @@ Call `chooseTexture()` from a screen button. Selecting a PNG changes `selectedFi
 path; closing the picker without a choice changes it to `Cancelled`. Render that field with the
 screen's normal `GuiGraphics` code.
 
-<DocImage title="Native texture picker result" description="A native operating-system file picker filtered to PNG files beside a Light Workshop editor screen whose status reads Selected: pedestal.png." />
-
-Replace this placeholder with a two-panel 1400x700 image from the target operating system. Show the
-`PNG textures` filter in the picker and the final selected path in the Minecraft screen; redact the
-user-profile portion of the path.
-
 The smallest example intentionally omits duplicate-click and failure UI. Add those before shipping.
 
 ## Prevent Duplicates and Handle Every Outcome

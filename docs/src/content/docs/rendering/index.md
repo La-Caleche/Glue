@@ -31,14 +31,9 @@ and dedicated-server entrypoints.
 5. [Post-Processing Effects](./post-effects.md) applies a complete grayscale world effect.
 6. [3D Scene Viewport](./scene-viewport.md) presents the workshop region through an orbit camera.
 
-After the first two tasks, complete the [Rendering Milestone](../workshop/rendering.md). It combines
-the HUD and outline into one small, testable feature before GPU resource ownership is introduced.
-
-<DocImage title="Rendering learning path" description="A left-to-right flow from HUD event to orange outline, transform, pipeline, post effect, and orbit preview, with the F8 debug HUD below the shader stages." />
-
-Replace this placeholder with a 1400x520 diagram. Use one labeled box per guide, orange arrows for
-the recommended order, and a dashed diagnostic arrow from **Framebuffer Debug HUD** to **Pipelines**
-and **Post effects**.
+These guides can be used independently. For a short item-to-light tutorial, follow the
+[Light Workshop](../workshop/index.md). For existing runnable renderers, use the
+[showcase](../showcase.md#rendering-and-lighting).
 
 ## Choose the Smallest API
 
@@ -80,6 +75,5 @@ state it changes. Minecraft caches GL state, so restoring only the visible frame
 ## Next Steps
 
 - Start with [Rendering Events](./events.md) for the first visible result.
-- Jump to the [Rendering Milestone](../workshop/rendering.md) if the Light Workshop pedestal already
-  exists.
+- Follow the [Rendering Milestone](../workshop/rendering.md) to add a HUD to the probe.
 - Read [Modules](../modules.md) before moving a rendering type across a source-set boundary.

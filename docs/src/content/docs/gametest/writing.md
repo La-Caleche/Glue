@@ -127,13 +127,14 @@ allow several ticks to catch up without drawing. Use the frame counter when the 
 screenshot must observe newly rendered output:
 
 ```java
-int[] firstFrame = {-1};
+test.step("wait for ten rendered world frames", GameTest.DEFAULT_TIMEOUT, new GameTest.StepTick() {
+    private int firstFrame = -1;
 
-test.step("wait for ten rendered world frames", GameTest.DEFAULT_TIMEOUT, context -> {
-    if (firstFrame[0] < 0) {
-        firstFrame[0] = context.renderedWorldFrames();
+    @Override
+    public boolean tick(TestContext context) {
+        if (this.firstFrame < 0) this.firstFrame = context.renderedWorldFrames();
+        return context.renderedWorldFrames() - this.firstFrame >= 10;
     }
-    return context.renderedWorldFrames() - firstFrame[0] >= 10;
 });
 ```
 

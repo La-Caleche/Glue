@@ -42,20 +42,14 @@ Join a world. The orange status line appears after the vanilla in-world HUD and 
 toasts, and other later overlays. It uses GUI-scaled coordinates, so `height - 16` remains close to
 the bottom at every GUI scale.
 
-<DocImage title="Light Workshop HUD status" description="Minecraft in a workshop area with the orange text Light Workshop: render ready aligned eight pixels from the lower-left edge." />
-
-Replace this placeholder with a 1280x720 in-game screenshot. Keep the full HUD visible and add one
-callout pointing to the orange status line with the label `MAIN_RENDER`.
-
 ## Place Work on the Timeline
 
 `MAIN_RENDER` is the simplest late-HUD hook. Geometry and post-processing belong earlier in the
 frame:
 
-<DocImage title="Glue render timeline" description="A horizontal timeline showing world render, POST_WORLD_RENDER capture-lighting-default phases, hand and screen effects, vanilla HUD, RENDER_HUD, MAIN_RENDER, then screens and toasts." />
-
-Replace this placeholder with a 1400x360 timeline. Mark `POST_WORLD_RENDER` before the hand and HUD,
-`RENDER_HUD` before F3 and later HUD layers, and `MAIN_RENDER` at the end of `Gui.render`.
+```text
+World → POST_WORLD_RENDER → hand / screen effects → HUD → MAIN_RENDER → screens / toasts
+```
 
 | Task | Event |
 | --- | --- |
@@ -138,5 +132,5 @@ them during the callback only. Particle callbacks run on the thread that called 
 ## Next Steps
 
 - Give the pedestal visible selection feedback in [Block Outlines](./block-outlines.md).
-- Combine both beginner tasks in the [Rendering Milestone](../workshop/rendering.md).
+- Follow the [workshop HUD example](../workshop/rendering.md) for a complete client entrypoint.
 - Use [Transform Stack](./transforms.md) when a render callback needs balanced model transforms.

@@ -39,10 +39,8 @@ timeout.
 
 ## Follow the Runner
 
-<DocImage title="Runner flow" description="A registered test is selected by JVM property, built on the first client tick, executed one step at a time, and finished with a report plus any requested screenshots." />
-
 ```text
-register factory -> select id -> build fresh script -> run steps -> write artifacts -> close client
+Select test ID → create a fresh script → run client steps → write report and captures → stop client
 ```
 
 Without the `glue.gametest` JVM system property, the module only registers its built-in tools. It

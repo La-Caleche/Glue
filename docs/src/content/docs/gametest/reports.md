@@ -65,8 +65,6 @@ If a step throws or exceeds its timeout, that line is `FAIL`, remaining steps ar
 result is `FAIL`. Unknown ids, throwing factories, mismatched factory names, and unusable output
 setup add an `ERROR:` line because no step could run.
 
-<DocImage title="Report and screenshot pairing" description="A numbered PNG sits beside report.txt so the textual verdict identifies the run while the image preserves its rendered evidence." />
-
 ## Understand Screenshot Semantics
 
 `screenshot(label)` waits until its third poll before requesting a capture of the last rendered

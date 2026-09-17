@@ -1,125 +1,98 @@
 ---
-title: Rendering Milestone
-description: Add HUD and selected-block feedback to the Light Workshop pedestal with public Glue APIs.
+title: Add a Probe HUD
+description: Draw current position and target information only while the player holds the Lumen Probe.
 artifact: glue-render
 modId: glue-render
 environment: client
 ---
 
-# Rendering Milestone
+# Add a Probe HUD
 
-This milestone produces two pieces of immediate feedback: an orange HUD message when the crosshair
-targets the Light Workshop pedestal, and a matching orange outline around that pedestal. Use it to
-verify the `glue-render` dependency and client resource loading before adding shaders.
+Start with the [registered probe](./probe.md). This step needs no pedestal, block entity or shader:
+holding the probe displays the player's position and the block under the crosshair.
 
-It combines the public APIs introduced in [Rendering Events](../rendering/events.md) and
-[Block Outlines](../rendering/block-outlines.md). The sample mod ID is `lightworkshop`; its package is
-`dev.example.lightworkshop`.
+## Add the Client Dependency
 
-Before continuing, complete the pedestal and keybinding Core milestones, then add `glue-render`
-through the [Rendering setup](../getting-started.md#optional-client-module). In the combined tutorial
-project this is the first hard client-only dependency, so the application descriptor becomes
-client-only. To retain dedicated-server support, put this entrypoint and dependency in a separate
-client-only companion mod.
+Add `modImplementation("fr.lacaleche.glue:glue-render:<glue-version>")` beside Core in
+`build.gradle.kts`. Use the same Glue version throughout.
 
-## Opt the Pedestal into Glue Outlines
+For this single-project, local-development tutorial, merge these fields into `fabric.mod.json`:
 
-Keep the renderer ID in shared block code:
-
-```java [src/main/java/dev/example/lightworkshop/block/PedestalBlock.java]
-package dev.example.lightworkshop.block;
-
-import fr.lacaleche.glue.block.GlueBlock;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-
-public final class PedestalBlock extends Block implements GlueBlock {
-    private static final ResourceLocation OUTLINE =
-            ResourceLocation.fromNamespaceAndPath("lightworkshop", "pedestal");
-
-    public PedestalBlock(Properties properties) {
-        super(properties);
-    }
-
-    @Override
-    public ResourceLocation getOutlineRenderer() {
-        return OUTLINE;
-    }
-}
-```
-
-Define the client-side appearance with a resource:
-
-```json [src/main/resources/assets/lightworkshop/glue/outlines/pedestal.json]
+```json [src/main/resources/fabric.mod.json — merge these fields]
 {
-  "type": "simple",
-  "red": 255,
-  "green": 128,
-  "blue": 32,
-  "alpha": 0.8
+  "environment": "client",
+  "entrypoints": {
+    "main": ["dev.example.lightworkshop.LightWorkshop"],
+    "client": ["dev.example.lightworkshop.LightWorkshopClient"]
+  },
+  "depends": {
+    "glue": "<glue-version>",
+    "glue-render": "<glue-version>"
+  }
 }
 ```
 
-## Add Target-aware HUD Feedback
+Keep the existing schema, identity, Minecraft, Java and Fabric requirements. For dedicated-server
+support, use a client-only companion mod instead of changing the shared mod's environment; see the
+[workshop boundary](./index.md#environment-boundary).
 
-Register one permanent `MAIN_RENDER` listener. It reads current client state during the callback and
-does not retain `GuiGraphics`, the hit result, or the level. Merge this registration into the
-existing `LightWorkshopClient.onInitializeClient()` beside the Core keybinding; do not replace that
-class or its existing state.
+## Register the HUD
 
-```java [src/client/java/dev/example/lightworkshop/LightWorkshopClient.java]
-package dev.example.lightworkshop;
+```java [src/client/java/dev/example/lightworkshop/client/ProbeHud.java]
+package dev.example.lightworkshop.client;
 
-import dev.example.lightworkshop.block.PedestalBlock;
+import dev.example.lightworkshop.registry.WorkshopItems;
 import fr.lacaleche.glue.client.events.RenderEvents;
-import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 
-public final class LightWorkshopClient implements ClientModInitializer {
-    @Override
-    public void onInitializeClient() {
+public final class ProbeHud {
+
+    private ProbeHud() {
+    }
+
+    public static void register() {
         RenderEvents.MAIN_RENDER.register((graphics, tickDelta, width, height) -> {
             Minecraft client = Minecraft.getInstance();
-            boolean targetingPedestal = client.level != null
-                    && client.hitResult instanceof BlockHitResult hit
-                    && client.level.getBlockState(hit.getBlockPos()).getBlock()
-                            instanceof PedestalBlock;
+            if (client.player == null || client.level == null
+                    || !client.player.getMainHandItem().is(WorkshopItems.LUMEN_PROBE)) return;
 
-            String status = targetingPedestal
-                    ? "Light Workshop: pedestal selected"
-                    : "Light Workshop: find the pedestal";
-            graphics.drawString(client.font, status, 8, height - 16, 0xFFFFA447);
+            String target = client.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
+                    ? client.level.getBlockState(hit.getBlockPos()).getBlock().getName().getString()
+                    : "No block";
+            graphics.drawString(client.font, "Probe: " + client.player.blockPosition().toShortString()
+                    + " | Target: " + target, 8, height - 16, 0xFFFFA447);
         });
     }
 }
 ```
 
+Wire it once from the client entrypoint:
+
+```java [src/client/java/dev/example/lightworkshop/LightWorkshopClient.java]
+package dev.example.lightworkshop;
+
+import dev.example.lightworkshop.client.ProbeHud;
+import net.fabricmc.api.ClientModInitializer;
+
+public final class LightWorkshopClient implements ClientModInitializer {
+
+    @Override
+    public void onInitializeClient() {
+        ProbeHud.register();
+    }
+}
+```
+
+The listener reads live state and keeps no frame-owned `GuiGraphics` or world reference. Registration
+is permanent for the process; do not register again on each world join or resource reload.
+
 ## Check the Result
 
-1. Start the client and join a world containing the registered pedestal block.
-2. Aim beside the pedestal. The HUD says **find the pedestal**.
-3. Aim at the pedestal. The message changes to **pedestal selected** and the selected shape turns
-   orange.
-4. Press F3+T and repeat the check. The JSON outline should reload without restarting the client.
+Run the client, hold the probe, and aim at different blocks. The target name changes; selecting
+another hotbar item hides the line. Coordinates are GUI-scaled, so the line stays near the bottom
+at different GUI scales.
 
-<DocImage title="Completed rendering milestone" description="The Light Workshop pedestal under the crosshair with a translucent orange outline and the lower-left HUD text Light Workshop: pedestal selected." />
-
-Replace this placeholder with a 1440x900 in-game screenshot. Include the crosshair, all visible
-edges of the pedestal outline, and the lower-left status text. Add small callouts labeled
-`lightworkshop:pedestal` and `MAIN_RENDER`.
-
-## Verify the Contracts
-
-- The shared `PedestalBlock` references only `GlueBlock` and `ResourceLocation`; it does not load a
-  client renderer on a dedicated server.
-- The event registration happens once in `ClientModInitializer`.
-- The listener performs no blocking work and retains no frame-owned objects.
-- A malformed outline file is reported in the client log; an unknown renderer ID falls back to
-  `glue:base` rather than vanilla's outline.
-
-## Next Steps
-
-- Rotate a display above the block in [Transform Stack](../rendering/transforms.md).
-- Shade the display with [Rendering Pipelines](../rendering/pipelines.md).
-- Inspect the finished attachments with the [Framebuffer Debug HUD](../rendering/debug-hud.md).
+Next: [toggle a local Lumos light](./lighting.md). For a separate block feature, the
+[outline guide](../rendering/block-outlines.md) explains the shared `GlueBlock` opt-in and its JSON resource.

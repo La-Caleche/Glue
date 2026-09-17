@@ -14,11 +14,6 @@ environment:
 
 # Add Your First Lumos Light
 
-| Artifact | Fabric mod ID | Environment |
-| --- | --- | --- |
-| `glue-lumos` | `glue-lumos` | Client and server |
-| `glue-lumos-client` | `glue-lumos-client` | Client only |
-
 ## Outcome
 
 You will create one warm point light without a real shadow map three blocks in front of the player.
@@ -78,8 +73,6 @@ a warm orange tint. The source has no visible bulb, does not brighten the vanill
 and does not cast terrain shadow maps because the example calls `withShadow(false)`. Mapless lights
 can still apply approximate capsule shadows for up to eight nearby living entities.
 
-<DocImage title="Before and after: first local point light" description="The same dim wall without Lumos, then with one warm orange pool of light centered three blocks in front of the player." />
-
 ## Own and Remove It
 
 `Lumos.spawn(level, light)` returns the same `Light` object it receives. Lumos deduplicates and removes
@@ -95,8 +88,6 @@ local lights by object identity, not by matching their fields. That makes these 
 
 Registering a local light before a client world is active throws `IllegalStateException`. A call made
 on the logical server is harmless and returns the supplied light without rendering it.
-
-<DocImage title="Local light ownership" description="ProbePreview owns one level and one exact Light identity; hide passes that same identity to Lumos.despawn before clearing both fields." />
 
 ## Add the Modules
 

@@ -28,16 +28,38 @@ in [Getting Started](../getting-started.md). Include a development subproject:
 include("testmod")
 ```
 
-Add GameTest only to that project. The explicit run directory makes the artifact paths in this guide
-independent of IDE defaults.
+Add GameTest only to that project. A Gradle subproject does not automatically inherit the root
+project's Minecraft dependencies or repositories; give it a complete Loom classpath. The plugin
+version comes from the parent workspace. Replace `<glue-version>` with the version used by the app.
 
 ```kotlin [testmod/build.gradle.kts]
 plugins {
     id("fabric-loom")
 }
 
+repositories {
+    mavenCentral()
+    maven("https://maven.fabricmc.net/")
+    maven("https://reposilite.lacaleche.cc/private") {
+        credentials {
+            username = providers.environmentVariable("REPOSILITE_TOKEN_NAME")
+                .orElse(providers.gradleProperty("lc.reposilite.readonly.name")).orNull
+            password = providers.environmentVariable("REPOSILITE_TOKEN_SECRET")
+                .orElse(providers.gradleProperty("lc.reposilite.readonly.token")).orNull
+        }
+    }
+}
+
 dependencies {
+    minecraft("com.mojang:minecraft:1.21.8")
+    mappings(loom.officialMojangMappings())
+    modImplementation("net.fabricmc:fabric-loader:0.18.4")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:0.136.1+1.21.8")
     modImplementation("fr.lacaleche.glue:glue-gametest:<glue-version>")
+}
+
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 }
 
 loom {
@@ -71,7 +93,7 @@ Give the testmod its own client-only descriptor:
     ]
   },
   "depends": {
-    "fabricloader": ">=0.14.6",
+    "fabricloader": ">=0.17",
     "minecraft": "~1.21.8",
     "java": ">=21",
     "fabric-api": "*",
@@ -174,6 +196,9 @@ dependencies {
 
 Keep `glue-gametest` and `lightworkshop-test` out of published dependency metadata and production
 Fabric descriptors.
+
+If the application is the root project rather than `:lightworkshop`, use `path = ":"`. The
+[workshop test](../workshop/testing.md) uses that single-application layout.
 
 ## Troubleshooting
 

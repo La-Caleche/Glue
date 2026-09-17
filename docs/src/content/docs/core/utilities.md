@@ -33,8 +33,6 @@ public static VoxelShape forFacing(Direction facing) {
 **Expected result:** north returns the source shape; east, south, and west return rotated copies
 around the block center. Up and down return null because this shaper contains only horizontal keys.
 
-<DocImage title="Horizontal VoxelShaper variants" description="A four-panel wireframe diagram of the same asymmetric Lumen Pedestal voxel shape facing north, east, south, and west around the center of a single block cell." />
-
 ::: details Shape factories and mutation
 | Factory | Populated keys |
 | --- | --- |
@@ -132,8 +130,12 @@ must also supply a finite, non-NaN `posQuant`.
 discards the redo future.
 
 ```java
+final class ProbeSettings {
+    int range = 8;
+}
+
 HistoryManager history = new HistoryManager(32);
-int[] probeRange = {8};
+ProbeSettings settings = new ProbeSettings();
 
 history.execute(new Command() {
     @Override
@@ -143,12 +145,12 @@ history.execute(new Command() {
 
     @Override
     public void execute() {
-        probeRange[0] = 12;
+        settings.range = 12;
     }
 
     @Override
     public void undo() {
-        probeRange[0] = 8;
+        settings.range = 8;
     }
 });
 ```

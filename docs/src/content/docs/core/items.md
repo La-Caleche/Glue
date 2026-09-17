@@ -62,8 +62,6 @@ Initialize `WorkshopItemGroups` after `WorkshopItems`, then add the translation:
 **Expected result:** the creative inventory contains a **Light Workshop** tab whose icon and first
 entry are the Lumen Probe.
 
-<DocImage title="Light Workshop creative tab" description="The Minecraft 1.21.8 creative inventory open to a tab named Light Workshop, showing the Lumen Probe as both the tab icon and a visible item entry." />
-
 ## Add One Immutable Setting
 
 Use a data component when an `ItemStack` must retain custom state. This record stores whether the

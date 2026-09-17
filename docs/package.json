@@ -5,10 +5,10 @@
   "type": "module",
   "packageManager": "pnpm@11.5.2",
   "scripts": {
-    "dev": "vitepress dev",
-    "start": "vitepress dev",
-    "check": "vitepress build",
-    "build": "vitepress build",
+    "dev": "node scripts/prepare-assets.mjs && vitepress dev",
+    "start": "pnpm dev",
+    "check": "pnpm build",
+    "build": "node scripts/prepare-assets.mjs && vitepress build && node scripts/check-site.mjs",
     "test:deploy": "node --test deploy/portainer.test.mjs",
     "preview": "vitepress preview"
   },

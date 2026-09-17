@@ -1,88 +1,60 @@
 ---
 title: Light Workshop
-description: Build a small Fabric mod through visible milestones, beginning with a Lumen Probe powered by Glue Core.
-artifact: glue-core
-modId: glue
-environment: client and server
+description: Build a probe item, add client HUD feedback, toggle a local Lumos light and test its lifecycle.
 ---
 
 # Light Workshop
 
-Light Workshop is the shared sample mod for this learning path. Its first milestone is deliberately
-small: install Core, register a **Lumen Probe**, add its assets, and receive it in a running world.
-The optional **Lumen Pedestal** comes after that success.
+This is a small **mod you create**, using the public Glue APIs. It is not a module bundled with Glue.
+For existing executable examples, use the [showcase](../showcase.md).
 
-## Tutorial Identity
+The goal is a Lumen Probe: hold it to display a HUD, press **P** to place a warm preview light, and
+press **P** again or put the item away to remove the light. A final live-client test checks cleanup.
 
-Use these names consistently so IDs, packages, translations, and resource paths line up:
+## Before You Start
+
+Use a working Fabric **Minecraft 1.21.8 / Java 21** project with official Mojang mappings. Complete
+[Installation](../getting-started.md), then use these names consistently:
 
 | Kind | Value |
-| --- | --- |
-| Display name | `Light Workshop` |
+|---|---|
 | Mod ID | `lightworkshop` |
-| Base package | `dev.example.lightworkshop` |
-| First item ID | `lightworkshop:lumen_probe` |
-| Optional block ID | `lightworkshop:lumen_pedestal` |
+| Java package | `dev.example.lightworkshop` |
+| Common entrypoint | `dev.example.lightworkshop.LightWorkshop` |
+| Client entrypoint | `dev.example.lightworkshop.LightWorkshopClient` |
+| Item ID | `lightworkshop:lumen_probe` |
 
-## File Conventions
+Examples use `src/main/java` for shared code and `src/client/java` for client code. The latter assumes
+Loom's split environment source sets. In a single-source-set project, put the client files under
+`src/main/java` but load them only through the Fabric client entrypoint.
 
-Keep common registration holders under `registry`; keep item behavior under `item`; reserve
-`client` for classes that a dedicated server must never load.
+## The Four Steps
 
-```text
-src/main/java/dev/example/lightworkshop/
-├── LightWorkshop.java
-├── block/
-├── item/
-└── registry/
+| Step | Result | New dependency |
+|---|---|---|
+| [1. Register the probe](./probe.md) | `/give` produces a named item using a vanilla texture | `glue-core` |
+| [2. Add a HUD](./rendering.md) | Holding the probe shows position and target information | `glue-render` |
+| [3. Toggle a local light](./lighting.md) | One light with explicit ownership and cleanup | `glue-lumos`, `glue-lumos-client` |
+| [4. Test the lifecycle](./testing.md) | Two toggle cycles and a screenshot in a development testmod | `glue-gametest` |
 
-src/client/java/dev/example/lightworkshop/
-└── LightWorkshopClient.java
+Each step adds a separate class. The client entrypoint only wires features together; you do not
+replace earlier feature implementations as the tutorial progresses. A pedestal, creative tab and
+custom data component are optional extensions, not hidden prerequisites.
 
-src/main/resources/
-├── fabric.mod.json
-├── assets/lightworkshop/
-└── data/lightworkshop/
-```
+## Environment Boundary
 
-Java packages use dots, registry IDs use lowercase paths, and resource folders use the mod ID as
-their namespace. The `src/client/java` convention assumes Loom's split environment source sets;
-if the consumer uses one source set, keep the same package and load the class only as a Fabric
-client entrypoint. Do not place client imports in `LightWorkshop` or its common registry holders.
+The first item step is shared-side code. The rendering and lighting continuation uses a single
+client-only tutorial mod for **local singleplayer development**: its descriptor becomes
+`"environment": "client"` when it requires the client libraries.
 
-## Milestones
+For a mod that must be installed on a dedicated server, keep content registration in a shared mod
+and put the required rendering integration in a client-only companion mod. Split source sets alone
+do not change Fabric's mod-dependency rules. See [client dependencies](../getting-started.md#optional-client-module).
 
-1. [Install Glue](../getting-started.md) and reach the title screen with both ready messages.
-2. [Build the Lumen Probe](./probe.md) and obtain a named, textured item with `/give`.
-3. Complete the Core foundation: [add immutable probe data](../core/items.md),
-   [add the optional pedestal](../core/blocks.md), and
-   [register the remappable client key](../core/keybindings.md).
-4. Add the client artifact through [Rendering setup](../rendering/index.md), follow
-   [Rendering Events](../rendering/events.md) and [Block Outlines](../rendering/block-outlines.md),
-   then combine them in [Add Visual Feedback](./rendering.md).
-5. Add the required Lumos modules and [Light the Probe](./lighting.md).
-6. Complete [GameTest Setup](../gametest/setup.md) and [test the workshop](./testing.md) in a live
-   development client.
+## Optional Extensions
 
-<DocImage title="Light Workshop milestone map" description="A milestone diagram showing setup and the Lumen Probe leading through Core foundations, rendering feedback, Lumos lighting, and a final live-client GameTest." />
-
-::: details Scope of the first milestone
-The first probe proves dependency resolution, entrypoint initialization, Glue item registration,
-resource namespacing, item model loading, translation loading, and a live client run. It does not
-yet scan light, open a screen, or create Lumos lighting; later features can build on the known-good
-item without changing its registry ID.
-:::
-
-::: warning Client-only milestones
-The initial Core milestones can load on a client or dedicated server. The combined single-project
-tutorial becomes client-only at the Rendering milestone, when it adds its first hard client-only
-dependency. Keep server support by moving Rendering and the Lumos renderer into a
-separate client-only companion mod, as described in each dependency step.
-:::
-
-## Next Steps
-
-- [Build the Lumen Probe](./probe.md).
-- [Review the Core learner path](../core/index.md).
-- [Choose modules for later features](../modules.md).
-- [Add visual feedback](./rendering.md) after the pedestal and keybinding are ready.
+- [Creative tabs and item data](../core/items.md).
+- [A complete pedestal block](../core/blocks.md).
+- [Block outlines](../rendering/block-outlines.md) and [post effects](../rendering/post-effects.md).
+- [Attached or persistent lights](../lumos/lights.md).
+- [Web interfaces](../web/index.md) to control a feature from HTML or React.

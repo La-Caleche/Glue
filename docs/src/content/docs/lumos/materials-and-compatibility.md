@@ -15,12 +15,6 @@ environment:
 
 # Test Materials and Renderer Compatibility
 
-| Artifact | Fabric mod ID | Environment |
-| --- | --- | --- |
-| `glue-lumos` | `glue-lumos` | Client and server API |
-| `glue-lumos-client` | `glue-lumos-client` | Client only |
-| `glue-render` | `glue-render` | Client only |
-
 Use [Add Your First Lumos Light](./index.md) for setup and
 [Control Light Lifetime and Persistence](./lights.md) for ownership.
 
@@ -73,8 +67,6 @@ light that fades to zero at ten blocks. Its texture should remain recognizable r
 to a flat white disc. No terrain shadow should appear because this diagnostic light has no real
 shadow map; nearby living entities may still produce approximate capsule shadows.
 
-<DocImage title="Before and after: known-good material check" description="A dim opaque stone wall before the test and the same wall with a textured blue light pool fading across it." />
-
 If this check fails, first switch away from Fabulous, then test without an active Iris shader pack.
 If stone works but custom geometry does not, check the surface coverage below instead of increasing
 intensity.
@@ -107,8 +99,6 @@ surface normal.
 There is currently no public API for registering a custom material class or renderer adapter. Making
 an unsupported surface brighter cannot recover reflectance data that its render path never supplied.
 
-<DocImage title="Material coverage comparison" description="Opaque terrain and a living entity receive stable colored light; a custom additive sprite remains visually unchanged because it does not claim a supported material surface." />
-
 ## Choose a Graphics Mode
 
 | Runtime | What to expect |
@@ -122,8 +112,6 @@ an unsupported surface brighter cannot recover reflectance data that its render 
 Fast is supported. Fabulous is the hard graphics-mode exclusion, including when Iris is installed.
 With an active Iris pack, Lumos does not import the pack's custom PBR materials and does not promise
 visual parity with the normal path.
-
-<DocImage title="Renderer compatibility surfaces" description="The same lit wall on vanilla Fast or Fancy, Sodium 0.7.3, and active-Iris reduced mode, with Fabulous labeled unsupported." />
 
 ## Compare Shadow-Map Cost
 
@@ -159,8 +147,6 @@ The first pair caps resident spot/gobo maps and point cubemaps. The second limit
 Negative budgets clamp to zero, and lowering a resident budget immediately releases surplus maps. A
 maximum distance of `0` or less follows Minecraft's effective render distance.
 
-<DocImage title="Shadow and performance comparison" description="One mapless point light, one mapped spot light, and one mapped point light shown with their relative GPU cost: low, medium, and highest." />
-
 ## Render an Emissive Source
 
 An emissive material makes caller-rendered geometry look self-lit. It does not illuminate nearby
@@ -177,7 +163,7 @@ import net.minecraft.resources.ResourceLocation;
 public final class GlowRenderer {
     private static final EmissiveMaterial GLOW = EmissiveMaterial.unshaded(
             ResourceLocation.fromNamespaceAndPath(
-                    "lightworkshop", "textures/block/lumen_probe.png"));
+                    "minecraft", "textures/item/amethyst_shard.png"));
 
     public static void render(MultiBufferSource buffers, ProbeGeometry probe) {
         VertexConsumer vertices = buffers.getBuffer(GLOW.renderType());
@@ -245,23 +231,9 @@ renderer therefore distinguishes three cases:
 Captured glass, water, and metal use dedicated responses rather than the full-frame uncaptured cap.
 :::
 
-::: details Material-buffer ownership and formats
-On a full-capture frame, eligible terrain, entity, and particle geometry writes its ordinary scene
-color and material data in the same draw. Built-in glass, water, and metal instead use later
-material-only re-renders against borrowed, read-only scene depth. The framebuffer borrows the host
-color and depth and owns three screen-sized attachments:
-
-| Attachment | Format | Contents |
-| --- | --- | --- |
-| 1 | `RGBA16F` | Linear albedo in RGB; A carries a packed normal or a material-specific value |
-| 2 | `RGBA8` | Material ID in R and the draw's own packed 24-bit depth in GBA |
-| 3 | `RGBA8` | Roughness, metalness, dielectric F0, and a presence/reserved value |
-
-Current IDs are terrain `1`, entity `2`, particle `3`, glass `4`, water `5`, and metal `6`; zero is
-unclaimed. Each consumer accepts an ID only while its stored owner depth still describes the visible
-surface. The formats, IDs, shader patches, and classes under `internal` are implementation details,
-not a consumer material API.
-:::
+Material IDs, attachment formats and shader-source patches are implementation details. Use the
+[framebuffer debug HUD](../rendering/debug-hud.md) to inspect captured data rather than depending on
+its packing or borrowing its GL objects.
 
 ::: details Sodium and Iris failure contracts
 The repository's exact development targets are Sodium `mc1.21.8-0.7.3-fabric` and Iris

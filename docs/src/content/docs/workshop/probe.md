@@ -1,6 +1,6 @@
 ---
 title: Build the Lumen Probe
-description: Complete the first Light Workshop milestone by registering, naming, modeling, and testing one Glue Core item.
+description: Register a named item with Glue Core and Minecraft's existing amethyst-shard texture.
 artifact: glue-core
 modId: glue
 environment: client and server
@@ -8,16 +8,12 @@ environment: client and server
 
 # Build the Lumen Probe
 
-This milestone ends with a real `lightworkshop:lumen_probe` item in your hand. It uses only
-`glue-core`, common initialization, and the minimum item resources for Minecraft 1.21.8.
-
-Before continuing, finish [Getting Started](../getting-started.md) and confirm the development client
-launches with `Light Workshop is ready` in the log.
+Complete [Installation](../getting-started.md) first. This step uses only `glue-core` and ends with
+`lightworkshop:lumen_probe` in your inventory. No custom texture or block is required.
 
 ## 1. Register the Item
 
-Create one common registry holder. `ItemsRegistry` supplies the `lightworkshop` namespace and sets
-the item key before `Item::new` runs.
+`ItemsRegistry` assigns the item key to the properties before calling `Item::new`.
 
 ```java [src/main/java/dev/example/lightworkshop/registry/WorkshopItems.java]
 package dev.example.lightworkshop.registry;
@@ -26,8 +22,8 @@ import fr.lacaleche.glue.registries.ItemsRegistry;
 import net.minecraft.world.item.Item;
 
 public final class WorkshopItems {
-    private static final ItemsRegistry ITEMS = new ItemsRegistry("lightworkshop");
 
+    private static final ItemsRegistry ITEMS = new ItemsRegistry("lightworkshop");
     public static final Item LUMEN_PROBE = ITEMS.register(
             "lumen_probe", Item::new, new Item.Properties().stacksTo(1));
 
@@ -39,27 +35,44 @@ public final class WorkshopItems {
 }
 ```
 
-The empty method is intentional: calling it forces this holder's static fields to initialize at a
-clear lifecycle point.
+The empty `initialize()` method deliberately forces the static registrations to run at mod startup.
+It is not a deferred registration queue.
 
 ## 2. Initialize the Holder
 
-Update the common entrypoint created during setup.
+Use this common entrypoint. Its `id` helper is also available to later examples:
 
 ```java [src/main/java/dev/example/lightworkshop/LightWorkshop.java]
-@Override
-public void onInitialize() {
-    WorkshopItems.initialize();
-    LOGGER.info("Light Workshop is ready");
+package dev.example.lightworkshop;
+
+import dev.example.lightworkshop.registry.WorkshopItems;
+import net.fabricmc.api.ModInitializer;
+import net.minecraft.resources.ResourceLocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public final class LightWorkshop implements ModInitializer {
+
+    public static final String MOD_ID = "lightworkshop";
+    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+
+    @Override
+    public void onInitialize() {
+        WorkshopItems.initialize();
+        LOGGER.info("Light Workshop is ready");
+    }
+
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    }
 }
 ```
 
-Import `dev.example.lightworkshop.registry.WorkshopItems`. Keep this call in the common entrypoint
-so the same item registry exists on clients and dedicated servers.
+The `main` entrypoint in `fabric.mod.json` must point to `dev.example.lightworkshop.LightWorkshop`.
 
-## 3. Name the Probe
+## 3. Add the Resources
 
-Create the language file. The key follows Minecraft's `item.<namespace>.<path>` convention.
+Name the item:
 
 ```json [src/main/resources/assets/lightworkshop/lang/en_us.json]
 {
@@ -67,9 +80,7 @@ Create the language file. The key follows Minecraft's `item.<namespace>.<path>` 
 }
 ```
 
-## 4. Point to the Item Model
-
-Minecraft 1.21.8 uses an item definition to select the rendered model.
+Minecraft 1.21.8 needs an item definition selecting the model:
 
 ```json [src/main/resources/assets/lightworkshop/items/lumen_probe.json]
 {
@@ -80,66 +91,38 @@ Minecraft 1.21.8 uses an item definition to select the rendered model.
 }
 ```
 
-The selected model uses the generated-item parent and one texture layer.
+Use a vanilla texture so the first run is complete without additional artwork:
 
 ```json [src/main/resources/assets/lightworkshop/models/item/lumen_probe.json]
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "lightworkshop:item/lumen_probe"
+    "layer0": "minecraft:item/amethyst_shard"
   }
 }
 ```
 
-Add a PNG at
-`src/main/resources/assets/lightworkshop/textures/item/lumen_probe.png`. A 16x16 texture is enough
-for the milestone; use transparency around the probe silhouette.
+To add custom artwork later, put a PNG at `assets/lightworkshop/textures/item/lumen_probe.png` and
+change `layer0` to `lightworkshop:item/lumen_probe`.
 
-## 5. Compile and Test
-
-Compile before launching so Java and copied resources fail independently.
+## 4. Run It
 
 ::: code-group
 ```bash [Unix]
-./gradlew classes
-./gradlew runClient
+./gradlew classes runClient
 ```
-
 ```powershell [PowerShell]
-.\gradlew.bat classes
-.\gradlew.bat runClient
+.\gradlew.bat classes runClient
 ```
 :::
 
-Join a development world and run:
+Join a singleplayer world and run `/give @s lightworkshop:lumen_probe`. The item is named **Lumen
+Probe**, stacks to one, and looks like an amethyst shard.
 
-```text
-/give @s lightworkshop:lumen_probe
-```
+| Problem | Check |
+|---|---|
+| Unknown item | The common entrypoint calls `WorkshopItems.initialize()` and the mod ID is `lightworkshop`. |
+| Raw translation key | The language file is under `assets/lightworkshop/lang/` and contains the exact item key. |
+| Missing model | Both `items/lumen_probe.json` and `models/item/lumen_probe.json` exist with the paths above. |
 
-**Expected result:** the command succeeds, the item name is **Lumen Probe**, the stack limit is one,
-and the held/inventory icon uses your texture rather than Minecraft's missing-model pattern.
-
-<DocImage title="Lumen Probe milestone result" description="A Minecraft 1.21.8 player holding the named Lumen Probe while the hotbar shows its custom transparent texture and chat shows a successful give command for lightworkshop:lumen_probe." />
-
-::: details If the result is missing
-- **Unknown item:** confirm `WorkshopItems.initialize()` runs and the namespace/path are exactly `lightworkshop` and `lumen_probe`.
-- **Raw translation key:** confirm the file is `assets/lightworkshop/lang/en_us.json` and the key is `item.lightworkshop.lumen_probe`.
-- **Missing-model pattern:** confirm both JSON paths, both `lightworkshop:item/lumen_probe` references, and the PNG path use the same lowercase spelling.
-- **Glue fails to resolve:** return to
-  [repository credentials](../getting-started.md#_1-add-repository-access) and confirm the selected
-  Glue version exists.
-:::
-
-::: details Registration lifecycle
-`ItemsRegistry.register` performs the built-in registry call immediately. Do not call it from a
-later world event or more than once. The holder pattern makes registration happen once while the
-common Fabric entrypoint initializes.
-:::
-
-## Next Steps
-
-- [Put the probe in a creative tab](../core/items.md#put-the-probe-in-a-creative-tab).
-- [Add a small immutable probe component](../core/items.md#add-one-immutable-setting).
-- [Build the optional Lumen Pedestal](../core/blocks.md).
-- [Learn why the registry wrapper works](../core/registries.md).
+Next: [add the probe HUD](./rendering.md). A [creative tab or data component](../core/items.md) is optional.

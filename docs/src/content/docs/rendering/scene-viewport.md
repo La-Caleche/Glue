@@ -89,11 +89,6 @@ Minecraft.getInstance().setScreen(new PedestalPreviewScreen(pedestalPos));
 The preview shows a 5x4x5 region around `pedestalPos`. Left-drag orbits, right-drag pans, the wheel
 zooms, and Escape closes the screen. The real camera and world remain unchanged.
 
-<DocImage title="Orbiting pedestal preview" description="A full-screen dark scene viewport showing the Light Workshop pedestal and nearby blocks, with curved left-drag orbit, right-drag pan, and wheel zoom callouts." />
-
-Replace this placeholder with a 1440x900 capture of the preview screen. Keep the pedestal near the
-center, show the dark off-screen clear color around the region, and annotate all three controls.
-
 ## Match the Camera and Renderer
 
 The screen receives framebuffer-pixel dimensions in `renderSceneToTexture`; pass those dimensions to
@@ -103,12 +98,6 @@ The screen receives framebuffer-pixel dimensions in `renderSceneToTexture`; pass
 `BlockSceneRenderer` defaults to relative coordinates. It fetches blocks around the world-space
 `centerPos`, then places that center at scene offset `(0, 0, 0)`. The orbit pivot in the example is in
 that same scene coordinate space.
-
-<DocImage title="Preview coordinate flow" description="A diagram mapping a world-space pedestal position to relative scene origin, then through scene scale and half-block translation into the orbit camera view." />
-
-Replace this placeholder with a 1200x500 coordinate diagram. Label the world position
-`pedestalPos`, the relative position `(0, 0, 0)`, the base translation `(-0.5, -0.5, -0.5)`, and the
-camera pivot.
 
 ## Clean Up the Owned Resources
 

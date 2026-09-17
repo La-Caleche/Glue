@@ -7,7 +7,6 @@ environment: client and server
 # Modules
 
 Choose the row that matches your outcome, add that artifact, and declare its exact Fabric mod ID.
-For the first Light Workshop milestone, the answer is only `glue-core`.
 
 ## Choose by Goal
 
@@ -25,27 +24,17 @@ selected set.
 
 ## Dependency Map
 
-The direct Glue dependencies are intentionally short:
+| Module | Direct Glue dependencies |
+|---|---|
+| `glue-core` | None |
+| `glue-render` | `glue-core` |
+| `glue-lumos` | `glue-core` |
+| `glue-lumos-client` | `glue-core`, `glue-render`, `glue-lumos` |
+| `glue-web` | None; Chromium implementation dependencies are embedded privately |
+| `glue-gametest` | None; development use only |
 
-```text
-glue-core
-├── glue-render
-├── glue-lumos ─────────────┐
-└── glue-lumos-client ◄─────┘
-         ▲
-         └── glue-render
-
-glue-gametest (independent)
-glue-web (independent)
-```
-
-Read the composed rows as follows:
-
-- `glue-render` depends on `glue-core`.
-- `glue-lumos` depends on `glue-core`.
-- `glue-lumos-client` depends directly on `glue-core`, `glue-render`, and `glue-lumos`.
-- `glue-gametest` has no direct Glue dependency.
-- `glue-web` has no direct Glue dependency; it embeds its browser implementation privately.
+`glue-showcase` consumes every library module for demos and tests. Run it from this repository;
+do not add it as a production dependency. See [Runnable Examples](./showcase.md).
 
 ::: info Artifact graph versus Fabric graph
 Gradle can bring direct artifact dependencies transitively, but Fabric Loader still validates mod
