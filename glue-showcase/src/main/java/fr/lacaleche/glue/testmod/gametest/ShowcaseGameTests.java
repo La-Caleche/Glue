@@ -9,6 +9,7 @@ import fr.lacaleche.glue.gametest.IrisShadersTool;
 import fr.lacaleche.glue.gametest.TestContext;
 import fr.lacaleche.glue.lumos.Light;
 import fr.lacaleche.glue.testmod.lumos.DemoLights;
+import fr.lacaleche.glue.testmod.gametest.scene.SceneGameTest;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -45,6 +46,7 @@ public final class ShowcaseGameTests {
     }
 
     public static void register() {
+        SceneGameTest.register();
         GameTests.register("glue-test:native-dialogs", ShowcaseGameTests::nativeDialogs);
         GameTests.register("glue-test:iris-hud", ShowcaseGameTests::irisHud);
         GameTests.register("glue-test:lumos-smoke", ShowcaseGameTests::lumosSmoke);

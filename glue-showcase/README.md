@@ -11,8 +11,8 @@ opens the Lumos client request channel to operators; **`TestmodClient`** registe
 
 ## Controls
 
-Press **F6** by default to open the Glue Web hub. It opens the web demos and toggles the web HUD,
-minimap and toasts; see [Web demos](#web-demos).
+Press **F6** by default to open the Glue Web hub. It opens the web demos and the three native scene
+previews, and toggles the web HUD, minimap and toasts.
 
 Lighting and post-effect examples use client commands:
 
@@ -21,6 +21,7 @@ Lighting and post-effect examples use client commands:
 - `/showcase effects chromatic`, `shattered`, or `impact` triggers a Java-built timed effect.
 - `/showcase effects chromatic-registry`, `vortex`, or `pulse` exercises registry-driven effects.
 - `/showcase raycast` toggles raycast debugging.
+- `/showcase scene orbit`, `fps`, or `gizmo` opens a scene preview after joining a world.
 
 Press **R** by default to toggle the raycast debug HUD independently. It compares vanilla, oversized-outline,
 and final block hits, labels every candidate shape in the world, and reports linear hit distances
@@ -49,6 +50,9 @@ over the full 20-block ray.
 | Data-driven `GluePipeline` loading | `AdditiveSpriteRenderer.java` (+ `glue/pipelines/*.json`) |
 | Cycling all registered pipelines | `render/TestShaderPipelines.java` (used by the shader block) |
 | Post-processing effects (toggle + timed) | `render/TestPostShaderHandler.java` |
+| `BlockSceneRenderer` and `OrbitCameraController` | `scene/BlockSceneTestScreen.java` |
+| `FpsCameraController`, mouse capture and entity previews | `scene/FpsViewportTestScreen.java` |
+| Block picking, `GlfwGizmoController` and undo/redo | `scene/GizmoTestScreen.java`, `SceneTestController.java`, `UpdateBlockCommand.java` |
 | `WebScreen`, `WebHud`, `WebOverlay`, `WebWidget`, `@WebAction`, native slots | Java `web/` demo packages and the [`web/` frontend](web/README.md) |
 
 ## Web demos
@@ -88,10 +92,32 @@ the opt-in internet test; its result distinguishes Google's challenge page from 
 results. `glue-test:web-startup` inspects the runtime indicator. See the
 [library guide](../docs/src/content/docs/web/index.md).
 
+## Scene demos
+
+Join a world, press **F6**, then choose **Orbit scene**, **FPS scene** or **Gizmo scene**. The same
+examples are available through `/showcase scene orbit`, `/showcase scene fps` and `/showcase scene gizmo`.
+They use `AbstractViewportScreen` directly, with native rendering and input. Each samples nearby
+terrain into an owned render target; moving the preview camera or transforming a preview block does
+not change the world or the real player. Escape returns to the opening screen, or to gameplay for a
+command. A web hub opens its page again when returned to from a native preview.
+
+| Example | Controls |
+|---|---|
+| Orbit | Left drag rotates, right drag pans, wheel zooms. `+`/`-` changes the horizontal region, Page Up/Down extends its height, Home resets camera rotation and zoom. |
+| FPS | Left click captures the pointer; WASD moves, Space/Shift goes up/down, Ctrl accelerates, wheel changes speed. Escape first releases capture; another Escape returns. Right drag pans while uncaptured. |
+| Gizmo | Click selects a block, drag elsewhere orbits, right drag pans, wheel zooms. `T`/`R`/`S` selects translate/rotate/scale, Tab switches local/world, `G` toggles snap, Ctrl+Z undoes, Ctrl+Y or Ctrl+Shift+Z redoes, Delete clears selection. |
+
+`SceneTestAnchor` locates terrain even when the player is flying. The gizmo's saved transforms and
+history are preview-only. Picking uses translated unit cubes, as in the original demo; rotation and
+scale are not applied to the picking bounds. Each screen releases its render target and any pointer
+capture on removal. See the [scene guide](../docs/src/content/docs/rendering/scene-viewport.md).
+
 ## Scripted client tests
 
 The showcase registers its rendering scenarios from `gametest/ShowcaseGameTests.java` and its browser
 scenarios from `gametest/web/WebGameTest.java` with the shared `glue-gametest` runner.
+`gametest/scene/SceneGameTest.java` registers `glue-test:scenes`: it opens the three previews through
+their hub buttons, checks camera controls, selection, history and resource cleanup, and takes captures.
 
 Run one against an existing singleplayer world:
 
@@ -108,13 +134,13 @@ Run one against an existing singleplayer world:
 
 </details>
 
-The available test ids are `glue-test:web`, `glue-test:web-sites`, `glue-test:web-startup`, `glue-test:native-dialogs`,
+The available test ids are `glue-test:scenes`, `glue-test:web`, `glue-test:web-sites`, `glue-test:web-startup`, `glue-test:native-dialogs`,
 `glue-test:iris-hud`, `glue-test:lumos-smoke`, `glue-test:albedo-issue`, `glue-test:glass-quality`,
 `glue-test:spot-perf`, and `glue-test:viewport-sky`.
 Reports and screenshots are written under
 `run/screenshots/gametest/<namespace>_<path>/`.
 
-The web scenarios run with or without Iris. The rendering scenarios in `gametest/ShowcaseGameTests.java`, except `glue-test:native-dialogs`, toggle the shaderpack through `glue-gametest`'s
+The scene-preview and web scenarios run with or without Iris. The other rendering scenarios in `gametest/ShowcaseGameTests.java`, except `glue-test:native-dialogs`, toggle the shaderpack through `glue-gametest`'s
 built-in `glue-gametest:iris-shaders` tool (it settles the rebuilt pipeline itself, so the
 scripts add no wait after it), which means those runs need Iris: add
 `-Pglue.showcase.iris=true`.

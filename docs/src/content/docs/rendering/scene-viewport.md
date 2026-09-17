@@ -15,6 +15,22 @@ geometry without moving the real player or changing the world.
 `AbstractViewportScreen` is an isolated custom scene. `GameViewport` instead confines the live game
 world, HUD, and open screens to a rectangle; see [Constrain the Live Game](#constrain-the-live-game).
 
+## Run the Showcase Examples
+
+The showcase includes three native scene screens under `fr.lacaleche.glue.testmod.scene`. Join a
+world and open them from the **3D scenes** section of the F6 hub, or use the client commands:
+
+| Command | Example |
+|---|---|
+| `/showcase scene orbit` | `BlockSceneTestScreen`: nearby blocks, orbit/pan/zoom and adjustable region bounds. |
+| `/showcase scene fps` | `FpsViewportTestScreen`: independent free-flight camera, pointer capture and nearby entities. |
+| `/showcase scene gizmo` | `GizmoTestScreen`: selection, translate/rotate/scale, snapping and preview-only undo/redo. |
+
+All three use `AbstractViewportScreen` and clean up their owned renderer on removal. Escape returns
+to the opening screen; in the FPS example it first releases the pointer. The world and the real
+player are not edited by these previews. `glue-test:scenes` exercises their hub entry points,
+rendering, camera controls, preview history and cleanup in the live client.
+
 ## Build the Orbit Preview
 
 This smallest screen reads a fixed region from the current client world, renders it to an owned

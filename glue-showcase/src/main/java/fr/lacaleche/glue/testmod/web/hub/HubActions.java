@@ -2,6 +2,7 @@ package fr.lacaleche.glue.testmod.web.hub;
 
 import fr.lacaleche.glue.testmod.web.WebDemos;
 import fr.lacaleche.glue.testmod.web.browser.BrowserScreen;
+import fr.lacaleche.glue.testmod.scene.SceneDemos;
 import fr.lacaleche.glue.web.bridge.WebAction;
 
 /** Actions of the hub page: open a demo, toggle a layer, show a toast. */
@@ -13,6 +14,9 @@ public final class HubActions {
             case "lab" -> WebDemos.openLab();
             case "waypoints" -> WebDemos.openWaypoints();
             case "browser" -> BrowserScreen.open(BrowserScreen.HOME);
+            case "orbit" -> SceneDemos.openOrbit();
+            case "fps" -> SceneDemos.openFps();
+            case "gizmo" -> SceneDemos.openGizmo();
             default -> throw new IllegalArgumentException("There is no demo named " + request.name());
         }
     }
