@@ -10,6 +10,7 @@ classes/
 /docs/node_modules/
 /docs/dist/
 /docs/.vitepress/cache/
+/docs-image.env
 
 # eclipse
 

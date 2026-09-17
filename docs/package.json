@@ -9,6 +9,7 @@
     "start": "vitepress dev",
     "check": "vitepress build",
     "build": "vitepress build",
+    "test:deploy": "node --test deploy/portainer.test.mjs",
     "preview": "vitepress preview"
   },
   "devDependencies": {

@@ -1,0 +1,94 @@
+# Documentation follows the library release cycle: build, publish and deploy only on Git tags.
+docs-build:
+  stage: frontend
+  image: node:24-bookworm
+  variables:
+    GIT_DEPTH: "0"
+  cache:
+    key:
+      files:
+        - docs/pnpm-lock.yaml
+      prefix: docs-pnpm
+    paths:
+      - .pnpm-store/
+  script:
+    - npm install --global pnpm@11.5.2
+    - pnpm --dir docs install --frozen-lockfile --store-dir "$CI_PROJECT_DIR/.pnpm-store"
+    - pnpm --dir docs test:deploy
+    - pnpm --dir docs build
+  artifacts:
+    paths:
+      - docs/dist/
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_TAG
+
+docs-image:
+  stage: publish
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  cache: []
+  needs:
+    - job: docs-build
+      artifacts: true
+    - job: publish
+      artifacts: false
+  script:
+    - |
+      set -eu
+      : "${CI_REGISTRY:?Container Registry must be enabled for this project}"
+      : "${CI_REGISTRY_IMAGE:?GitLab must provide the project registry path}"
+      : "${CI_JOB_TOKEN:?GitLab must provide a token for this job}"
+      : "${CI_COMMIT_TAG:?Documentation images are only published for Git tags}"
+      if ! printf '%s\n' "$CI_COMMIT_TAG" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$'; then
+        echo "The Git tag must be a valid Docker image tag (1-128 letters, digits, underscores, dots or hyphens; no leading dot or hyphen)" >&2
+        exit 1
+      fi
+      # Kaniko's debug image has no /tmp before extracting the base image.
+      publish_dir="$(mktemp -d /kaniko/docs-publish.XXXXXX)"
+      trap 'rm -f /kaniko/.docker/config.json; rm -rf "$publish_dir"' EXIT
+      mkdir -p /kaniko/.docker
+      auth="$(printf 'gitlab-ci-token:%s' "$CI_JOB_TOKEN" | base64 | tr -d '\n')"
+      printf '{"auths":{"%s":{"auth":"%s"}}}\n' "$CI_REGISTRY" "$auth" > /kaniko/.docker/config.json
+      image="$CI_REGISTRY_IMAGE/docs:$CI_COMMIT_TAG"
+      /kaniko/executor \
+        --context "$CI_PROJECT_DIR/docs" \
+        --dockerfile "$CI_PROJECT_DIR/docs/Dockerfile" \
+        --build-arg "VCS_REF=$CI_COMMIT_SHA" \
+        --build-arg "SOURCE_URL=$CI_PROJECT_URL" \
+        --destination "$image" \
+        --destination "$CI_REGISTRY_IMAGE/docs:latest" \
+        --digest-file "$publish_dir/digest"
+      digest="$(cat "$publish_dir/digest")"
+      if ! printf '%s\n' "$digest" | grep -Eq '^sha256:[0-9a-f]{64}$'; then
+        echo "Kaniko did not return a valid pushed image digest" >&2
+        exit 1
+      fi
+      reference="$CI_REGISTRY_IMAGE/docs@$digest"
+      printf 'DOCS_IMAGE=%s\n' "$reference" > docs-image.env
+      printf 'Documentation image: %s\n' "$reference"
+  artifacts:
+    reports:
+      dotenv: docs-image.env
+    paths:
+      - docs-image.env
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_TAG
+
+docs-deploy:
+  stage: deploy
+  image: node:24-bookworm
+  cache: []
+  needs:
+    - job: docs-image
+      artifacts: true
+  resource_group: docs-production
+  environment:
+    name: documentation
+  timeout: 15 minutes
+  script:
+    - node docs/deploy/portainer.mjs
+  rules:
+    - if: '$CI_COMMIT_TAG && $PORTAINER_URL && $PORTAINER_API_KEY && $PORTAINER_STACK_ID'

@@ -121,9 +121,17 @@ The showcase frontend lives in [`glue-showcase/web/`](glue-showcase/web/README.m
 input lab and React demos built with Vite. Showcase resource tasks require Node and pnpm; library
 tasks remain independent of frontend tooling. See the [Glue Web guide](docs/src/content/docs/web/index.md).
 
+## Documentation Hosting
+
+Git tag pipelines build and check the documentation alongside library releases. CI publishes a static
+Nginx image to the GitLab container registry as `docs:<git-tag>` and `docs:latest`, and can update a
+Portainer Compose stack automatically using the release's exact image digest.
+The image build uses Kaniko on a container runner. The stack file and GitLab variables are documented in
+[`docs/README.md`](docs/README.md#container-publication-and-deployment).
+
 ## Release
 
 `app.version` in `gradle.properties` is the release version. A pushed tag triggers CI publication of
-the six library modules and stores the remapped showcase jar as an artifact. Before tagging, verify
+the six library modules and documentation image, and stores the remapped showcase jar as an artifact. Before tagging, verify
 that the tag name exactly matches `app.version`; use an annotated, unprefixed tag to match existing
 releases.
