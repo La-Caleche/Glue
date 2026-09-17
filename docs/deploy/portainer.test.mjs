@@ -6,6 +6,8 @@ import { deployDocumentation } from './portainer.mjs';
 
 const image = `registry.example/glue/docs@sha256:${'a'.repeat(64)}`;
 const oldImage = `registry.example/glue/docs@sha256:${'b'.repeat(64)}`;
+const imageId = `sha256:${'c'.repeat(64)}`;
+const oldImageId = `sha256:${'d'.repeat(64)}`;
 const compose = 'services:\n  docs:\n    image: ${DOCS_IMAGE}\n    labels:\n      custom: keep-me\n';
 const originalEnv = [{ name: 'DOCS_IMAGE', value: oldImage }, { name: 'DOCS_PORT', value: '8080' }];
 
@@ -16,10 +18,13 @@ async function fixture(t, options = {}) {
     const states = [...(options.before ?? [1])];
     const after = [...(options.after ?? [3, 1])];
     const health = [...(options.health ?? ['starting', 'healthy'])];
+    const imageStatuses = [...(options.imageStatuses ?? [200])];
     let accepted = false;
     let env = structuredClone(originalEnv);
     let file = options.file ?? compose;
     let containerChecks = 0;
+    let imageChecks = 0;
+    let oldRemoved = false;
     let lastHealth;
 
     function next(queue) {
@@ -32,6 +37,11 @@ async function fixture(t, options = {}) {
             const url = new URL(request.url, 'http://localhost');
             assert.ok(url.pathname.startsWith('/portainer/api/'), 'Preserve a reverse-proxy base path');
             const path = url.pathname.slice('/portainer/api/'.length);
+            if (path === options.hangAt) {
+                response.writeHead(200, { 'Content-Type': 'application/json' });
+                response.write('{');
+                return;
+            }
             let body;
             let status = 200;
             if (options.httpError) {
@@ -61,6 +71,11 @@ async function fixture(t, options = {}) {
                     env = payload.Env;
                     body = { Status: 3 };
                 }
+            } else if (request.method === 'GET' && decodeURIComponent(path) === `endpoints/3/docker/images/${image}/json`) {
+                assert.equal(accepted, true);
+                imageChecks++;
+                status = next(imageStatuses);
+                body = { Id: options.imageId ?? imageId, RepoDigests: [image] };
             } else if (request.method === 'GET' && path === 'endpoints/3/docker/containers/json') {
                 assert.equal(accepted, true);
                 assert.deepEqual(JSON.parse(url.searchParams.get('filters')), { label: [
@@ -68,11 +83,18 @@ async function fixture(t, options = {}) {
                 ] });
                 containerChecks++;
                 lastHealth = next(health);
-                body = [{ Id: 'old' }, { Id: 'new' }];
+                body = options.noContainers ? [] : oldRemoved ? [{ Id: 'new' }] : [{ Id: 'old' }, { Id: 'new' }];
             } else if (request.method === 'GET' && /^endpoints\/3\/docker\/containers\/(old|new)\/json$/.test(path)) {
                 const old = path.includes('/old/');
-                body = { Config: { Image: old || options.staleImage ? oldImage : image },
+                body = { Id: old ? 'old' : 'new', Image: old || options.staleImage ? oldImageId : imageId,
+                    Config: { Image: old ? oldImage : options.configImage ?? (options.staleImage ? oldImage : image) },
                     State: { Running: true, Status: 'running', Health: { Status: old ? 'healthy' : lastHealth } } };
+                if (!old && options.noHealthCheck) delete body.State.Health;
+                if (old && options.removeOldContainer) {
+                    oldRemoved = true;
+                    status = 404;
+                    body = {};
+                }
             } else {
                 throw new Error(`Unexpected request: ${request.method} ${request.url}`);
             }
@@ -95,6 +117,7 @@ async function fixture(t, options = {}) {
         updates,
         log,
         containerChecks: () => containerChecks,
+        imageChecks: () => imageChecks,
         run: overrides => deployDocumentation({
             url: `http://127.0.0.1:${server.address().port}/portainer/`,
             apiKey: 'fixture-key', stackId: '7', image,
@@ -113,8 +136,9 @@ test('preserves the stack and settings, waits for async completion and the corre
         Prune: false,
     }]);
     assert.equal(api.containerChecks(), 2);
-    assert.equal(api.log.length, 1);
-    assert.match(api.log[0], /healthy/);
+    assert.equal(api.imageChecks(), 1);
+    assert.ok(api.log.some(message => /health=starting/.test(message)));
+    assert.match(api.log.at(-1), /\(healthy\)$/);
 });
 
 test('a concurrent update is awaited and its latest configuration is preserved on retry', async t => {
@@ -130,7 +154,7 @@ for (const status of [2, 4]) {
         const api = await fixture(t, { after: [3, status] });
         await assert.rejects(api.run(), new RegExp(`ended with status ${status}`));
         assert.equal(api.containerChecks(), 0);
-        assert.equal(api.log.length, 0);
+        assert.equal(api.log.some(message => message.endsWith('(healthy)')), false);
     });
 }
 
@@ -150,20 +174,26 @@ test('refuses a stack without the managed image variable', async t => {
 
 test('stops polling a permanently deploying stack within the configured timeout', async t => {
     const api = await fixture(t, { before: [3] });
-    await assert.rejects(api.run({ timeoutMs: 100 }), /timed out|timeout/i);
+    await assert.rejects(api.run({ timeoutMs: 200 }), /timed out:.*glue-docs.*Deploying/);
     assert.equal(api.updates.length, 0);
+    assert.equal(api.log.filter(message => /status Deploying/.test(message)).length, 1);
 });
 
 test('an old healthy container cannot make a deployment of a different image succeed', async t => {
     const api = await fixture(t, { staleImage: true });
-    await assert.rejects(api.run({ timeoutMs: 100 }), /timed out|timeout/i);
-    assert.equal(api.log.length, 0);
+    await assert.rejects(api.run({ timeoutMs: 200 }), error => {
+        assert.match(error.message, /timed out:.*expected image ID/);
+        assert.ok(error.message.includes(imageId));
+        assert.ok(error.message.includes(oldImageId));
+        return true;
+    });
+    assert.equal(api.log.some(message => message.endsWith('(healthy)')), false);
 });
 
 test('an unhealthy new container fails the deployment', async t => {
     const api = await fixture(t, { health: ['unhealthy'] });
     await assert.rejects(api.run(), /failed its health check/);
-    assert.equal(api.log.length, 0);
+    assert.equal(api.log.some(message => message.endsWith('(healthy)')), false);
 });
 
 test('authentication failures stop immediately', async t => {
@@ -175,5 +205,80 @@ test('authentication failures stop immediately', async t => {
 test('requires an immutable image digest before contacting Portainer', async t => {
     const api = await fixture(t);
     await assert.rejects(api.run({ image: 'registry.example/glue/docs:latest' }), /pinned to its sha256 digest/);
+    assert.equal(api.updates.length, 0);
+});
+
+for (const configImage of [imageId, 'registry.example/glue/docs:latest']) {
+    test(`accepts the correct Docker image ID when Config.Image is ${configImage}`, async t => {
+        const api = await fixture(t, { configImage });
+        await api.run();
+        assert.ok(api.log.some(message => message.endsWith('(healthy)')));
+    });
+}
+
+test('rejects a stale image ID even if Config.Image contains the requested reference', async t => {
+    const api = await fixture(t, { staleImage: true, configImage: image });
+    await assert.rejects(api.run({ timeoutMs: 200 }), /timed out:.*expected image ID/);
+    assert.equal(api.log.some(message => message.endsWith('(healthy)')), false);
+});
+
+test('a missing service is reported while waiting and in the timeout reason', async t => {
+    const api = await fixture(t, { noContainers: true });
+    await assert.rejects(api.run({ timeoutMs: 200 }), /docs.*glue-docs.*no containers/i);
+    assert.equal(api.log.filter(message => /docs.*glue-docs.*no containers/i.test(message)).length, 1);
+});
+
+test('waits for the pulled image to become available before checking containers', async t => {
+    const api = await fixture(t, { imageStatuses: [404, 200] });
+    await api.run();
+    assert.equal(api.imageChecks(), 2);
+    assert.ok(api.log.some(message => /requested image.*not available/.test(message)));
+    assert.match(api.log.at(-1), /\(healthy\)$/);
+});
+
+test('a missing image is identified in the deployment timeout', async t => {
+    const api = await fixture(t, { imageStatuses: [404] });
+    await assert.rejects(api.run({ timeoutMs: 200 }), /timed out:.*requested image.*not available/);
+    assert.equal(api.containerChecks(), 0);
+});
+
+for (const status of [403, 500]) {
+    test(`image inspection HTTP ${status} errors are not retried as a pending pull`, async t => {
+        const api = await fixture(t, { imageStatuses: [status] });
+        await assert.rejects(api.run(), new RegExp(`HTTP ${status}`));
+        assert.equal(api.imageChecks(), 1);
+        assert.equal(api.containerChecks(), 0);
+    });
+}
+
+test('an invalid resolved image ID fails before checking containers', async t => {
+    const api = await fixture(t, { imageId: '' });
+    await assert.rejects(api.run(), /invalid image ID/);
+    assert.equal(api.containerChecks(), 0);
+});
+
+test('refreshes the container list if a container disappears during inspection', async t => {
+    const api = await fixture(t, { removeOldContainer: true, health: ['healthy'] });
+    await api.run();
+    assert.equal(api.containerChecks(), 2);
+    assert.ok(api.log.some(message => /container disappeared/.test(message)));
+    assert.match(api.log.at(-1), /\(healthy\)$/);
+});
+
+test('the correct image still requires an enabled health check', async t => {
+    const api = await fixture(t, { noHealthCheck: true });
+    await assert.rejects(api.run(), /health check enabled/);
+    assert.equal(api.log.some(message => message.endsWith('(healthy)')), false);
+});
+
+test('a health check stuck in starting is identified in the deployment timeout', async t => {
+    const api = await fixture(t, { health: ['starting'] });
+    await assert.rejects(api.run({ timeoutMs: 200 }), /timed out:.*health=starting/);
+    assert.equal(api.log.filter(message => /health=starting/.test(message)).length, 1);
+});
+
+test('a stalled HTTP response body retains the deployment phase in the timeout', async t => {
+    const api = await fixture(t, { hangAt: 'stacks/7' });
+    await assert.rejects(api.run({ timeoutMs: 200 }), /timed out: Reading Portainer stack 7/);
     assert.equal(api.updates.length, 0);
 });

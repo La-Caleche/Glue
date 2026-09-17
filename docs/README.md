@@ -133,6 +133,28 @@ leave Deploying, rejects Error/Inactive results, and checks through Portainer's 
 `docs` container uses the requested digest and is healthy. HTTP 200 alone is not treated as success.
 An update already in progress is awaited; a conflicting update is retried once with fresh settings.
 
+To identify the running image, the client inspects the requested registry digest on the stack's Docker
+environment and compares the returned image `Id` with the container's `Image` field. Docker's image
+ID and the registry manifest digest identify different objects. The container's `Config.Image` may
+contain a tag, digest reference or image ID, so its text is not used to decide whether deployment
+succeeded. A healthy container with a different image ID cannot satisfy the check.
+
+The job logs each deployment phase and changes in the wait reason. A timeout includes the last
+observed reason, including when an API response stalls:
+
+- **Status Deploying**: Portainer is still applying the stack update.
+- **Requested image not available**: Docker does not yet expose the pulled digest. Check Portainer's
+  deployment logs and registry access if this persists.
+- **No containers match**: check that the Compose service is named `docs` and that its containers have
+  `com.docker.compose.service=docs` and `com.docker.compose.project=<Portainer stack name>` labels.
+- **Expected image ID / observed IDs**: the service still runs a different image.
+- **Health starting**: the expected image's container has not yet passed its health check.
+
+Unchanged wait reasons are not repeated on every poll. An unhealthy or stopped container using the
+expected image fails the job immediately; a container removed during inspection causes the list to
+be refreshed. Docker image inspection retries HTTP 404 while waiting for the pull; permission and
+server errors fail immediately.
+
 ## Local verification and rollback
 
 From the repository root:

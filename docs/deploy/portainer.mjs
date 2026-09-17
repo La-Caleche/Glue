@@ -27,10 +27,20 @@ export async function deployDocumentation({ url, apiKey, stackId, image,
     }
     const deadline = Date.now() + timeoutMs;
     const stackPath = `stacks/${id}`;
+    let lastStatus;
+
+    function progress(message) {
+        if (message !== lastStatus) log(message);
+        lastStatus = message;
+    }
+
+    function timeoutError() {
+        return new Error(`Documentation deployment timed out: ${lastStatus}`);
+    }
 
     function remaining() {
         const milliseconds = deadline - Date.now();
-        if (milliseconds <= 0) throw new Error('Documentation deployment timed out');
+        if (milliseconds <= 0) throw timeoutError();
         return milliseconds;
     }
 
@@ -39,18 +49,26 @@ export async function deployDocumentation({ url, apiKey, stackId, image,
     }
 
     async function request(method, path, body) {
-        const response = await fetch(new URL(`api/${path}`, base), {
-            method,
-            headers: { 'X-API-Key': apiKey, 'Content-Type': 'application/json' },
-            body: body === undefined ? undefined : JSON.stringify(body),
-            redirect: 'error',
-            signal: AbortSignal.timeout(Math.min(30_000, remaining())),
-        });
-        if (!response.ok) {
-            await response.body?.cancel();
-            throw new PortainerError(method, path, response.status);
+        const budget = remaining();
+        const signal = AbortSignal.timeout(Math.min(30_000, budget));
+        try {
+            const response = await fetch(new URL(`api/${path}`, base), {
+                method,
+                headers: { 'X-API-Key': apiKey, 'Content-Type': 'application/json' },
+                body: body === undefined ? undefined : JSON.stringify(body),
+                redirect: 'error',
+                signal,
+            });
+            if (!response.ok) {
+                await response.body?.cancel();
+                throw new PortainerError(method, path, response.status);
+            }
+            return await response.json();
+        } catch (error) {
+            if (!signal.aborted) throw error;
+            if (budget <= 30_000) throw timeoutError();
+            throw new Error(`Portainer ${method} ${path.split('?')[0]} request timed out: ${lastStatus}`);
         }
-        return response.json();
     }
 
     async function idleStack() {
@@ -64,6 +82,7 @@ export async function deployDocumentation({ url, apiKey, stackId, image,
                 throw new Error('Create this stack with the Portainer web editor or file upload, not a Git repository');
             }
             if (stack.Status === 3) {
+                progress(`Waiting for Portainer stack ${stack.Name}: status Deploying`);
                 await pause();
                 continue;
             }
@@ -72,6 +91,7 @@ export async function deployDocumentation({ url, apiKey, stackId, image,
         }
     }
 
+    progress(`Reading Portainer stack ${id}`);
     // Another operator may start an update between our GET and PUT. Refresh the definition before retrying.
     for (let attempt = 0; attempt < 2; attempt++) {
         const stack = await idleStack();
@@ -83,15 +103,18 @@ export async function deployDocumentation({ url, apiKey, stackId, image,
         const env = stack.Env.filter(entry => entry.name !== 'DOCS_IMAGE');
         env.push({ name: 'DOCS_IMAGE', value: image });
         try {
+            progress(`Updating Portainer stack ${stack.Name} to ${image}`);
             await request('PUT', `${stackPath}?endpointId=${stack.EndpointId}`, {
                 StackFileContent: file.StackFileContent,
                 Env: env,
                 RepullImageAndRedeploy: true,
                 Prune: false,
             });
+            progress(`Portainer accepted the update for stack ${stack.Name}; waiting for deployment completion`);
             break;
         } catch (error) {
             if (!(error instanceof PortainerError) || error.status !== 409 || attempt === 1) throw error;
+            progress(`Portainer stack ${stack.Name} has a concurrent update; waiting before refreshing its settings`);
             await pause();
         }
     }
@@ -110,13 +133,39 @@ export async function deployDocumentation({ url, apiKey, stackId, image,
         `com.docker.compose.project=${deployed.Name}`, 'com.docker.compose.service=docs',
     ] }));
     const dockerPath = `endpoints/${deployed.EndpointId}/docker`;
+    const waiting = `Waiting for docs in stack ${deployed.Name}`;
+    let expectedImageId;
+    progress(`Resolving ${image} on Docker environment ${deployed.EndpointId}`);
     while (true) {
-        const containers = await request('GET', `${dockerPath}/containers/json?all=true&filters=${filters}`);
-        const current = [];
-        for (const container of containers) {
-            const details = await request('GET', `${dockerPath}/containers/${encodeURIComponent(container.Id)}/json`);
-            if (details.Config?.Image === image) current.push(details);
+        if (!expectedImageId) {
+            let expectedImage;
+            try {
+                expectedImage = await request('GET', `${dockerPath}/images/${encodeURIComponent(image)}/json`);
+            } catch (error) {
+                if (!(error instanceof PortainerError) || error.status !== 404) throw error;
+                progress(`${waiting}: requested image ${image} is not available on Docker environment ${deployed.EndpointId}`);
+                await pause();
+                continue;
+            }
+            if (!/^sha256:[a-f0-9]{64}$/.test(expectedImage.Id ?? '')) {
+                throw new Error('Docker returned an invalid image ID for the requested documentation digest');
+            }
+            // A registry manifest digest is not the Docker image configuration ID stored in container.Image.
+            expectedImageId = expectedImage.Id;
+            progress(`Resolved ${image} to Docker image ID ${expectedImageId}; checking docs in stack ${deployed.Name}`);
         }
+        const containers = await request('GET', `${dockerPath}/containers/json?all=true&filters=${filters}`);
+        const inspected = [];
+        let disappeared = false;
+        for (const container of containers) {
+            try {
+                inspected.push(await request('GET', `${dockerPath}/containers/${encodeURIComponent(container.Id)}/json`));
+            } catch (error) {
+                if (!(error instanceof PortainerError) || error.status !== 404) throw error;
+                disappeared = true;
+            }
+        }
+        const current = inspected.filter(container => container.Image === expectedImageId);
         if (current.some(container => !container.State?.Health)) {
             throw new Error('The docs container must keep the documentation image health check enabled');
         }
@@ -124,9 +173,22 @@ export async function deployDocumentation({ url, apiKey, stackId, image,
             || ['exited', 'dead'].includes(container.State.Status))) {
             throw new Error('The new documentation container failed its health check or stopped');
         }
-        if (current.length > 0 && current.every(container => container.State.Running && container.State.Health.Status === 'healthy')) {
+        if (!disappeared && current.length > 0
+            && current.every(container => container.State.Running && container.State.Health.Status === 'healthy')) {
             log(`Documentation stack ${deployed.Name} now runs ${image} (healthy)`);
             return;
+        }
+        if (containers.length === 0) {
+            progress(`${waiting}: no containers match the Compose project/service labels`);
+        } else if (disappeared) {
+            progress(`${waiting}: a container disappeared during inspection; refreshing the container list`);
+        } else if (current.length === 0) {
+            const observed = [...new Set(inspected.map(container => container.Image ?? 'unknown'))].sort().join(', ');
+            progress(`${waiting}: expected image ID ${expectedImageId}; observed ${observed}`);
+        } else {
+            const states = current.map(container => `${container.Id.slice(0, 12)}: ${container.State.Status}, `
+                + `running=${container.State.Running}, health=${container.State.Health.Status}`).sort().join('; ');
+            progress(`${waiting}: ${states}`);
         }
         await pause();
     }
