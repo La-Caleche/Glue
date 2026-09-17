@@ -14,7 +14,6 @@ uniform sampler2D SceneColor;   // unit 0: composited, lit scene colour (sRGB-en
 uniform sampler2D SceneDepth;   // unit 1: scene depth
 uniform sampler2D GBufferId;    // unit 2: material id (R); glass = 4, water = 5, metal = 6
 uniform sampler2D GBufferAlbedo;// unit 3: linear albedo (RGB) -- tints a metal's reflection
-uniform int HasGBuffer;         // 1 if the material G-buffer is bound
 
 uniform mat4 InvViewProj;       // clip -> camera-relative world
 uniform mat4 ViewProj;          // camera-relative world -> clip
@@ -118,7 +117,6 @@ float camDist(vec3 p) {
 }
 
 void main() {
-    if (HasGBuffer != 1) discard;
     float sceneDepth = texture(SceneDepth, texCoord).r;
     if (sceneDepth >= 1.0) discard;               // sky
     float id = surfaceId(texCoord);

@@ -1,0 +1,9 @@
+{
+  "values": [
+    "glue-test:test_outline",
+    "glue-test:test_spinning",
+    "glue-test:test_shader",
+    "glue-test:test_additive_sprite",
+    "glue-test:test_shape"
+  ]
+}

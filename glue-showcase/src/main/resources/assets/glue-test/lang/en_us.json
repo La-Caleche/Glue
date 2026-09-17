@@ -1,15 +1,23 @@
 {
   "itemGroup.glue-test.test-group": "Glue Test",
-
   "block.glue-test.test_outline": "Outline Test Block",
   "block.glue-test.test_spinning": "Spinning Block",
   "block.glue-test.test_shader": "Shader Test Block",
   "block.glue-test.test_additive_sprite": "Additive Sprite Block",
   "block.glue-test.test_shape": "Shape Test Block",
-
-  "item.glue-test.test_component": "Component Test Item",
-
+  "item.glue-test.test_component": "Transform Preset Tool",
+  "item.glue-test.test_component.selected": "Transform preset: %s",
+  "item.glue-test.test_component.preset.0": "Identity",
+  "item.glue-test.test_component.preset.1": "Elevated",
+  "item.glue-test.test_component.preset.2": "Quarter Turn",
+  "item.glue-test.test_component.preset.3": "Tall and Narrow",
+  "item.glue-test.test_component.preset.4": "Offset Display",
+  "item.glue-test.test_component.preset.custom": "Custom",
+  "item.glue-test.test_component.tooltip.preset": "Preset: %s",
+  "item.glue-test.test_component.tooltip.translation": "Translation: %s",
+  "item.glue-test.test_component.tooltip.scale": "Scale: %s",
+  "item.glue-test.test_component.tooltip.use": "Right-click to cycle; sneak-right-click to reset",
   "key.categories.glue_test": "Glue Test",
   "key.glue-test.toggle_raycast_debug": "Toggle Raycast Debug",
-  "key.glue-test.toggle_post_effect_hud": "Toggle Post-Effect Debug HUD"
+  "key.glue-test.open_showcase": "Open Glue Web Hub"
 }

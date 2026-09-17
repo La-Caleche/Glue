@@ -18,11 +18,10 @@
         "java": ">=21",
         "fabric-api": "*",
         "glue": "${version}",
-        "glue-lumos": "${version}"
-    },
-    "recommends": {
+        "glue-lumos": "${version}",
         "glue-render": "${version}",
         "glue-lumos-client": "${version}",
-        "glue-mcsx": "${version}"
+        "glue-gametest": "${version}",
+        "glue-web": "${version}"
     }
 }

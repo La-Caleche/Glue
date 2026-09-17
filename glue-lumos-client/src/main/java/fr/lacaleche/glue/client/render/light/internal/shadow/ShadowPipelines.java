@@ -12,7 +12,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.renderer.Sheets;
 import net.minecraft.resources.ResourceLocation;
 
 /**
@@ -108,13 +108,13 @@ public final class ShadowPipelines {
                 .build();
 
         // Glass into the shared material G-buffer (see internal/light/glass_gbuffer.fsh). A post-hoc
-        // re-render of nearby panes redirected into the material attachments (1,2), tested READ-ONLY
+        // re-render of nearby panes redirected into the material attachments (1-3), tested READ-ONLY
         // (LEQUAL, no depth write) against the borrowed MAIN depth so a pane hidden behind an opaque
         // wall fails and never overwrites the terrain id there. A visible pane's re-rendered z is not
         // bit-identical to the stored one, which alone would dither the equality -- so the RenderType
         // adds a polygon offset (see glassGBuffer()) that biases the pane a hair toward the camera:
         // a visible pane then passes cleanly, an occluded one (a block+ behind) still fails. No blend,
-        // no cutout: fully transparent texels still carry the id, so clear glass is identified too.
+        // no pipeline cutout: the shader discards near-transparent texels before they claim an id.
         glassGBufferPipeline = base("glass_gbuffer", "internal/light/glass_gbuffer")
                 .noAlphaCutout()
                 .noBlend()
@@ -269,9 +269,10 @@ public final class ShadowPipelines {
      * {@code BLOCK_SHEET_MIPPED} vs {@code BLOCK_SHEET} in the 1.21.8 bytecode).</p>
      */
     private static RenderType blockAtlasType(GluePipeline pipeline, String key, boolean mipmap) {
-        return pipeline.renderType(TextureAtlas.LOCATION_BLOCKS, key + "#mip" + mipmap, false, texture ->
+        ResourceLocation texture = Sheets.BLOCKS_MAPPER.sheet();
+        return pipeline.renderType(texture, key + "#mip" + mipmap, false, atlas ->
                 RenderType.CompositeState.builder()
-                        .setTextureState(new RenderStateShard.TextureStateShard(texture, mipmap))
+                        .setTextureState(new RenderStateShard.TextureStateShard(atlas, mipmap))
                         .setLightmapState(RenderStateShard.NO_LIGHTMAP)
                         .createCompositeState(false));
     }

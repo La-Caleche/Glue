@@ -16,6 +16,10 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Demonstrates the {@link GlueTransformStack} fluent API: bobs and spins a
  * displayed item with {@code rotateCentered()} + {@code translate()}.
+ *
+ * <p>The plain render call between {@code pushPose()} and {@code popPose()} is shown here
+ * deliberately; its counterpart, {@link TestSpinningBlockEntityRenderer}, draws through the
+ * stack's {@code then()} inline-render hook instead — two idioms, one demo each.</p>
  */
 public class TestOutlineBlockEntityRenderer implements BlockEntityRenderer<TickingBlockEntity> {
 
@@ -37,7 +41,7 @@ public class TestOutlineBlockEntityRenderer implements BlockEntityRenderer<Ticki
         GlueTransformStack stack = GlueTransformStack.of(matrices);
         stack.pushPose()
                 .rotateCentered((float) Math.toRadians(-rotation), Direction.UP)
-                .translate(.5, 0.3 + yTranslation, .5);
+                .translate(.5, 1.3 + yTranslation, .5);
 
         itemRenderer.renderStatic(DISPLAY_ITEM, ItemDisplayContext.GROUND, light, overlay,
                 matrices, vertexConsumers, entity.getLevel(), (int) entity.getBlockPos().asLong());

@@ -47,6 +47,6 @@ public class TestAdditiveSpriteBlock extends BaseEntityBlock implements GlueBloc
 
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new TestAdditiveSpriteBlockEntity(pos, state);
+        return new TestAdditiveSpriteBlockEntity(TestBlockEntities.ADDITIVE_SPRITE_BLOCK_ENTITY, pos, state);
     }
 }

@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.testmod.registries;
 
 import fr.lacaleche.glue.registries.BlocksRegistry;
-import fr.lacaleche.glue.testmod.TestmodClient;
+import fr.lacaleche.glue.testmod.Testmod;
 import fr.lacaleche.glue.testmod.blocks.demo.TestOutlineBlock;
 import fr.lacaleche.glue.testmod.blocks.demo.TestAdditiveSpriteBlock;
 import fr.lacaleche.glue.testmod.blocks.demo.TestShaderBlock;
@@ -19,7 +19,7 @@ import net.minecraft.world.level.material.MapColor;
  */
 public class TestBlocks {
 
-    public static final BlocksRegistry REGISTRY = new BlocksRegistry(TestmodClient.MOD_ID, TestmodClient::id);
+    public static final BlocksRegistry REGISTRY = new BlocksRegistry(Testmod.MOD_ID, Testmod::id);
 
     public static final Block TEST_OUTLINE_BLOCK = REGISTRY.register("test_outline", TestOutlineBlock::new,
             BlockBehaviour.Properties.of().noOcclusion().mapColor(MapColor.COLOR_RED).sound(SoundType.AMETHYST)
@@ -38,7 +38,7 @@ public class TestBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.STONE).noOcclusion());
 
     public static void registerBlocks() {
-        TestmodClient.LOGGER.info("Registering blocks");
+        Testmod.LOGGER.info("Registering blocks");
     }
 
 }

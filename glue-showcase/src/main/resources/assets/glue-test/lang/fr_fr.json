@@ -1,0 +1,23 @@
+{
+  "itemGroup.glue-test.test-group": "Test Glue",
+  "block.glue-test.test_outline": "Bloc de test de contour",
+  "block.glue-test.test_spinning": "Bloc rotatif",
+  "block.glue-test.test_shader": "Bloc de test de shader",
+  "block.glue-test.test_additive_sprite": "Bloc à sprite additif",
+  "block.glue-test.test_shape": "Bloc de test de forme",
+  "item.glue-test.test_component": "Outil de préréglages de transformation",
+  "item.glue-test.test_component.selected": "Préréglage de transformation : %s",
+  "item.glue-test.test_component.preset.0": "Identité",
+  "item.glue-test.test_component.preset.1": "Surélevé",
+  "item.glue-test.test_component.preset.2": "Quart de tour",
+  "item.glue-test.test_component.preset.3": "Haut et étroit",
+  "item.glue-test.test_component.preset.4": "Affichage décalé",
+  "item.glue-test.test_component.preset.custom": "Personnalisé",
+  "item.glue-test.test_component.tooltip.preset": "Préréglage : %s",
+  "item.glue-test.test_component.tooltip.translation": "Translation : %s",
+  "item.glue-test.test_component.tooltip.scale": "Échelle : %s",
+  "item.glue-test.test_component.tooltip.use": "Clic droit pour changer ; accroupi pour réinitialiser",
+  "key.categories.glue_test": "Test Glue",
+  "key.glue-test.toggle_raycast_debug": "Basculer le débogage du raycast",
+  "key.glue-test.open_showcase": "Ouvrir le hub Glue Web"
+}

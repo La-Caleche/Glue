@@ -1,54 +1,37 @@
 # Glue
 
-A Fabric library for Minecraft **1.21.8** (Java 21, official Mojang mappings) that removes mod
-boilerplate: typed registries, rendering pipelines and post effects, a deferred colored-light engine
-(Lumos), world-save persistence, and Iris/Sodium compatibility. Full feature documentation lives in
-[`docs/`](docs/README.md).
+Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
+provides typed registries, rendering pipelines and post effects, Lumos deferred colored lighting,
+native dialogs, Chromium web surfaces, and scripted live-client tests.
+
+- [Documentation](docs/README.md)
+- [Getting started](docs/src/content/docs/getting-started.md)
+- [Showcase](glue-showcase/README.md)
 
 ## Modules
 
-| Module | Sides | Provides |
-|---|---|---|
-| `glue-core` | both | Typed registries, data components, math/shapes, utilities |
-| `glue-render` | client | Shader pipelines, post effects, scenes, outlines, file dialogs, Iris compat |
-| `glue-lumos` | both | Light model, persistence and sync (`Lumos` entry point) |
-| `glue-lumos-client` | client | The deferred colored-light renderer |
-| `glue-mcsx` | client | MCSX: declarative ModernUI-based UI library (`.mcsx` documents, docking, theming) |
-| `glue-showcase` | dev only | Runnable demos of every feature — never published as a library |
+Choose the narrowest artifact that owns the feature you need. Every published module is also a
+separate Fabric mod.
 
-Each module is its own Fabric mod; consumers depend on the narrowest set they need.
+| Artifact | Fabric mod id | Environment | Built on | Provides |
+|---|---|---|---|---|
+| `glue-core` | `glue` | both | - | Registries, packets/codecs, data components, math, shapes, and history. |
+| `glue-render` | `glue-render` | client | `glue-core` | Pipelines, post effects, materials, outlines, scenes, compatibility, and native dialogs. |
+| `glue-lumos` | `glue-lumos` | both | `glue-core` | Light model, synchronization, and persistence. |
+| `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light rendering and shadows. |
+| `glue-web` | `glue-web` | client | - | Web screens, HUDs, overlays and widgets with Java actions and native slots. |
+| `glue-gametest` | `glue-gametest` | client, development | - | Scripted client tests, tools, screenshots, and reports. |
+| `glue-showcase` | `glue-showcase` | both, development | all modules | Runnable demos and integration scenarios. |
 
-## Building
+The six library artifacts are published. `glue-showcase` is built as a development artifact but is
+not published by release CI. Fabric API is required; Iris and Sodium integrations are optional and
+runtime-guarded. Packages named `internal` are not supported API.
 
-Requires **JDK 21** and read access to the private maven (either `REPOSILITE_TOKEN_NAME` /
-`REPOSILITE_TOKEN_SECRET` in the environment, or `lc.reposilite.readonly.name` /
-`lc.reposilite.readonly.token` in `~/.gradle/gradle.properties`).
+## Use Glue
 
-```
-./gradlew libraryJars           # the four library jars, into build/libs/
-./gradlew remapJar              # same, plus the showcase jar
-./gradlew compileJava test      # compile + tests
-```
-
-> `build`/`check` currently fail resolving a PMD snapshot in the `caldle` plugin — use
-> `compileJava` + `test` instead.
-
-## Running the showcase
-
-```
-./gradlew :glue-showcase:runClient    # demo client, run directory run/
-./gradlew :glue-showcase:runServer    # dedicated server, run directory run-server/
-```
-
-The first server launch stops at the EULA: set `eula=true` in `run-server/eula.txt`. To join it
-with the dev client, set `online-mode=false` in `run-server/server.properties` (not needed if the
-client run is authenticated via the `lc.fabric.*` gradle properties).
-
-Optional runtime toggles in `gradle.properties`: `glue.showcase.sodium`, `glue.showcase.iris`.
-
-## Using Glue in your mod
-
-In `settings.gradle.kts` (or a `repositories` block Loom can see):
+Artifacts are hosted on the private La Calèche Reposilite. Add the repository to the consumer's
+`build.gradle.kts` (or under `dependencyResolutionManagement.repositories` in
+`settings.gradle.kts`):
 
 ```kotlin
 repositories {
@@ -63,24 +46,84 @@ repositories {
 }
 ```
 
-In `build.gradle.kts`:
+Then add only the modules used by the mod:
 
 ```kotlin
 dependencies {
     modImplementation("fr.lacaleche.glue:glue-core:<version>")
 
-    // Only what you use:
-    modImplementation("fr.lacaleche.glue:glue-render:<version>")        // rendering APIs
-    modImplementation("fr.lacaleche.glue:glue-lumos:<version>")         // light model, both sides
-    modImplementation("fr.lacaleche.glue:glue-lumos-client:<version>")  // light renderer
-    modImplementation("fr.lacaleche.glue:glue-mcsx:<version>")          // MCSX UI library
+    modImplementation("fr.lacaleche.glue:glue-render:<version>")
+    modImplementation("fr.lacaleche.glue:glue-lumos:<version>")
+    modImplementation("fr.lacaleche.glue:glue-lumos-client:<version>")
+    modImplementation("fr.lacaleche.glue:glue-web:<version>")
 }
 ```
 
-And declare what you depend on in `fabric.mod.json` — see
-[Getting Started](docs/getting-started.md) for the full walkthrough.
+Declare the corresponding Fabric mod ids in `fabric.mod.json`. See
+[Getting Started](docs/src/content/docs/getting-started.md) for dependency relationships and setup.
 
-## Releasing
+`glue-gametest` is a development dependency. Put it in a dedicated testmod or development source
+set, never in the dependency graph or descriptor of a released mod.
 
-CI publishes every library module (and the showcase jar) to the private Reposilite when a tag is
-pushed. Use annotated tags, unprefixed to match the existing ones: `git tag -a 2.0.0 -m "..."`.
+## Build
+
+The repository requires JDK 21 and read access to the private Maven repository. Credentials can come
+from `REPOSILITE_TOKEN_NAME` / `REPOSILITE_TOKEN_SECRET`, or from
+`lc.reposilite.readonly.name` / `lc.reposilite.readonly.token` in
+`~/.gradle/gradle.properties`.
+
+```shell
+./gradlew compileJava test
+./gradlew libraryJars
+./gradlew remapJar
+```
+
+<details>
+<summary>PowerShell</summary>
+
+```powershell
+.\gradlew.bat compileJava test
+.\gradlew.bat libraryJars
+.\gradlew.bat remapJar
+```
+
+</details>
+
+- `libraryJars` writes the six remapped library jars to `build/libs/`.
+- `remapJar` also builds the showcase jar.
+- `build` and `check` are currently blocked by a PMD snapshot in the Caldle plugin; CI uses `test`
+  plus remapped jars as the verification gate.
+
+## Run the Showcase
+
+```shell
+./gradlew :glue-showcase:runClient
+./gradlew :glue-showcase:runServer
+```
+
+<details>
+<summary>PowerShell</summary>
+
+```powershell
+.\gradlew.bat :glue-showcase:runClient
+.\gradlew.bat :glue-showcase:runServer
+```
+
+</details>
+
+The client uses `run/`; the dedicated server uses `run-server/`. Runtime options and scripted test
+commands are documented in the [showcase README](glue-showcase/README.md). The first server launch
+stops for the Minecraft EULA; set `eula=true` in `run-server/eula.txt` before restarting it.
+`glue.showcase.iris` and `glue.showcase.sodium` in `gradle.properties` control the optional rendering
+integrations in the development profile.
+
+The showcase frontend lives in [`glue-showcase/web/`](glue-showcase/web/README.md): one plain HTML/JS
+input lab and React demos built with Vite. Showcase resource tasks require Node and pnpm; library
+tasks remain independent of frontend tooling. See the [Glue Web guide](docs/src/content/docs/web/index.md).
+
+## Release
+
+`app.version` in `gradle.properties` is the release version. A pushed tag triggers CI publication of
+the six library modules and stores the remapped showcase jar as an artifact. Before tagging, verify
+that the tag name exactly matches `app.version`; use an annotated, unprefixed tag to match existing
+releases.

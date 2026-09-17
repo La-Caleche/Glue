@@ -1,0 +1,6 @@
+.notes { display: flex; flex-direction: column; height: 100%; padding: 7px 8px 6px; }
+.notes .rule { margin: 4px 0 5px; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 6px; margin: 0; }
+dt { color: var(--bone-dim); }
+dd { margin: 0; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.actions { display: grid; gap: 3px; margin-top: auto; }

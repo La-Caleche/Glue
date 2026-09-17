@@ -58,7 +58,6 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
             sprite.emit(shadedSource.getBuffer(renderType), pose,
                     0.5f, (float) entity.spriteCenterY(partialTick), 0.5f, half, half,
                     255, 125, 185, 255, LightTexture.FULL_BRIGHT);
-            shadedSource.endBatch();
         }
     }
 }

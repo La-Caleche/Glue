@@ -15,7 +15,7 @@ public final class LightAttachments {
         BlockPos immutable = pos.immutable();
         return (level, partialTick, result) -> {
             result.position(immutable.getX() + 0.5, immutable.getY() + 0.5, immutable.getZ() + 0.5);
-            return level.hasChunkAt(immutable);
+            return level.isLoaded(immutable);
         };
     }
 

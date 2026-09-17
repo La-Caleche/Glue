@@ -27,8 +27,8 @@ public final class GlDeferredLightPass {
         this.resources = resources;
     }
 
-    public void render(int lightFramebuffer, int sceneDepth, Matrix4f viewProjection,
-                       Matrix4f inverseViewProjection, Vector3d camera, Light light,
+    public void render(int lightFramebuffer, int sceneDepth, Matrix4f inverseViewProjection,
+                       Vector3d camera, Light light,
                        int width, int height, int[] bounds, @Nullable ShadowParams shadow,
                        int gbufferAlbedo, int gbufferId, int gbufferProps,
                        float[] blobData, int blobCount, float time) {
@@ -52,7 +52,6 @@ public final class GlDeferredLightPass {
             resources.uniform1i(program, "HasGobo", hasGobo ? 1 : 0);
 
             resources.uniformMatrix(program, "InvViewProj", inverseViewProjection);
-            resources.uniformMatrix(program, "ViewProj", viewProjection);
             resources.uniform2f(program, "TexelSize", 1f / width, 1f / height);
             resources.uniform1f(program, "Time", time);
             resources.uniform3f(program, "CameraPos",

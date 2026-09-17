@@ -111,14 +111,6 @@ public final class WorldLightContext implements AutoCloseable {
         }
     }
 
-    public synchronized void clear() {
-        lights.clear();
-        handles.forEach(AttachedLight::markRemoved);
-        handles.clear();
-        materialBlocks.clear();
-        shadows.clearOwners();
-    }
-
     public synchronized boolean isEmpty() {
         return lights.isEmpty() && handles.isEmpty();
     }

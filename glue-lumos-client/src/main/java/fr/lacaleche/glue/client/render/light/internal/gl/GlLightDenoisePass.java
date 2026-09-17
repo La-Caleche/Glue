@@ -14,9 +14,9 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 
 /**
- * Depth-guided (cross-bilateral) denoise of the accumulated HDR light buffer, run once
- * per axis. World-position weighting preserves geometry edges: a depth discontinuity is a
- * large position jump, so its samples drop out while a surface's interior smooths freely.
+ * Depth-guided denoise of the accumulated HDR light buffer, run once per axis. Samples are weighted
+ * by their deviation from the center pixel's local nonlinear-depth plane, preserving silhouettes and
+ * block corners while smoothing a surface's interior.
  *
  * <p>A true bilateral filter is not separable; running one horizontal then one vertical
  * pass is an approximation chosen for cost, and is sufficient to remove the stochastic

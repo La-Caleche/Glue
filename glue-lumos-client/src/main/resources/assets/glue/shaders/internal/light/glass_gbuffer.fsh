@@ -13,17 +13,12 @@
 //     scatter and tint response.
 //   location 2 (RGBA8): material id 4 (GLASS) in R + this pane's window depth packed into GBA --
 //     the same id + owner-depth contract terrain (1), entities (2) and particles (3) already use.
-
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
+//   location 3 (RGBA8): roughness / metalness / F0. Glass is a smooth dielectric.
 
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
 in vec4 vertexColor;
 in vec2 texCoord0;
-in float lightNormDist;
 
 layout(location = 1) out vec4 glue_Material;
 layout(location = 2) out vec4 glue_MaterialId;

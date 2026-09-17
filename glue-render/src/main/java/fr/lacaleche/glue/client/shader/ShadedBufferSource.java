@@ -32,13 +32,17 @@ import java.util.SequencedMap;
  * <p>Global render state (FBO pool, composite queue, capture flags) lives in
  * {@link ShaderContext#INSTANCE} — this class holds only per-call instance state.</p>
  *
- * <p>Must be used in a try-with-resources block:</p>
+ * <p>Owns native vertex buffers, so it must be closed. Use a try-with-resources
+ * block; {@link #close()} ends any pending batch before freeing the buffers, so
+ * no explicit {@link #endBatch()} call is needed:</p>
  * <pre>{@code
  * try (ShadedBufferSource source = pipeline.wrap()) {
  *     // draw calls...
- *     source.endBatch();
- * }
+ * } // close() flushes the batch, then frees the buffers
  * }</pre>
+ * <p>{@link #endBatch()} may still be called explicitly to flush mid-stream. It is
+ * a no-op when nothing was drawn since the last flush, so an explicit call followed
+ * by {@code close()} does not flush twice. {@code close()} itself is idempotent.</p>
  */
 @Environment(EnvType.CLIENT)
 public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
@@ -52,6 +56,9 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
     private final ByteBufferBuilder sharedBuffer = new ByteBufferBuilder(DEFAULT_BUFFER_SIZE);
     private final MultiBufferSource.BufferSource ownSource;
     private final boolean useIsolatedCapture;
+
+    private boolean pending;
+    private boolean closed;
 
     public ShadedBufferSource(GluePipeline pipeline) {
         this(pipeline, false);
@@ -86,6 +93,7 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         if (texture != null) {
             RenderType shadedType = pipeline.renderType(texture);
             fixedBuffers.computeIfAbsent(shadedType, rt -> new ByteBufferBuilder(DEFAULT_BUFFER_SIZE));
+            pending = true;
             return ownSource.getBuffer(shadedType);
         }
 
@@ -98,6 +106,9 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
 
     public void endBatch() {
         RenderSystem.assertOnRenderThread();
+        if (!pending) return;
+
+        pending = false;
         if (useIsolatedCapture) {
             endBatchIsolated();
         } else if (RenderCompat.isIrisShaderEnabled()) {
@@ -167,10 +178,17 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
 
     @Override
     public void close() {
-        sharedBuffer.close();
-        for (ByteBufferBuilder buffer : fixedBuffers.values()) {
-            buffer.close();
+        if (closed) return;
+
+        closed = true;
+        try {
+            endBatch();
+        } finally {
+            sharedBuffer.close();
+            for (ByteBufferBuilder buffer : fixedBuffers.values()) {
+                buffer.close();
+            }
+            fixedBuffers.clear();
         }
-        fixedBuffers.clear();
     }
 }

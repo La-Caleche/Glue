@@ -20,6 +20,10 @@ import net.minecraft.world.phys.Vec3;
  * Demonstrates advanced {@link GlueTransformStack} use: a central item plus four
  * pseudo-randomly orbiting shards, each rendered through a {@link GluePipeline}
  * via {@link ShadedBufferSource} and the stack's {@code then()} inline-render hook.
+ *
+ * <p>The {@code then()} hook is shown here deliberately; its counterpart,
+ * {@link TestOutlineBlockEntityRenderer}, draws with a plain render call between
+ * {@code pushPose()} and {@code popPose()} instead — two idioms, one demo each.</p>
  */
 public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<TickingBlockEntity> {
 
@@ -61,43 +65,42 @@ public class TestSpinningBlockEntityRenderer implements BlockEntityRenderer<Tick
         long seed = entity.getBlockPos().asLong();
         GlueTransformStack stack = GlueTransformStack.of(matrices);
 
-        ShadedBufferSource shadedSource = activePipeline.wrap();
-
-        stack.pushPose()
-                .translate(0.5, STAR_HEIGHT + globalBob, 0.5)
-                .rotateYDegrees(time * STAR_SPIN_SPEED)
-                .scale(0.8f, 0.8f, 0.8f)
-                .then(() -> itemRenderer.renderStatic(NETHER_STAR, ItemDisplayContext.FIXED,
-                        light, overlay, matrices, vertexConsumers, entity.getLevel(), 0))
-                .popPose();
-
-        stack.pushPose()
-                .translate(0.5, AMETHYST_HEIGHT + (globalBob * 0.5f), 0.5)
-                .rotateYDegrees(time * GROUP_SPIN_SPEED);
-
-        for (int i = 0; i < SHARD_COUNT; i++) {
-            float angle = i * (360f / SHARD_COUNT);
-            float rng = pseudoRandom(seed, i);
-
-            float selfSpeed = 20f + rng * 40f;
-            float tiltX = 10f + rng * 30f;
-            float tiltZ = (rng - 0.5f) * 20f;
-            float bobOffset = rng * 6.28f;
-            float shardBob = (float) Math.sin(time * (1.0f + rng) + bobOffset) * 0.04f;
+        try (ShadedBufferSource shadedSource = activePipeline.wrap()) {
+            stack.pushPose()
+                    .translate(0.5, STAR_HEIGHT + globalBob, 0.5)
+                    .rotateYDegrees(time * STAR_SPIN_SPEED)
+                    .scale(0.8f, 0.8f, 0.8f)
+                    .then(() -> itemRenderer.renderStatic(NETHER_STAR, ItemDisplayContext.FIXED,
+                            light, overlay, matrices, vertexConsumers, entity.getLevel(), 0))
+                    .popPose();
 
             stack.pushPose()
-                    .rotateYDegrees(angle)
-                    .translate(ORBIT_RADIUS, shardBob, 0)
-                    .rotateXDegrees(tiltX)
-                    .rotateZDegrees(tiltZ)
-                    .rotateYDegrees(time * selfSpeed)
-                    .scale(SHARD_SCALE, SHARD_SCALE, SHARD_SCALE)
-                    .then(() -> itemRenderer.renderStatic(AMETHYST, ItemDisplayContext.FIXED,
-                            light, overlay, matrices, shadedSource, entity.getLevel(), 0))
-                    .popPose();
-        }
+                    .translate(0.5, AMETHYST_HEIGHT + (globalBob * 0.5f), 0.5)
+                    .rotateYDegrees(time * GROUP_SPIN_SPEED);
 
-        shadedSource.endBatch();
-        stack.popPose();
+            for (int i = 0; i < SHARD_COUNT; i++) {
+                float angle = i * (360f / SHARD_COUNT);
+                float rng = pseudoRandom(seed, i);
+
+                float selfSpeed = 20f + rng * 40f;
+                float tiltX = 10f + rng * 30f;
+                float tiltZ = (rng - 0.5f) * 20f;
+                float bobOffset = rng * 6.28f;
+                float shardBob = (float) Math.sin(time * (1.0f + rng) + bobOffset) * 0.04f;
+
+                stack.pushPose()
+                        .rotateYDegrees(angle)
+                        .translate(ORBIT_RADIUS, shardBob, 0)
+                        .rotateXDegrees(tiltX)
+                        .rotateZDegrees(tiltZ)
+                        .rotateYDegrees(time * selfSpeed)
+                        .scale(SHARD_SCALE, SHARD_SCALE, SHARD_SCALE)
+                        .then(() -> itemRenderer.renderStatic(AMETHYST, ItemDisplayContext.FIXED,
+                                light, overlay, matrices, shadedSource, entity.getLevel(), 0))
+                        .popPose();
+            }
+
+            stack.popPose();
+        }
     }
 }

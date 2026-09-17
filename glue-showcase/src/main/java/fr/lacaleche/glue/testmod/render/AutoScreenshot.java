@@ -37,6 +37,8 @@ public final class AutoScreenshot {
         int[] state = new int[3];
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.level == null || client.player == null) {
+                // Deliberate re-arm: leaving a world resets the delay so the autotest lights
+                // respawn on the next (re)join — every world visit gets lit geometry.
                 state[2] = 0;
                 return;
             }

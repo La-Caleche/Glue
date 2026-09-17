@@ -28,7 +28,6 @@ uniform vec4 ShadowBlobs[MAX_SHADOW_BLOBS * 2];
 uniform int ShadowBlobCount;
 
 uniform mat4 InvViewProj;       // clip -> camera-relative world position
-uniform mat4 ViewProj;          // camera-relative world -> clip (screen-space shadows)
 uniform mat4 LightMatrix;       // world -> gobo clip (GOBO only)
 uniform mat4 LightViewProj;     // camera-relative world -> shadow-map clip
 uniform vec2 TexelSize;         // 1/width, 1/height

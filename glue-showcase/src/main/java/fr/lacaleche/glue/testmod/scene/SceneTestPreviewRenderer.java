@@ -1,76 +1,56 @@
 package fr.lacaleche.glue.testmod.scene;
 
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import fr.lacaleche.glue.client.render.scene.BlockSceneRenderer;
-import com.mojang.blaze3d.vertex.*;
 import fr.lacaleche.glue.data.components.TransformationComponent;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 
-/**
- * Block scene renderer with gizmo transform overlay.
- * <p>
- * Extends {@link BlockSceneRenderer} and overrides {@link #renderBlock} to
- * apply per-block {@link TransformationComponent} from the {@link SceneTestController},
- * so gizmo-dragged blocks appear at their new positions in the preview.
- */
-public class SceneTestPreviewRenderer extends BlockSceneRenderer {
+/** Positions each block using its preview transform; the base renderer performs the single draw. */
+final class SceneTestPreviewRenderer extends BlockSceneRenderer {
 
-    private SceneTestController sceneController;
+    private final SceneTestController controller;
 
-    public void setSceneController(SceneTestController sceneController) {
-        this.sceneController = sceneController;
+    SceneTestPreviewRenderer(SceneTestController controller) {
+        this.controller = controller;
+        this.setHalfExtentX(SceneTestController.HALF_X);
+        this.setHalfExtentZ(SceneTestController.HALF_Z);
+        this.setMinY(SceneTestController.MIN_Y);
+        this.setMaxY(SceneTestController.MAX_Y);
     }
 
     @Override
-    protected void renderBlock(PoseStack matrices, BlockPos worldPos, BlockState blockState,
-                               int relX, int relY, int relZ) {
-        TransformationComponent transform = sceneController != null
-                ? sceneController.getBlockTransform(worldPos)
-                : null;
-
-        if (transform != null) {
-            matrices.translate(
-                    transform.translation().x(),
-                    transform.translation().y(),
-                    transform.translation().z());
-            matrices.mulPose(transform.leftRotation());
-            matrices.scale(
-                    transform.scale().x(),
-                    transform.scale().y(),
-                    transform.scale().z());
-            matrices.mulPose(transform.rightRotation());
-            matrices.translate(-0.5f, -0.5f, -0.5f);
-        } else {
-            super.renderBlock(matrices, worldPos, blockState, relX, relY, relZ);
+    protected void renderBlock(PoseStack matrices, BlockPos position, BlockState state, int x, int y, int z) {
+        TransformationComponent transform = this.controller.getBlockTransform(position);
+        if (transform == null) {
+            super.renderBlock(matrices, position, state, x, y, z);
+            return;
         }
+        matrices.translate(transform.translation().x(), transform.translation().y(), transform.translation().z());
+        matrices.mulPose(transform.leftRotation());
+        matrices.scale(transform.scale().x(), transform.scale().y(), transform.scale().z());
+        matrices.mulPose(transform.rightRotation());
+        matrices.translate(-0.5f, -0.5f, -0.5f);
     }
 
     @Override
     protected void renderGrid(PoseStack matrices) {
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder bufferBuilder = tesselator.begin(VertexFormat.Mode.LINES,
-                DefaultVertexFormat.POSITION_COLOR_NORMAL);
-
-        float min = -5.0f;
-        float max = 6.0f;
-        float y = 0f;
-        float r = 1.0f;
-        float g = 1.0f;
-        float b = 1.0f;
-        float a = .4f;
-
-        for (float i = min; i <= max; i += 1.0f) {
-            bufferBuilder.addVertex(i, y, min).setColor(r, g, b, a).setNormal(0, 0, max - min);
-            bufferBuilder.addVertex(i, y, max).setColor(r, g, b, a).setNormal(0, 0, max - min);
-
-            bufferBuilder.addVertex(min, y, i).setColor(r, g, b, a).setNormal(max - min, 0, 0);
-            bufferBuilder.addVertex(max, y, i).setColor(r, g, b, a).setNormal(max - min, 0, 0);
+        BufferBuilder vertices = Tesselator.getInstance().begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+        float min = -5;
+        float max = 6;
+        for (float step = min; step <= max; step++) {
+            vertices.addVertex(step, 0, min).setColor(1f, 1f, 1f, 0.4f).setNormal(0, 0, 1);
+            vertices.addVertex(step, 0, max).setColor(1f, 1f, 1f, 0.4f).setNormal(0, 0, 1);
+            vertices.addVertex(min, 0, step).setColor(1f, 1f, 1f, 0.4f).setNormal(1, 0, 0);
+            vertices.addVertex(max, 0, step).setColor(1f, 1f, 1f, 0.4f).setNormal(1, 0, 0);
         }
-
-        MeshData mesh = bufferBuilder.build();
-        if (mesh != null) {
-            RenderType.lines().draw(mesh);
-        }
+        MeshData mesh = vertices.build();
+        if (mesh != null) RenderType.lines().draw(mesh);
     }
 }

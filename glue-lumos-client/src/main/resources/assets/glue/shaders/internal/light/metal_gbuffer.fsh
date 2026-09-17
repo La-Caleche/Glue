@@ -12,16 +12,10 @@
 //   location 3 (RGBA8): roughness / metalness / F0. Metal: metalness = 1, so the deferred pass uses
 //     the albedo as the specular colour (a gold block reflects gold).
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
 in vec4 vertexColor;
 in vec2 texCoord0;
-in float lightNormDist;
 
 layout(location = 1) out vec4 glue_Material;
 layout(location = 2) out vec4 glue_MaterialId;

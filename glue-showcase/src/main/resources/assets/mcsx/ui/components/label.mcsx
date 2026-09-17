@@ -1,4 +1,0 @@
-<!-- MCSX Label — the caption above a form control. Override at mcsx:components/label. Props: class. -->
-<div class="text-sm font-medium text-default {class}">
-    <slot/>
-</div>

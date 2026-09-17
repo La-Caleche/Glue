@@ -1,0 +1,10 @@
+{
+    "gui.glue-web.startup.title": "Ressources Glue",
+    "gui.glue-web.startup.checking": "Vérification des ressources…",
+    "gui.glue-web.startup.downloading": "Téléchargement…",
+    "gui.glue-web.startup.extracting": "Extraction…",
+    "gui.glue-web.startup.installing": "Installation…",
+    "gui.glue-web.startup.initializing": "Démarrage du moteur web…",
+    "gui.glue-web.startup.ready": "Moteur web prêt",
+    "gui.glue-web.startup.failed": "Échec — voir le journal"
+}

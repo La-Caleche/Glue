@@ -1,88 +1,93 @@
 package fr.lacaleche.glue.testmod.scene;
 
-import fr.lacaleche.glue.client.render.scene.BlockSceneRenderer;
 import fr.lacaleche.glue.client.camera.OrbitCameraController;
+import fr.lacaleche.glue.client.render.scene.BlockSceneRenderer;
 import fr.lacaleche.glue.client.viewport.AbstractViewportScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.joml.Vector3f;
+import org.lwjgl.glfw.GLFW;
 
-/**
- * Test screen demonstrating a block scene viewport with orbit camera.
- * Renders blocks around the player's position with full rotation/zoom/pan controls.
- * Use +/- keys to adjust the rendered region, R to reset the camera.
- */
-public class BlockSceneTestScreen extends AbstractViewportScreen {
+/** Orbit, zoom and pan around nearby blocks; region controls affect only this preview. */
+public final class BlockSceneTestScreen extends AbstractViewportScreen<OrbitCameraController> {
 
-    private static final float RENDER_SCALE = 1.0f;
-
-    private final BlockSceneRenderer renderer;
-    private final OrbitCameraController orbitCamera;
+    private final Screen parent;
+    private final BlockSceneRenderer renderer = new BlockSceneRenderer();
 
     public BlockSceneTestScreen() {
-        super(Component.literal("Block Scene Test"),
-                new OrbitCameraController(new Vector3f(0, 0, 0)));
-        this.orbitCamera = (OrbitCameraController) cameraController;
-        this.renderer = new BlockSceneRenderer();
+        this(Minecraft.getInstance().screen);
+    }
+
+    public BlockSceneTestScreen(Screen parent) {
+        super(Component.literal("Orbit scene"), new OrbitCameraController(new Vector3f()));
+        this.parent = parent;
+        this.renderer.setCenterPos(SceneTestAnchor.aroundPlayer(Minecraft.getInstance()));
     }
 
     @Override
     protected int renderSceneToTexture(float width, float height, Minecraft client, float tickDelta) {
-        renderer.setViewMatrix(orbitCamera.buildViewMatrix());
-        renderer.setScale(RENDER_SCALE);
-        return renderer.renderToTexture((int) width, (int) height, client);
+        // Framing, picking and rendering must use the same FOV.
+        this.renderer.setFov(this.cameraController.getFov());
+        this.renderer.setViewMatrix(this.cameraController.buildViewMatrix());
+        this.renderer.setScale(1.0f);
+        return this.renderer.renderToTexture((int) width, (int) height, client);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // Expand/shrink horizontal extent
-        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_EQUAL || keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ADD) {
-            renderer.setHalfExtentX(renderer.getHalfExtentX() + 1);
-            renderer.setHalfExtentZ(renderer.getHalfExtentZ() + 1);
+    public boolean keyPressed(int key, int scanCode, int modifiers) {
+        if (key == GLFW.GLFW_KEY_EQUAL || key == GLFW.GLFW_KEY_KP_ADD) {
+            this.renderer.setHalfExtentX(this.renderer.getHalfExtentX() + 1);
+            this.renderer.setHalfExtentZ(this.renderer.getHalfExtentZ() + 1);
             return true;
         }
-        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_MINUS || keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_SUBTRACT) {
-            renderer.setHalfExtentX(Math.max(1, renderer.getHalfExtentX() - 1));
-            renderer.setHalfExtentZ(Math.max(1, renderer.getHalfExtentZ() - 1));
+        if (key == GLFW.GLFW_KEY_MINUS || key == GLFW.GLFW_KEY_KP_SUBTRACT) {
+            this.renderer.setHalfExtentX(Math.max(1, this.renderer.getHalfExtentX() - 1));
+            this.renderer.setHalfExtentZ(Math.max(1, this.renderer.getHalfExtentZ() - 1));
             return true;
         }
-        // Expand/shrink vertical extent
-        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_PAGE_UP) {
-            renderer.setMaxY(renderer.getMaxY() + 1);
+        if (key == GLFW.GLFW_KEY_PAGE_UP) {
+            this.renderer.setMaxY(this.renderer.getMaxY() + 1);
             return true;
         }
-        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_PAGE_DOWN) {
-            renderer.setMinY(renderer.getMinY() - 1);
+        if (key == GLFW.GLFW_KEY_PAGE_DOWN) {
+            this.renderer.setMinY(this.renderer.getMinY() - 1);
             return true;
         }
-        // Reset camera
-        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_HOME) {
-            orbitCamera.reset();
+        if (key == GLFW.GLFW_KEY_HOME) {
+            this.cameraController.reset();
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(key, scanCode, modifiers);
     }
 
     @Override
-    protected void renderHud(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        guiGraphics.drawString(font,
-                "LMB: Rotate  RMB: Pan  Scroll: Zoom  +/-: Region  PgUp/Dn: Height  Home: Reset  ESC: Close",
-                4, 4, 0xFFFFFFFF);
+    protected void renderHud(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.drawString(this.font, "LMB: Orbit | RMB: Pan | Wheel: Zoom | Home: Reset | Esc: Back", 4, 4, 0xFFFFFFFF);
+        int dx = this.renderer.getHalfExtentX() * 2 + 1;
+        int dz = this.renderer.getHalfExtentZ() * 2 + 1;
+        int dy = this.renderer.getMaxY() - this.renderer.getMinY() + 1;
+        graphics.drawString(this.font, "+/-: Region | PgUp/Dn: Height | " + dx + " x " + dy + " x " + dz
+                + " (" + dx * dy * dz + " blocks)", 4, 16, 0xFFAAAAAA);
+    }
 
-        int dx = renderer.getHalfExtentX() * 2 + 1;
-        int dz = renderer.getHalfExtentZ() * 2 + 1;
-        int dy = renderer.getMaxY() - renderer.getMinY() + 1;
-        int blockCount = dx * dz * dy;
-        guiGraphics.drawString(font,
-                String.format("Region: %dx%dx%d  (%d blocks)  Zoom: %.1f",
-                        dx, dy, dz, blockCount, orbitCamera.getZoom()),
-                4, 14, 0xFFAAAAAA);
+    @Override
+    public void onClose() {
+        this.minecraft.setScreen(this.parent);
     }
 
     @Override
     public void removed() {
-        super.removed();
-        renderer.cleanup();
+        try {
+            super.removed();
+        } finally {
+            this.renderer.cleanup();
+        }
+    }
+
+    /** Borrowed renderer, owned and cleaned up by this screen. */
+    public BlockSceneRenderer getSceneRenderer() {
+        return this.renderer;
     }
 }

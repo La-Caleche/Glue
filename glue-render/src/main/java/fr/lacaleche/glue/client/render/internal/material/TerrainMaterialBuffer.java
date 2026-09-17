@@ -25,7 +25,6 @@ public final class TerrainMaterialBuffer {
 
     private static boolean active;
     private static boolean sodiumActive;
-    private static long frameSequence;
 
     private TerrainMaterialBuffer() {
     }
@@ -61,7 +60,6 @@ public final class TerrainMaterialBuffer {
     /** Opens a material frame if the terrain renderer in use can fill one, and notifies
      *  {@link #releaseOnClose} consumers on the frame the gate closes. */
     public static void beginFrame() {
-        frameSequence++;
         boolean wasActive = active;
         active = false;
         sodiumActive = false;
@@ -107,7 +105,7 @@ public final class TerrainMaterialBuffer {
             if (!SodiumMaterialShaderPatch.isReady()) return;
             sodiumActive = true;
             active = true;
-            SODIUM.beginFrame(frameSequence);
+            SODIUM.beginFrame();
             return;
         }
         active = CoreShaderMaterialPatch.isTerrainReady();

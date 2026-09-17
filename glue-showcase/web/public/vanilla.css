@@ -1,0 +1,33 @@
+/* The vanilla lab is self-contained and can be served without compiling the React examples. */
+:root {
+    --slate: #16302e;
+    --slate-deep: #0d1f1e;
+    --slate-line: #2d4a47;
+    --brass: #c9a45c;
+    --bone: #f1ebdd;
+    --bone-dim: #aeb4a8;
+    --xp: #8cc63f;
+    --air: #5bb6d6;
+    --food: #d89a2b;
+    color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { color: var(--bone); font: 400 8px/1.4 "Bahnschrift", "Segoe UI", system-ui, sans-serif; user-select: none; }
+h1, p { margin: 0; }
+h1 { font-size: 15px; line-height: 1.1; }
+button, input, select { color: inherit; font: inherit; }
+.muted, .status { color: var(--bone-dim); }
+.panel { border: 1px solid #7d6538; border-radius: 3px; box-shadow: 0 2px 6px #0005; }
+.rule { height: 1px; margin: 6px 0; border: 0; background: linear-gradient(90deg, #7d6538, transparent); }
+.button { height: 15px; padding: 0 7px; border: 1px solid #7d6538; border-radius: 2px; background: #0d1f1e99; font-weight: 600; cursor: pointer; }
+.button:hover { border-color: var(--brass); background: #c9a45c24; }
+.button.is-primary { border-color: var(--brass); background: var(--brass); color: var(--slate-deep); }
+.field { height: 15px; min-width: 0; padding: 0 5px; border: 1px solid var(--slate-line); border-radius: 2px; background: var(--slate-deep); cursor: text; }
+:focus-visible { outline: 1px solid #e8c982; outline-offset: 1px; }
+.status { min-height: 11px; }
+.status.is-error { color: #e0685f; }
+html[data-bridge="offline"] .needs-bridge { opacity: .4; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}

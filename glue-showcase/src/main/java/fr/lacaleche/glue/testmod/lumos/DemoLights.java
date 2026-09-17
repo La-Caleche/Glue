@@ -17,12 +17,11 @@ import java.util.List;
 /**
  * Owns the showcase's <b>visual</b> demo lights: {@link Lumos#spawn}ed, seen by this client alone,
  * gone with the session. World lights &mdash; {@link Lumos#place}d, saved and synced &mdash; are
- * demonstrated by the light debug HUD, which places and edits them through the client request channel
- * {@code Testmod} opens.
+ * available through the client request channel {@code Testmod} opens.
  *
  * <p>It keeps its own list because {@link Lumos#active} reports every light in the world, including
  * the server's, and a demo may only clean up what it spawned. Anything that mutates a demo light goes
- * through {@link #replace} or {@link #remove} so the list cannot drift &mdash; the debug HUD included.</p>
+ * through {@link #replace} or {@link #remove} so the list cannot drift.</p>
  */
 @Environment(EnvType.CLIENT)
 public final class DemoLights {
@@ -43,10 +42,26 @@ public final class DemoLights {
     private DemoLights() {
     }
 
+    /** The demo lights this class owns, in spawn order. A snapshot: mutate through this class only. */
+    public List<Light> spawned() {
+        return List.copyOf(spawned);
+    }
+
+    public boolean isStressRingEnabled() {
+        return enabled;
+    }
+
+    public boolean isFlashlightOn() {
+        return flashlight != null && !flashlight.isRemoved();
+    }
+
     /** Spawns a visual light and takes ownership of it. Returns it, for {@link #replace}/{@link #remove}. */
     public Light spawn(Level level, Light light) {
-        spawned.add(Lumos.spawn(level, light));
-        return light;
+        // Track and return the same instance Lumos hands back: replace/remove match by identity,
+        // so the caller's reference and the tracked one must never diverge.
+        Light tracked = Lumos.spawn(level, light);
+        spawned.add(tracked);
+        return tracked;
     }
 
     /**
@@ -65,7 +80,15 @@ public final class DemoLights {
         spawned.remove(light);
     }
 
-    /** F11: three static shadowed point lights plus a 24-light unshadowed ring, or clear them all. */
+    /** Despawns every demo light, including the stress ring, so its next toggle starts over. */
+    public void clear(Level level) {
+        despawnAll(level);
+        enabled = false;
+    }
+
+    /** Three static shadowed point lights plus a 24-light unshadowed ring. Turning it off
+     *  despawns <b>every</b> demo light this class owns — spawned spots and autotest lights
+     *  included — so the toggle always restarts from a clean slate. */
     public void toggleStaticLights() {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) return;
@@ -81,7 +104,7 @@ public final class DemoLights {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) return;
         Vec3 position = player.getEyePosition();
-        Vec3 direction = player.getViewVector(0f);
+        Vec3 direction = player.getViewVector(1.0f);
 
         spawn(player.level(), Light.spot(
                 position.x, position.y, position.z,
@@ -91,7 +114,7 @@ public final class DemoLights {
     }
 
     /**
-     * K: the frame-sampled {@link Lumos#attach} path. First press attaches a spot to the player's
+     * Demonstrates the frame-sampled {@link Lumos#attach} path. The first toggle attaches a spot to the player's
      * eyes; each further press restyles it in place through {@link LightHandle#light} until the
      * colors run out, which turns it off. The handle survives nothing the world doesn't &mdash; a
      * dimension change removes it, and the next press starts fresh.

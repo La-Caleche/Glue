@@ -1,6 +1,0 @@
-<import name="Card" from="mcsx:card"/>
-<div>
-    <Card>
-        <text>Inside the card</text>
-    </Card>
-</div>

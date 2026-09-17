@@ -18,16 +18,10 @@
 // Transmittance of a surface with colour C and opacity a is mix(1, C, a): clear glass
 // leaves the light alone, red glass strips everything but red.
 
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:dynamictransforms.glsl>
-
 uniform sampler2D Sampler0;
 
-in float sphericalVertexDistance;
-in float cylindricalVertexDistance;
 in vec4 vertexColor;
 in vec2 texCoord0;
-in float lightNormDist;
 
 out vec4 fragColor;
 

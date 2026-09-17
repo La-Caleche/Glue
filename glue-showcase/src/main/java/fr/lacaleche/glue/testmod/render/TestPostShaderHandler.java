@@ -8,16 +8,25 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
 
+/**
+ * The showcase's post-effect owner: one {@link GluePostEffectRenderer} hosting the three
+ * Java-built {@link TimedPostEffect}s alongside the data-driven effects triggered by id and
+ * the toggled steady-state handles. Demos go through {@link #INSTANCE} so every effect shares
+ * that single renderer; {@code TestmodClient} calls {@link #register()} once at client init.
+ */
 @Environment(EnvType.CLIENT)
 public class TestPostShaderHandler {
 
     public static final TestPostShaderHandler INSTANCE = new TestPostShaderHandler();
 
-    // Java-only effects (custom lambdas, not expressible in JSON)
+    // Effects built in Java rather than loaded from JSON. CHROMATIC is the direct-path twin of the
+    // registry-driven glue-test:chromatic definition — same chain, duration and reverse envelope —
+    // so the showcase commands trigger one effect through both registration paths; SHATTERED and IMPACT
+    // need per-frame uniform writers, which JSON cannot express.
     public static final TimedPostEffect CHROMATIC = TimedPostEffect.builder(TestShaders.CHROMATIC_ABERRATION)
             .ubo("ChromaticConfig", 4)
             .duration(15)
-            .curve(t -> (1.0f - t) * 0.05f)
+            .curveReverse()
             .build();
 
     private static final int SHATTERED_DURATION = 59;
@@ -62,11 +71,6 @@ public class TestPostShaderHandler {
     /** Whether the data-driven effect for {@code id} is currently playing. */
     public boolean isRegistryActive(ResourceLocation id) {
         return renderer.isTimedActive(id);
-    }
-
-    /** Stops the data-driven effect for {@code id}. */
-    public void stopRegistry(ResourceLocation id) {
-        renderer.stopTimed(id);
     }
 
     public void register() {

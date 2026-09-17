@@ -12,8 +12,8 @@ import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 
 /**
- * Screen-space reflection for glass. Runs after the light composite has written the lit
- * scene to the main target: for every pane pixel it reflects the view ray, marches it
+ * Screen-space reflection for glass, water and metal. Runs after the light composite has written the
+ * lit scene to the main target: for every reflective pixel it reflects the view ray, marches it
  * through the scene depth buffer, and alpha-blends the scene colour it hits back onto the
  * pane, Fresnel-weighted. Reflects the actual environment (including Lumos-lit surfaces),
  * which is what the additive point-light response could never do.
@@ -36,7 +36,7 @@ public final class GlGlassReflectionPass {
     /**
      * @param sceneColor  copy of the composited (lit) scene colour
      * @param sceneDepth  copy of the scene depth, sampled along the reflection ray
-     * @param gbufferId   material-id attachment: pane pixels carry the GLASS id (4)
+     * @param gbufferId   material-id attachment for glass, water and metal pixels
      */
     public void render(int sceneColor, int sceneDepth, int gbufferId, int gbufferAlbedo,
                        Matrix4f viewProjection, Matrix4f inverseViewProjection,
@@ -73,7 +73,6 @@ public final class GlGlassReflectionPass {
             GL13.glActiveTexture(GL13.GL_TEXTURE2);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, gbufferId);
             resources.uniform1i(program, "GBufferId", 2);
-            resources.uniform1i(program, "HasGBuffer", 1);
             GL13.glActiveTexture(GL13.GL_TEXTURE3);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, Math.max(gbufferAlbedo, 0));
             resources.uniform1i(program, "GBufferAlbedo", 3);

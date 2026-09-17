@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.testmod.registries;
 
 import fr.lacaleche.glue.registries.ItemsRegistry;
-import fr.lacaleche.glue.testmod.TestmodClient;
+import fr.lacaleche.glue.testmod.Testmod;
 import fr.lacaleche.glue.testmod.items.TestComponentItem;
 import net.minecraft.world.item.Item;
 
@@ -11,7 +11,7 @@ import net.minecraft.world.item.Item;
  */
 public class TestItems {
 
-    public static final ItemsRegistry REGISTRY = new ItemsRegistry(TestmodClient.MOD_ID, TestmodClient::id);
+    public static final ItemsRegistry REGISTRY = new ItemsRegistry(Testmod.MOD_ID, Testmod::id);
 
     public static final Item TEST_OUTLINE_BLOCK = REGISTRY.register(TestBlocks.TEST_OUTLINE_BLOCK,
             new Item.Properties());
@@ -28,7 +28,7 @@ public class TestItems {
             TestComponentItem::new, new Item.Properties());
 
     public static void registerItems() {
-        TestmodClient.LOGGER.info("Registering items");
+        Testmod.LOGGER.info("Registering items");
     }
 
 }

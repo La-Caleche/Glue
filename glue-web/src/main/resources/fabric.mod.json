@@ -1,0 +1,23 @@
+{
+    "schemaVersion": 1,
+    "id": "glue-web",
+    "version": "${version}",
+    "name": "Glue Web",
+    "description": "Client-owned Chromium surfaces, native input and web messaging for Glue",
+    "authors": ["Malo <malo@lacaleche.cc>"],
+    "contact": {
+        "homepage": "https://lacaleche.cc",
+        "sources": "https://gitlab.lacaleche.cc/loccamy/java/glue"
+    },
+    "environment": "client",
+    "mixins": ["glue-web.client.mixins.json"],
+    "entrypoints": {
+        "client": ["fr.lacaleche.glue.web.internal.GlueWebClient"]
+    },
+    "depends": {
+        "fabricloader": ">=0.17",
+        "minecraft": "~1.21.8",
+        "java": ">=21",
+        "fabric-api": "*"
+    }
+}

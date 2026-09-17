@@ -1,0 +1,10 @@
+{
+    "gui.glue-web.startup.title": "Glue resources",
+    "gui.glue-web.startup.checking": "Checking resources…",
+    "gui.glue-web.startup.downloading": "Downloading…",
+    "gui.glue-web.startup.extracting": "Extracting…",
+    "gui.glue-web.startup.installing": "Installing…",
+    "gui.glue-web.startup.initializing": "Starting the web engine…",
+    "gui.glue-web.startup.ready": "Web engine ready",
+    "gui.glue-web.startup.failed": "Loading failed — see the log"
+}

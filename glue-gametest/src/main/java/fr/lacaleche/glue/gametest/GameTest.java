@@ -11,6 +11,9 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -27,8 +30,9 @@ import java.util.function.Predicate;
  * through {@link #tool}, which invokes a {@link GameTool} the owning mod registered in
  * {@link GameTools}, or through the raw {@link #step} escape hatch.</p>
  *
- * <p>Steps carry per-run closure state, so a {@code GameTest} instance runs once per game launch
- * &mdash; exactly how the runner uses it.</p>
+ * <p>Steps carry per-run closure state, so a {@code GameTest} instance supports one run. Register
+ * through {@link GameTests#register(String, java.util.function.Supplier)} and the runner builds a
+ * fresh instance &mdash; fresh closure state &mdash; each time it selects the test.</p>
  */
 @Environment(EnvType.CLIENT)
 public final class GameTest {
@@ -99,21 +103,52 @@ public final class GameTest {
         });
     }
 
-    /** Schedules an action on the integrated server thread and waits until it has executed. */
+    /**
+     * Schedules an action on the integrated server thread and waits until it has executed. An action
+     * that throws fails the step on the following tick, carrying its own exception into the report
+     * instead of leaving the step to time out with nothing to show for it.
+     *
+     * <p>The action must be a short, non-blocking server mutation. A step timeout stops the runner
+     * from waiting, but it cannot unwind work that has already wedged Minecraft's server thread: a
+     * running task is past the point where cancelling a future reaches it, and interrupting that
+     * thread is not something a test may do &mdash; client shutdown would then wait on the integrated
+     * server indefinitely. Wait for conditions with polled client steps ({@link #waitUntil}) rather
+     * than inside the action, and keep locks, latches, network calls and long I/O out of it.</p>
+     */
     public GameTest runOnServer(String description, Consumer<MinecraftServer> action) {
-        boolean[] submitted = new boolean[1];
-        boolean[] done = new boolean[1];
+        // Holds the server's own future: a plain flag written on the server thread and read on the
+        // client tick has no happens-before edge between them, and says nothing when the action threw.
+        AtomicReference<CompletableFuture<Void>> pending = new AtomicReference<>();
         return step(description, DEFAULT_TIMEOUT, ctx -> {
-            if (!submitted[0]) {
-                submitted[0] = true;
+            CompletableFuture<Void> completion = pending.get();
+            if (completion == null) {
                 MinecraftServer server = ctx.server();
-                server.execute(() -> {
-                    action.accept(server);
-                    done[0] = true;
-                });
+                completion = server.submit(() -> action.accept(server));
+                pending.set(completion);
             }
-            return done[0];
+            if (!completion.isDone()) return false;
+
+            try {
+                completion.join();
+            } catch (CompletionException wrapped) {
+                rethrowServerFailure(wrapped);
+            }
+            return true;
         });
+    }
+
+    /**
+     * Fails the step with what the server action threw rather than with the executor's wrapper. Both
+     * throwable families matter: an {@code AssertionError} raised by a check inside the action is
+     * exactly the failure the report should name, and it is not an {@code Exception}. A wrapper
+     * carrying no cause is rethrown as it stands, since there is nothing better to report.
+     */
+    static void rethrowServerFailure(CompletionException wrapped) throws Exception {
+        Throwable cause = wrapped.getCause();
+        if (cause instanceof Exception failure) throw failure;
+        if (cause instanceof Error failure) throw failure;
+
+        throw wrapped;
     }
 
     public GameTest waitTicks(int ticks) {
@@ -248,21 +283,33 @@ public final class GameTest {
 
     /**
      * Saves a screenshot of the frame rendered with everything the previous steps set up: waits a
-     * couple of ticks so a fresh frame exists, then completes only once the PNG is on disk.
+     * couple of ticks so a fresh frame exists, then completes only once the PNG is on disk. A capture
+     * that fails to write fails the step: a run that stayed green while its evidence never landed
+     * would be worse than one that reports the failure.
      */
     public GameTest screenshot(String label) {
         int[] ticks = new int[1];
         boolean[] requested = new boolean[1];
-        boolean[] saved = new boolean[1];
+        // The outcome is published from Minecraft's screenshot I/O thread and read here on the client
+        // thread; the atomic is what makes that hand-off visible rather than a hopeful plain write.
+        AtomicReference<TestContext.ScreenshotOutcome> outcome = new AtomicReference<>();
         return step("screenshot '" + label + "'", 200, ctx -> {
             if (++ticks[0] < 3) {
                 return false;
             }
             if (!requested[0]) {
                 requested[0] = true;
-                ctx.saveScreenshot(label, () -> saved[0] = true);
+                ctx.saveScreenshot(label, outcome::set);
             }
-            return saved[0];
+
+            TestContext.ScreenshotOutcome result = outcome.get();
+            if (result == null) {
+                return false;
+            }
+            if (!result.saved()) {
+                throw new IllegalStateException("screenshot '" + label + "' was not saved: " + result.detail());
+            }
+            return true;
         });
     }
 }

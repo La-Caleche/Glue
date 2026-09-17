@@ -1,12 +1,13 @@
 package fr.lacaleche.glue.client.render.light.internal;
 
-import fr.lacaleche.glue.lumos.LightAttachment;
-import fr.lacaleche.glue.lumos.LightHandle;
 import fr.lacaleche.glue.client.render.light.internal.context.WorldLightContext;
 import fr.lacaleche.glue.lumos.Light;
-import java.util.List;
+import fr.lacaleche.glue.lumos.LightAttachment;
+import fr.lacaleche.glue.lumos.LightHandle;
 import net.minecraft.client.multiplayer.ClientLevel;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 /**
  * The mutable set of active {@link Light}s. Mods do not touch this directly &mdash; they go through
@@ -58,11 +59,6 @@ public final class LightManager {
     /** Removes a previously added light. No-op if absent or null. */
     public synchronized void remove(Light light) {
         if (context != null) context.remove(light);
-    }
-
-    /** Removes every light. */
-    public synchronized void clear() {
-        if (context != null) context.clear();
     }
 
     public synchronized boolean isEmpty() {
