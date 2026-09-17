@@ -1,7 +1,12 @@
 image: eclipse-temurin:21-jdk
 
 variables:
-  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  # Loom remappers share the build JVM; bound concurrency and override the 1 GiB local heap.
+  GRADLE_OPTS: >-
+    -Dorg.gradle.daemon=false
+    -Dorg.gradle.jvmargs=-Xmx4g
+    -Dorg.gradle.workers.max=2
+    -Dorg.gradle.parallel=false
   # Keep Gradle's dependency/wrapper cache inside the project dir so GitLab can cache it.
   GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
 
