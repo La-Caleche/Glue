@@ -75,6 +75,7 @@ public final class WebSurface implements AutoCloseable {
         return this.session.title();
     }
 
+    /** The last failure, or an empty string when there is none; never null. */
     public String error() {
         return this.session.error();
     }
