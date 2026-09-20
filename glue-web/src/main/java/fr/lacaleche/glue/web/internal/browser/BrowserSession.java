@@ -234,6 +234,7 @@ public final class BrowserSession implements AutoCloseable {
 
     public void focus(boolean focused) {
         this.requireOpen();
+        if (this.focused == focused) return;
         this.focused = focused;
         if (!focused) {
             this.buttons = 0;

@@ -39,6 +39,7 @@ public final class WebWidget extends AbstractWidget {
     private final SurfaceInput input = new SurfaceInput();
     private WebSurface surface;
     private Screen owner;
+    private boolean pageFocused;
     private int unrenderedTicks;
     private boolean tracked;
     private boolean released;
@@ -58,6 +59,7 @@ public final class WebWidget extends AbstractWidget {
         if (!this.ensureSurface(client)) return;
 
         this.unrenderedTicks = 0;
+        this.applyFocus(this.isFocused());
         HostSizing.fit(this.surface, this.getWidth(), this.getHeight());
         this.input.setBounds(this.getX(), this.getY(), this.getWidth(), this.getHeight());
         this.surface.draw(graphics, this.getX(), this.getY(), this.getWidth(), this.getHeight());
@@ -76,7 +78,7 @@ public final class WebWidget extends AbstractWidget {
     public boolean mouseClicked(double x, double y, int button) {
         if (!this.active || !this.visible || !this.isOpen()) return false;
         if (!this.input.press(this.surface, x, y, button)) return false;
-        this.surface.setFocused(true);
+        this.applyFocus(true);
         return true;
     }
 
@@ -115,12 +117,6 @@ public final class WebWidget extends AbstractWidget {
         if (!this.isFocused() || !this.isOpen()) return false;
         this.surface.character(character, modifiers);
         return true;
-    }
-
-    @Override
-    public void setFocused(boolean focused) {
-        super.setFocused(focused);
-        if (this.isOpen()) this.surface.setFocused(focused);
     }
 
     @Override
@@ -166,12 +162,25 @@ public final class WebWidget extends AbstractWidget {
         this.surface = this.page.size(this.getWidth(), this.getHeight())
                 .scale(HostSizing.scaleFor(this.getWidth(), this.getHeight())).open();
         this.surface.onCloseRequest(this.owner::onClose);
-        this.surface.setFocused(this.isFocused());
+        this.pageFocused = this.isFocused();
+        this.surface.setFocused(this.pageFocused);
         if (!this.tracked) {
             this.tracked = true;
             HostTicker.track(this::isAlive);
         }
         return true;
+    }
+
+    /**
+     * Minecraft's container focuses the clicked child again on every press and blurs the current one
+     * first. The page never sees that pair: a blur drops the buttons the surface holds, so every
+     * pointer drag would end at the press. Focus reaches the page when a press gives it, and
+     * otherwise at the next frame, once the value has settled.
+     */
+    private void applyFocus(boolean focused) {
+        if (this.pageFocused == focused || !this.isOpen()) return;
+        this.pageFocused = focused;
+        this.surface.setFocused(focused);
     }
 
     private boolean isAlive() {
