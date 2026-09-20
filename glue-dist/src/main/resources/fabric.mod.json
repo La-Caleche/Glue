@@ -1,0 +1,21 @@
+{
+    "schemaVersion": 1,
+    "id": "glue-dist",
+    "version": "${version}",
+    "name": "Glue (all modules)",
+    "description": "Ships Glue, Glue Render, Glue Lumos and Glue Lumos Client in one file. Install this, or each module on its own. Glue Web is distributed separately.",
+    "authors": [
+        "Malo <malo@lacaleche.cc>",
+        "Theo <theo@lacaleche.cc>"
+    ],
+    "contact": {
+        "homepage": "https://lacaleche.cc",
+        "sources": "https://gitlab.lacaleche.cc/loccamy/java/glue"
+    },
+    "icon": "assets/glue/icon.png",
+    "depends": {
+        "fabricloader": ">=0.14.6",
+        "minecraft": "~1.21.8",
+        "java": ">=21"
+    }
+}

@@ -32,6 +32,6 @@ plugins {
 
 rootProject.name = "glue"
 
-val modules = listOf("core", "render", "lumos", "lumos-client", "web", "gametest", "showcase")
+val modules = listOf("core", "render", "lumos", "lumos-client", "web", "gametest", "dist", "showcase")
 
 modules.forEach { include("glue-$it") }

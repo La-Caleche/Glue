@@ -27,6 +27,23 @@ The six library artifacts are published. `glue-showcase` is built as a developme
 not published by release CI. Fabric API is required; Iris and Sodium integrations are optional and
 runtime-guarded. Packages named `internal` are not supported API.
 
+## What a player installs
+
+Two files, not six. `glue-<version>.jar` carries `glue-core`, `glue-render`, `glue-lumos` and
+`glue-lumos-client` as nested mods: Fabric loads each one as if it had been installed on its own, so a
+dedicated server still skips the client half of Lumos. `glue-web-<version>.jar` stays on its own,
+because it is 3.6 MB of Chromium installer against 550 KB for everything else, and nothing in the
+suite depends on it.
+
+| File | Holds | For |
+|---|---|---|
+| `glue-<version>.jar` | `glue`, `glue-render`, `glue-lumos`, `glue-lumos-client` | Every mod built on Glue |
+| `glue-web-<version>.jar` | `glue-web` | Mods that host web interfaces |
+| `glue-gametest-<version>.jar` | `glue-gametest` | Development only; never ship it |
+
+The nesting lives in `glue-dist`, a module with no code. Maven artifacts stay one per module — a build
+depends on `glue-render` alone if that is all it uses — and only the distribution is grouped.
+
 ## Use Glue
 
 Artifacts are hosted on the private La Calèche Reposilite. Add the repository to the consumer's

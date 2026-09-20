@@ -68,6 +68,7 @@ publish:
         :glue-lumos-client:publish
         :glue-web:publish
         :glue-gametest:publish
+        :glue-dist:remapJar
         :glue-showcase:remapJar
         -x :glue-showcase:installWeb
         -x :glue-showcase:buildWeb
