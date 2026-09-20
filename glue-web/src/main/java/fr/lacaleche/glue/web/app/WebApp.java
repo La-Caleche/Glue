@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.web.app;
 
 import fr.lacaleche.glue.web.internal.app.AppResources;
+import fr.lacaleche.glue.web.internal.app.AppDescriptor;
 import fr.lacaleche.glue.web.internal.app.AppFiles;
 import fr.lacaleche.glue.web.internal.app.BundleApp;
 import fr.lacaleche.glue.web.internal.app.BundleConfig;
@@ -46,6 +47,25 @@ public final class WebApp {
     /** Registers a named, versioned application through {@link Builder#register()}. */
     public static Builder builder(String modId, String name) {
         return new Builder(modId, name);
+    }
+
+    /**
+     * The application as the build declared it: contract, update channel, trusted keys and the version
+     * actually embedded, read from the descriptor the Glue bundle Gradle plugin generates. Nothing the
+     * build already knows is repeated here, so the embedded version cannot drift from the files beside
+     * it — the drift a channel resolves against, and would resolve wrongly.
+     *
+     * <p>Set what the build does not know, such as the activation policy, then {@link Builder#register()}.</p>
+     *
+     * @throws IllegalStateException when the mod ships no descriptor for that application
+     */
+    public static Builder declared(String modId, String name) {
+        AppDescriptor descriptor = AppDescriptor.read(Objects.requireNonNull(modId, "modId"),
+                Objects.requireNonNull(name, "name"));
+        return builder(modId, name)
+                .embedded(descriptor.version(), descriptor.resources())
+                .contract(descriptor.contract())
+                .updates(descriptor.channel(), descriptor.keys());
     }
 
     /**
