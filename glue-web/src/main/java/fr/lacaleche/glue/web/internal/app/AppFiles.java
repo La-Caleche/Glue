@@ -105,6 +105,7 @@ public final class AppFiles {
         return switch (status) {
             case 200 -> "OK";
             case 400 -> "Bad Request";
+            case 403 -> "Forbidden";
             case 404 -> "Not Found";
             case 405 -> "Method Not Allowed";
             default -> "Internal Server Error";

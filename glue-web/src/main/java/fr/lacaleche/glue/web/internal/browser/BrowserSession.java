@@ -4,6 +4,8 @@ import com.google.gson.JsonElement;
 import fr.lacaleche.glue.web.WebCursor;
 import fr.lacaleche.glue.web.WebMetrics;
 import fr.lacaleche.glue.web.WebPointerEvent;
+import fr.lacaleche.glue.web.internal.app.AppResources;
+import fr.lacaleche.glue.web.internal.app.BundleApp;
 import fr.lacaleche.glue.web.bridge.WebSlot;
 import fr.lacaleche.glue.web.internal.bridge.Bridge;
 import fr.lacaleche.glue.web.internal.bridge.SlotBinding;
@@ -39,6 +41,7 @@ public final class BrowserSession implements AutoCloseable {
     private final Minecraft client;
     private final SurfaceOptions options;
     private final Bridge bridge;
+    private final BundleApp.Page appPage;
     private final SurfaceRenderer mainRenderer = new SurfaceRenderer();
     private final SurfaceRenderer popupRenderer = new SurfaceRenderer();
     private final SurfaceMetrics metrics = new SurfaceMetrics();
@@ -61,6 +64,7 @@ public final class BrowserSession implements AutoCloseable {
     private BrowserSession(SurfaceOptions options, WebSurface owner) {
         this.client = Minecraft.getInstance();
         this.options = options;
+        this.appPage = AppResources.open(options.address());
         this.width = options.width();
         this.height = options.height();
         this.scale = options.scale();
@@ -209,7 +213,7 @@ public final class BrowserSession implements AutoCloseable {
         this.requireOpen();
         if (!this.isReady()) throw new IllegalStateException("Wait for native browser readiness before navigating");
         this.view.error = "";
-        this.view.loadURL(address.toASCIIString());
+        this.view.loadURL((this.appPage == null ? address : this.appPage.resolve(address)).toASCIIString());
     }
 
     public void back() {
@@ -374,8 +378,9 @@ public final class BrowserSession implements AutoCloseable {
     }
 
     private CefView createBrowser(CefRuntime.State state, long nativeWindow) {
-        CefView browser = new CefView(state.client(), this.options.address().toASCIIString(), this.options.transparent(),
-                this.width, this.height, this.scale, nativeWindow, this.bridge);
+        URI address = this.appPage == null ? this.options.address() : this.appPage.address();
+        CefView browser = new CefView(state.client(), address.toASCIIString(), this.options.transparent(),
+                this.width, this.height, this.scale, nativeWindow, this.bridge, this.appPage);
         this.view = browser;
         this.bridge.attach(browser);
         browser.disposed.whenComplete((ignored, error) -> {

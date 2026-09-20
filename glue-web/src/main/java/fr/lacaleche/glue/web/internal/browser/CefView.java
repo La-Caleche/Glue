@@ -3,6 +3,8 @@ package fr.lacaleche.glue.web.internal.browser;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import fr.lacaleche.glue.web.internal.bridge.Bridge;
+import fr.lacaleche.glue.web.internal.app.AppResources;
+import fr.lacaleche.glue.web.internal.app.BundleApp;
 import org.cef.CefBrowserSettings;
 import org.cef.CefClient;
 import org.cef.browser.CefBrowser;
@@ -28,7 +30,7 @@ import java.util.function.Consumer;
  * CEF callbacks only capture owned bytes and metadata. They never access Minecraft or OpenGL.
  * The view rectangle is in CSS pixels; paints arrive at that size multiplied by the scale.
  */
-final class CefView extends CefBrowserWindowless implements CefRenderHandler, Bridge.PageChannel {
+final class CefView extends CefBrowserWindowless implements CefRenderHandler, Bridge.PageChannel, AppResources.PinnedBrowser {
 
     final FrameMailbox main = new FrameMailbox();
     final FrameMailbox popup = new FrameMailbox();
@@ -36,6 +38,7 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler, Br
     final CompletableFuture<Void> disposed = new CompletableFuture<>();
     /** Null for developer tools views, which never expose the page bridge. */
     final Bridge bridge;
+    private final BundleApp.Page appPage;
     private final AtomicReference<Boolean> requestedFocus = new AtomicReference<>();
     volatile boolean loading = true;
     volatile boolean canBack;
@@ -54,12 +57,12 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler, Br
     private final Component component = new Component() { };
 
     CefView(CefClient client, String url, boolean transparent, int width, int height, double scale, long nativeWindow,
-            Bridge bridge) {
-        this(client, url, transparent, width, height, scale, nativeWindow, bridge, null, null);
+            Bridge bridge, BundleApp.Page appPage) {
+        this(client, url, transparent, width, height, scale, nativeWindow, bridge, appPage, null, null);
     }
 
     private CefView(CefClient client, String url, boolean transparent, int width, int height, double scale,
-                    long nativeWindow, Bridge bridge, CefBrowserWindowless parent, Point inspectAt) {
+                     long nativeWindow, Bridge bridge, BundleApp.Page appPage, CefBrowserWindowless parent, Point inspectAt) {
         super(client, url, null, parent, inspectAt, settings());
         this.url = url;
         this.transparent = transparent;
@@ -67,6 +70,12 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler, Br
         this.scale = scale;
         this.nativeWindow = nativeWindow;
         this.bridge = bridge;
+        this.appPage = appPage;
+    }
+
+    @Override
+    public BundleApp.Page appPage() {
+        return this.appPage;
     }
 
     @Override
@@ -81,7 +90,7 @@ final class CefView extends CefBrowserWindowless implements CefRenderHandler, Br
 
     @Override
     protected CefBrowserWindowless createDevToolsBrowserWindowless(CefClient client, String url, CefRequestContext context, CefBrowserWindowless parent, Point inspectAt) {
-        return new CefView(client, url, false, 1000, 700, 1, this.nativeWindow, null, parent, inspectAt);
+        return new CefView(client, url, false, 1000, 700, 1, this.nativeWindow, null, this.appPage, parent, inspectAt);
     }
 
     @Override

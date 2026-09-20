@@ -61,6 +61,7 @@ public final class WebGameTest {
 
     public static void register() {
         RuntimeStartupGameTest.register();
+        BundleGameTest.register();
         GameTests.register("glue-test:web", () -> new WebGameTest().build());
         GameTests.register("glue-test:web-sites", () -> new WebGameTest().sites());
     }

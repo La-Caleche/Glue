@@ -34,6 +34,7 @@ public final class WebDemos {
     public static void init() {
         if (app != null) throw new IllegalStateException("Web demos are already registered");
         app = WebApp.of(MOD_ID);
+        BundleDemo.init();
         vitals = PlayerVitals.register(app);
         vitals.setEnabled(false);
         minimap = Minimap.register(app);

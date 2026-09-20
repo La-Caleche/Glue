@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.web;
 
 import fr.lacaleche.glue.web.app.WebApp;
+import fr.lacaleche.glue.web.app.WebAppStatus;
 import fr.lacaleche.glue.web.bridge.WebAction;
 import fr.lacaleche.glue.web.bridge.WebSlot;
 import fr.lacaleche.glue.web.bridge.WebSlotRenderer;
@@ -69,6 +70,7 @@ class WebSurfaceApiTest {
     @Test
     void publicSignaturesDoNotExposeTheBrowserEngineOrInternalTypes() {
         for (Class<?> type : List.of(WebSurface.class, WebSurface.Builder.class, WebBuilder.class, WebApp.class,
+                WebApp.Builder.class, WebAppStatus.class, WebAppStatus.Release.class,
                 WebScreen.class, WebScreen.Builder.class, WebHud.class, WebHud.Builder.class, WebOverlay.class,
                 WebOverlay.Builder.class, WebWidget.class, WebWidget.Builder.class, WebSlot.class,
                 WebSlotRenderer.class, WebAnchor.class, WebMetrics.class, WebCursor.class, WebPointerEvent.class)) {

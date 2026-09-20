@@ -67,6 +67,9 @@ loom {
             runDir("../run")
             // pnpm --dir glue-showcase/web watch rebuilds this directory; F5 reloads a page in game.
             vmArg("-Dglue.web.source.glue-showcase=${webResources.get().dir("assets/glue-showcase/web").asFile.absolutePath}")
+            for (property in listOf("glue.showcase.web.channel", "glue.showcase.web.key")) {
+                providers.gradleProperty(property).orNull?.let { value -> vmArg("-D$property=$value") }
+            }
 
             // CLI verification runs: -Pglue.showcase.quickplay=<world> boots straight into a
             // singleplayer world. -Pglue.showcase.runReal=true retargets to the REAL ../run

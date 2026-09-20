@@ -115,6 +115,7 @@ public final class CefRuntime {
     private static synchronized void shutdown() {
         if (stopping) return;
         stopping = true;
+        AppResources.stop();
         PROGRESS.stopping();
         if (instance != null) instance.thenAccept(state -> {
             state.client.dispose();

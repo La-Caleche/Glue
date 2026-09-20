@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Versioned web bundles</title>
+<style>
+    :root { color-scheme: dark; font: 12px system-ui; background: #101a17; color: #ebf5ef; }
+    body { max-width: 780px; margin: 0 auto; padding: 12px; }
+    h1 { color: #9fdfaf; font-size: 22px; margin: 0 0 8px; } p { line-height: 1.45; }
+    button { font: inherit; margin: 3px; padding: 6px 8px; border: 1px solid #78b68c; border-radius: 6px; cursor: pointer; }
+    pre { max-height: 30vh; overflow: auto; padding: 10px; background: #1c2b23; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #error { color: #ffc1b7; }
+</style>
+<h1>Versioned web bundles</h1>
+<p>Embedded UI <strong>1.0.0</strong>. Updates affect the next opening. This page keeps its release,
+    including deferred imports. Reopen with <code>/web bundles</code>.</p>
+<p>Offline by default; an optional signed channel enables updates.</p>
+<div>
+    <button data-action="check">Check channel</button>
+    <button data-action="activate">Activate prepared update</button>
+    <button data-action="previous">Use previous</button>
+    <button data-action="embedded">Use embedded</button>
+    <button data-action="resume">Resume updates</button>
+    <button id="lazy">Load a deferred module</button>
+</div>
+<pre id="status">Connecting to the Java bridge…</pre>
+<p id="module"></p><p id="error" role="alert"></p>
+<script type="module" src="./main.js"></script>
+</html>
