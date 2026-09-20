@@ -60,7 +60,7 @@ public final class WebWidget extends AbstractWidget {
 
         this.unrenderedTicks = 0;
         this.applyFocus(this.isFocused());
-        HostSizing.fit(this.surface, this.getWidth(), this.getHeight());
+        HostSizing.apply(this.surface, this.getWidth(), this.getHeight());
         this.input.setBounds(this.getX(), this.getY(), this.getWidth(), this.getHeight());
         this.surface.draw(graphics, this.getX(), this.getY(), this.getWidth(), this.getHeight());
 
@@ -159,8 +159,8 @@ public final class WebWidget extends AbstractWidget {
 
         this.owner = client.screen;
         this.released = false;
-        this.surface = this.page.size(this.getWidth(), this.getHeight())
-                .scale(HostSizing.scaleFor(this.getWidth(), this.getHeight())).open();
+        HostSizing.Fit fit = HostSizing.fit(this.getWidth(), this.getHeight());
+        this.surface = this.page.size(fit.width(), fit.height()).scale(fit.scale()).open();
         this.surface.onCloseRequest(this.owner::onClose);
         this.pageFocused = this.isFocused();
         this.surface.setFocused(this.pageFocused);

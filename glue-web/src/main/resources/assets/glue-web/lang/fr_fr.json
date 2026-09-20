@@ -1,4 +1,5 @@
 {
+    "gui.glue-web.options.title": "Options Glue…",
     "gui.glue-web.startup.title": "Ressources Glue",
     "gui.glue-web.startup.checking": "Vérification des ressources…",
     "gui.glue-web.startup.downloading": "Téléchargement…",

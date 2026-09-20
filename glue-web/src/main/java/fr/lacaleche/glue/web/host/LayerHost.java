@@ -45,10 +45,10 @@ final class LayerHost {
 
         this.bounds = this.placement.bounds(graphics.guiWidth(), graphics.guiHeight());
         if (this.surface == null) {
-            this.surface = this.page.size(this.bounds.width(), this.bounds.height())
-                    .scale(HostSizing.scaleFor(this.bounds.width(), this.bounds.height())).open();
+            HostSizing.Fit fit = HostSizing.fit(this.bounds.width(), this.bounds.height());
+            this.surface = this.page.size(fit.width(), fit.height()).scale(fit.scale()).open();
         } else {
-            HostSizing.fit(this.surface, this.bounds.width(), this.bounds.height());
+            HostSizing.apply(this.surface, this.bounds.width(), this.bounds.height());
         }
         return this.isShowing();
     }

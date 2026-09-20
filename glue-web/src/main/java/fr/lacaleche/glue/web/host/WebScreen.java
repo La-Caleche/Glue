@@ -52,7 +52,8 @@ public final class WebScreen extends Screen {
     @Override
     protected void init() {
         if (this.surface == null || this.surface.isClosed()) {
-            this.surface = this.page.size(this.width, this.height).scale(HostSizing.scaleFor(this.width, this.height)).open();
+            HostSizing.Fit fit = HostSizing.fit(this.width, this.height);
+            this.surface = this.page.size(fit.width(), fit.height()).scale(fit.scale()).open();
             this.surface.onCloseRequest(this::onClose);
             if (!this.tracked) {
                 this.tracked = true;
@@ -204,7 +205,7 @@ public final class WebScreen extends Screen {
     }
 
     private void drawPage(GuiGraphics graphics, int width, int height) {
-        HostSizing.fit(this.surface, width, height);
+        HostSizing.apply(this.surface, width, height);
         this.input.setBounds(0, 0, width, height);
         this.surface.draw(graphics, 0, 0, width, height);
     }
