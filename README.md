@@ -4,8 +4,8 @@ Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official
 provides typed registries, rendering pipelines and post effects, Lumos deferred colored lighting,
 native dialogs, Chromium web surfaces, and scripted live-client tests.
 
-- [Documentation](docs/README.md)
-- [Getting started](docs/src/content/docs/getting-started.md)
+- [Documentation](https://gitlab.lacaleche.cc/loccamy/java/glue-docs), maintained in the separate `glue-docs` repository
+- [Getting started](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/getting-started.md)
 - [Showcase](glue-showcase/README.md)
 
 ## Modules
@@ -60,7 +60,7 @@ dependencies {
 ```
 
 Declare the corresponding Fabric mod ids in `fabric.mod.json`. See
-[Getting Started](docs/src/content/docs/getting-started.md) for dependency relationships and setup.
+[Getting Started](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/getting-started.md) for dependency relationships and setup.
 
 `glue-gametest` is a development dependency. Put it in a dedicated testmod or development source
 set, never in the dependency graph or descriptor of a released mod.
@@ -119,19 +119,11 @@ integrations in the development profile.
 
 The showcase frontend lives in [`glue-showcase/web/`](glue-showcase/web/README.md): one plain HTML/JS
 input lab and React demos built with Vite. Showcase resource tasks require Node and pnpm; library
-tasks remain independent of frontend tooling. See the [Glue Web guide](docs/src/content/docs/web/index.md).
-
-## Documentation Hosting
-
-Git tag pipelines build and check the documentation alongside library releases. CI publishes a static
-Nginx image to the GitLab container registry as `docs:<git-tag>` and `docs:latest`, and can update a
-Portainer Compose stack automatically using the release's exact image digest.
-The image build uses Kaniko on a container runner. The stack file and GitLab variables are documented in
-[`docs/README.md`](docs/README.md#container-publication-and-deployment).
+tasks remain independent of frontend tooling. See the [Glue Web guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/web/index.md).
 
 ## Release
 
 `app.version` in `gradle.properties` is the release version. A pushed tag triggers CI publication of
-the six library modules and documentation image, and stores the remapped showcase jar as an artifact. Before tagging, verify
+the six library modules and stores the remapped showcase jar as an artifact. Before tagging, verify
 that the tag name exactly matches `app.version`; use an annotated, unprefixed tag to match existing
-releases.
+releases. Tag `glue-docs` with the same version to publish the matching documentation.

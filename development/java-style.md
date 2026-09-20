@@ -2,7 +2,7 @@
 
 This guide defines the conventions for maintained Java sources and Java tests in Glue. It is not a
 general engineering handbook. Repository architecture, module boundaries, workflow, and verification
-commands live in [`AGENTS.md`](../../AGENTS.md).
+commands live in [`AGENTS.md`](../AGENTS.md).
 
 Do not restyle unrelated code merely to make an existing file conform.
 

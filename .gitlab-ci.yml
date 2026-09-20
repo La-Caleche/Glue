@@ -1,8 +1,5 @@
 image: eclipse-temurin:21-jdk
 
-include:
-  - local: .gitlab/ci/docs.yml
-
 variables:
   # Loom remappers share the build JVM; bound concurrency and override the 1 GiB local heap.
   GRADLE_OPTS: >-
@@ -24,7 +21,6 @@ stages:
   - frontend
   - check
   - publish
-  - deploy
 
 showcase-web:
   stage: frontend

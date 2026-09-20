@@ -54,6 +54,7 @@ over the full 20-block ray.
 | `FpsCameraController`, mouse capture and entity previews | `scene/FpsViewportTestScreen.java` |
 | Block picking, `GlfwGizmoController` and undo/redo | `scene/GizmoTestScreen.java`, `SceneTestController.java`, `UpdateBlockCommand.java` |
 | `WebScreen`, `WebHud`, `WebOverlay`, `WebWidget`, `@WebAction`, native slots | Java `web/` demo packages and the [`web/` frontend](web/README.md) |
+| Signed, versioned web applications | `web/BundleDemo.java`, `assets/glue-showcase/web-bundles/` |
 
 ## Web demos
 
@@ -81,16 +82,22 @@ are under `gametest/web/`.
 | Field notes, `panel.html` | Survival inventory | A `WebWidget` beside the inventory. It marks camps and opens the waypoint manager. |
 | Waypoints, `waypoints.html` and `confirm.html` | Hub, field notes, `/web waypoints` | Stacked web screens: the removal dialog returns to the unchanged manager. |
 | Browser | Hub, `/web browser [url]` | Vanilla toolbar widgets around a `WebWidget` that grants no bridge, even to this mod's pages. |
+| Web scale | Minecraft's options screen, `/web scale <1..4 \| game>` | Glue's own options page sets how large every page is drawn; the command drives the same `WebSettings`. |
+| Versioned bundles | `/web bundles` | Embedded fallback, observable selection, activation/rollback controls and a deferred module. |
 
 The two HUDs start disabled so the other showcase scenarios keep the vanilla HUD. Waypoints are kept
 for the current connection only. In the browser, F3 expands delivery metrics, F9 switches the 60/30
 FPS cap, F5 reloads and Ctrl+L focuses the address bar. Mod startup preloads the native runtime into
 `run/glue-web/`, with a small global progress indicator.
 
-`glue-test:web` drives every demo above with real mouse and keyboard input. `glue-test:web-sites` is
+`glue-test:web` drives the original host demos with real mouse and keyboard input. `glue-test:web-bundles`
+checks managed resource routing, imports, service-worker refusal, reload and disposal without a remote
+host. The bundle demo optionally accepts `-Pglue.showcase.web.channel=<HTTPS URL>` and
+`-Pglue.showcase.web.key=<SPKI Base64>`; see the [publication guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/web/bundles.md).
+`glue-test:web-sites` is
 the opt-in internet test; its result distinguishes Google's challenge page from successful search
 results. `glue-test:web-startup` inspects the runtime indicator. See the
-[library guide](../docs/src/content/docs/web/index.md).
+[library guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/web/index.md).
 
 ## Scene demos
 
@@ -110,7 +117,7 @@ command. A web hub opens its page again when returned to from a native preview.
 `SceneTestAnchor` locates terrain even when the player is flying. The gizmo's saved transforms and
 history are preview-only. Picking uses translated unit cubes, as in the original demo; rotation and
 scale are not applied to the picking bounds. Each screen releases its render target and any pointer
-capture on removal. See the [scene guide](../docs/src/content/docs/rendering/scene-viewport.md).
+capture on removal. See the [scene guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/rendering/scene-viewport.md).
 
 ## Scripted client tests
 
@@ -134,7 +141,7 @@ Run one against an existing singleplayer world:
 
 </details>
 
-The available test ids are `glue-test:scenes`, `glue-test:web`, `glue-test:web-sites`, `glue-test:web-startup`, `glue-test:native-dialogs`,
+The available test ids are `glue-test:scenes`, `glue-test:web`, `glue-test:web-bundles`, `glue-test:web-sites`, `glue-test:web-startup`, `glue-test:native-dialogs`,
 `glue-test:iris-hud`, `glue-test:lumos-smoke`, `glue-test:albedo-issue`, `glue-test:glass-quality`,
 `glue-test:spot-perf`, and `glue-test:viewport-sky`.
 Reports and screenshots are written under

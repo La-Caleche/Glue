@@ -1,7 +1,0 @@
-services:
-  docs:
-    # Set this in Portainer. CI replaces it with the digest of each successful publication.
-    image: ${DOCS_IMAGE:?Set DOCS_IMAGE to the image published by the docs-image job}
-    restart: unless-stopped
-    ports:
-      - "${DOCS_PORT:-8080}:8080"

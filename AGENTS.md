@@ -2,7 +2,7 @@
 
 This is the canonical instruction file for coding agents working on Glue. Read it before changing
 the repository. When editing maintained Java or Java tests, also read
-[`docs/development/java-style.md`](docs/development/java-style.md).
+[`development/java-style.md`](development/java-style.md).
 
 ## Instruction Order
 
@@ -11,7 +11,7 @@ When guidance conflicts, use this order:
 1. The current task's explicit requirements.
 2. Public API, persisted data, platform, and framework contracts.
 3. This file's project invariants.
-4. `docs/development/java-style.md` for maintained Java and tests.
+4. `development/java-style.md` for maintained Java and tests.
 5. Nearby maintained code where the canonical documents leave a choice open.
 
 Historical inconsistencies are not conventions. Preserve them only where compatibility requires it,
@@ -27,11 +27,11 @@ Fabric Loom, and the in-house `fr.lacaleche.caldle` plugin.
 - Maven group: `fr.lacaleche.glue`
 - Core Fabric mod id: `glue`
 - Version source: `app.version` in `gradle.properties`
-- Public documentation: [`docs/`](docs/README.md)
+- Public documentation: the separate [`glue-docs`](https://gitlab.lacaleche.cc/loccamy/java/glue-docs) repository
 - Runnable examples and integration tests: [`glue-showcase/`](glue-showcase/README.md)
 - Remapped output: `build/libs/` at the repository root
 
-Glue is a library. Public behavior and supported APIs are what `docs/` documents; packages named
+Glue is a library. Public behavior and supported APIs are what `glue-docs` documents; packages named
 `internal` are implementation details.
 
 ## Modules
@@ -60,11 +60,12 @@ implementations belong in client modules. `glue-core` contains the legacy client
 - Make ownership, thread boundaries, lifecycle, and cleanup explicit.
 - Use a new dependency only after checking its API exposure, runtime footprint, and optional-mod
   behavior.
-- Update the matching `docs/` page when public behavior changes. New public capabilities should have
+- Update the matching `glue-docs` page when public behavior changes. New public capabilities should have
   a small showcase example; changes to demonstrated behavior should update the existing example.
 - Do not leave TODOs, stubs, placeholder implementations, commented-out code, or debug output.
 - `glue-web` keeps JCEF behind `internal`; its public signatures expose only Glue, Minecraft, and JDK
-  types. Preserve `org.cef` JNI names when shading. Application pages never enter the library jar.
+  types. Preserve `org.cef` JNI names when shading. The library ships one page of its own, the options page
+  under `assets/glue-web/web/options/`; application pages never enter the library jar.
   The showcase frontend lives in `glue-showcase/web/`: a vanilla input lab and React/Vite demos,
   built only by showcase tasks into `assets/glue-showcase/web/`. Library tasks never require Node.
 - Base architectural recommendations on the actual code and constraints. State material corrections
@@ -120,13 +121,6 @@ changes.
 ```
 
 </details>
-
-The VitePress documentation is an isolated Node project under `docs/`. For documentation changes:
-
-```shell
-pnpm --dir docs install --frozen-lockfile
-pnpm --dir docs build
-```
 
 `build` and `check` are currently blocked by a PMD snapshot resolved by the Caldle plugin. The CI gate
 uses `test` plus remapped jars instead.

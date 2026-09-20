@@ -5,14 +5,6 @@ build/
 out/
 classes/
 
-# documentation
-
-/docs/node_modules/
-/docs/dist/
-/docs/public/icon.png
-/docs/.vitepress/cache/
-/docs-image.env
-
 # eclipse
 
 *.launch

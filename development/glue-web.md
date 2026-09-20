@@ -1,14 +1,18 @@
 # Glue Web development
 
 `glue-web` is the published client library for Chromium-based interfaces. Supported contracts are
-in the [public guide](../src/content/docs/web/index.md). The implementation is under
+in the [public guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/web/index.md). The implementation is under
 `fr.lacaleche.glue.web.internal`; no public signature exposes JCEF or installer types.
+
+The web-uis context, kept with the `occa-uis` frontend workspace, records the current bundle runtime and the proposed producer
+workspace, publication workflow and Gradle integration.
 
 ## Architecture
 
 | Layer | Types | Responsibility |
 |---|---|---|
 | Hosts | `host.WebScreen`, `WebHud`, `WebOverlay`, `WebWidget`; `internal.host` | Size a page to the GUI, forward input, decide page lifetime. |
+| Settings | `WebSettings`; `internal.options` | The web scale, its file, and the options page that edits it. |
 | Options | `WebBuilder` | Address, trust, actions, state and slots shared by every host. |
 | Surface | `WebSurface`; `internal.browser.BrowserSession` | One native browser, its textures, cursor, input and slots. |
 | Bridge | `bridge` public types; `internal.bridge`; `bridge.js` | Origin-checked page messages, actions, state and events. |
@@ -40,11 +44,20 @@ to ignore an older snapshot that arrives late.
 
 ### Scale
 
-`CefView` reports the GUI scale as the device scale factor and its view rectangle in CSS pixels.
+`CefView` reports the surface scale as the device scale factor and its view rectangle in CSS pixels.
 Chromium paints `ceil(size * scale)` pixels. Hosts use `internal.host.HostSizing` to fit surfaces through
 the public `resize` operation every frame, and
 `wasResized` makes CEF read the screen information again when the size or scale changes. Input,
 popup bounds and slots stay in CSS pixels.
+
+The scale is the player's, not the game's: `WebSettings` follows Minecraft's GUI scale by default and
+otherwise holds a fixed value from `config/glue-web.json`. A page always covers its host rectangle on
+screen, so `HostSizing` turns the difference into CSS pixels — a web scale below the GUI scale buys a
+denser page, above it enlarges one — and reduces that density when the page would pass
+`WebSurface.MAX_DIMENSION`. `SurfaceInput` and `Bridge.SlotRect` already map between the rectangle and
+the page, so nothing else depends on the two being equal. `internal.options` owns the settings file
+and Glue's own options page; `OptionsScreenMixin` adds its entry to Minecraft's options screen. That
+page is the only one the library ships, and it edits the scale it is drawn at.
 
 ### Local resources
 
@@ -52,6 +65,18 @@ popup bounds and slots stay in CSS pixels.
 factories registered earlier with an invalid-version fatal error. It registers one `https` factory
 per loaded mod that ships `assets/<mod>/web/`, or per `glue.web.source.<mod>` directory override.
 Handlers read whole files on CEF's IO thread and answer `GET` only.
+
+Named, versioned apps use `BundleApp` and a separate `<app>.<mod>.glue` factory, including apps
+registered after CEF startup. `BrowserSession` captures an immutable `BundleApp.Page` at opening;
+`CefView` exposes only that routing snapshot to resource handlers. Physical paths identify the mount,
+root-relative requests use the browser's snapshot, and service-worker script requests are refused.
+
+`BundleManifest` verifies Ed25519 envelopes and selects an exact application contract. `BundleHttp`
+bounds asynchronous HTTP bodies. `BundleStore` owns an exclusive cache lock, bounded extraction and
+atomic publication. A `BundleApp` serial worker restores, checks, installs and persists selections;
+client/CEF threads only observe immutable snapshots and mounted roots. Shutdown stops network work
+and releases the cache lock after queued work unwinds. Installed roots remain available until shutdown
+so an update cannot remove files used by old surfaces. See the [protocol and API](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/web/bundles.md).
 
 ### Lifetime
 
@@ -101,13 +126,15 @@ Only showcase resource tasks run pnpm/Vite. Generated files enter
 `glue-showcase/build/generated/webResources/assets/glue-showcase/web/`. The client source override
 serves that output; Vite's build watcher plus F5 handles live editing. Java demo packages mirror the
 features: hub, lab, browser, HUDs, inventory, waypoints, toasts and game tests. See the
-[frontend guide](../../glue-showcase/web/README.md) for commands and the source map.
+[frontend guide](../glue-showcase/web/README.md) for commands and the source map.
 
 ## Verification
 
 ```powershell
 .\gradlew.bat :glue-web:test :glue-showcase:test :glue-web:remapJar :glue-showcase:remapJar
 .\gradlew.bat :glue-showcase:runClient '-Pglue.gametest=glue-test:web' '-Pglue.showcase.quickplay=New World'
+.\gradlew.bat :glue-showcase:runClient '-Pglue.gametest=glue-test:web-bundles' '-Pglue.showcase.quickplay=New World'
+node --test glue-web/tools/publish-bundle.test.mjs
 ```
 
 Unit tests cover frame ownership, file resolution and traversal, action binding and invocation, the
