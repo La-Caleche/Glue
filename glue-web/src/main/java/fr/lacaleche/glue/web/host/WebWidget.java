@@ -5,6 +5,7 @@ import fr.lacaleche.glue.web.WebSurface;
 import fr.lacaleche.glue.web.internal.browser.BrowserSession;
 import fr.lacaleche.glue.web.internal.host.HostSizing;
 import fr.lacaleche.glue.web.internal.host.HostTicker;
+import fr.lacaleche.glue.web.internal.host.PageZoom;
 import fr.lacaleche.glue.web.internal.host.SurfaceInput;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -19,6 +20,7 @@ import org.lwjgl.glfw.GLFW;
 import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
  * A page embedded in any screen as an ordinary widget. It takes keyboard input while focused and
@@ -29,14 +31,17 @@ import java.util.Optional;
  * of the displayed web screen, or after five seconds without being rendered by its displayed screen.
  * Rendering again reopens it, except after the page closed by itself, for example after a runtime
  * failure. Create the widget once and add it again in {@code init()}. The page's {@code close()}
- * closes the owning screen. Escape stays with the screen.</p>
+ * closes the owning screen. Escape stays with the screen; Ctrl +, Ctrl - and Ctrl 0 zoom the page.</p>
  */
 public final class WebWidget extends AbstractWidget {
 
     private static final int UNRENDERED_TICKS = 100;
 
     private final WebSurface.Builder page;
+    private final URI address;
+    private final double declaredZoom;
     private final SurfaceInput input = new SurfaceInput();
+    private double zoom;
     private WebSurface surface;
     private Screen owner;
     private boolean pageFocused;
@@ -44,9 +49,13 @@ public final class WebWidget extends AbstractWidget {
     private boolean tracked;
     private boolean released;
 
-    private WebWidget(Builder builder, int x, int y, int width, int height, WebSurface.Builder page) {
+    private WebWidget(Builder builder, int x, int y, int width, int height, WebSurface.Builder page, URI address,
+                      double zoom) {
         super(x, y, width, height, builder.title);
         this.page = page;
+        this.address = address;
+        this.declaredZoom = zoom;
+        this.zoom = zoom;
     }
 
     public static Builder builder(URI address) {
@@ -60,7 +69,7 @@ public final class WebWidget extends AbstractWidget {
 
         this.unrenderedTicks = 0;
         this.applyFocus(this.isFocused());
-        HostSizing.apply(this.surface, this.getWidth(), this.getHeight());
+        HostSizing.apply(this.surface, this.getWidth(), this.getHeight(), this.zoom);
         this.input.setBounds(this.getX(), this.getY(), this.getWidth(), this.getHeight());
         this.surface.draw(graphics, this.getX(), this.getY(), this.getWidth(), this.getHeight());
 
@@ -101,6 +110,11 @@ public final class WebWidget extends AbstractWidget {
     public boolean keyPressed(int key, int scanCode, int modifiers) {
         if (!this.isFocused() || !this.isOpen()) return false;
         if (key == GLFW.GLFW_KEY_ESCAPE && !this.surface.hasPopup()) return false;
+        OptionalDouble zoomed = PageZoom.handle(this.address, this.declaredZoom, this.zoom, key, scanCode, modifiers);
+        if (zoomed.isPresent()) {
+            this.zoom = zoomed.getAsDouble();
+            return true;
+        }
         this.surface.keyPressed(key, scanCode, modifiers);
         return true;
     }
@@ -159,7 +173,8 @@ public final class WebWidget extends AbstractWidget {
 
         this.owner = client.screen;
         this.released = false;
-        HostSizing.Fit fit = HostSizing.fit(this.getWidth(), this.getHeight());
+        this.zoom = PageZoom.initial(this.address, this.declaredZoom);
+        HostSizing.Fit fit = HostSizing.fit(this.getWidth(), this.getHeight(), this.zoom);
         this.surface = this.page.size(fit.width(), fit.height()).scale(fit.scale()).open();
         this.surface.onCloseRequest(this.owner::onClose);
         this.pageFocused = this.isFocused();
@@ -216,7 +231,7 @@ public final class WebWidget extends AbstractWidget {
         /** A widget at a GUI rectangle; the page is sized to it. */
         public WebWidget build(int x, int y, int width, int height) {
             if (width < 1 || height < 1) throw new IllegalArgumentException("Widget sizes must be positive");
-            return new WebWidget(this, x, y, width, height, this.surfaceBuilder());
+            return new WebWidget(this, x, y, width, height, this.surfaceBuilder(), this.address(), this.zoom());
         }
 
         @Override

@@ -20,16 +20,20 @@ final class LayerHost {
     private final boolean needsBridge;
     private final LayerPlacement placement;
     private final BooleanSupplier condition;
+    private final double zoom;
     private WebSurface surface;
     private ScreenRectangle bounds;
     private boolean enabled = true;
     private boolean failed;
 
-    LayerHost(WebSurface.Builder page, boolean needsBridge, LayerPlacement placement, BooleanSupplier condition) {
+    /** A layer takes no keys, so its zoom is the one its builder declared. */
+    LayerHost(WebSurface.Builder page, boolean needsBridge, LayerPlacement placement, BooleanSupplier condition,
+              double zoom) {
         this.page = page;
         this.needsBridge = needsBridge;
         this.placement = placement;
         this.condition = condition;
+        this.zoom = zoom;
     }
 
     /** Opens or fits the page for this frame; returns whether it should replace what it covers. */
@@ -45,10 +49,10 @@ final class LayerHost {
 
         this.bounds = this.placement.bounds(graphics.guiWidth(), graphics.guiHeight());
         if (this.surface == null) {
-            HostSizing.Fit fit = HostSizing.fit(this.bounds.width(), this.bounds.height());
+            HostSizing.Fit fit = HostSizing.fit(this.bounds.width(), this.bounds.height(), this.zoom);
             this.surface = this.page.size(fit.width(), fit.height()).scale(fit.scale()).open();
         } else {
-            HostSizing.apply(this.surface, this.bounds.width(), this.bounds.height());
+            HostSizing.apply(this.surface, this.bounds.width(), this.bounds.height(), this.zoom);
         }
         return this.isShowing();
     }

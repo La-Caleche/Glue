@@ -12,7 +12,7 @@ workspace, publication workflow and Gradle integration.
 | Layer | Types | Responsibility |
 |---|---|---|
 | Hosts | `host.WebScreen`, `WebHud`, `WebOverlay`, `WebWidget`; `internal.host` | Size a page to the GUI, forward input, decide page lifetime. |
-| Settings | `WebSettings`; `internal.options` | The web scale, its file, and the options page that edits it. |
+| Zoom | `WebBuilder.zoom`; `internal.host.PageZoom`; `internal.options` | Each page's zoom over the GUI scale, its keys, and the file keeping players' choices. |
 | Options | `WebBuilder` | Address, trust, actions, state and slots shared by every host. |
 | Surface | `WebSurface`; `internal.browser.BrowserSession` | One native browser, its textures, cursor, input and slots. |
 | Bridge | `bridge` public types; `internal.bridge`; `bridge.js` | Origin-checked page messages, actions, state and events. |
@@ -50,14 +50,20 @@ the public `resize` operation every frame, and
 `wasResized` makes CEF read the screen information again when the size or scale changes. Input,
 popup bounds and slots stay in CSS pixels.
 
-The scale is the player's, not the game's: `WebSettings` follows Minecraft's GUI scale by default and
-otherwise holds a fixed value from `config/glue-web.json`. A page always covers its host rectangle on
-screen, so `HostSizing` turns the difference into CSS pixels — a web scale below the GUI scale buys a
-denser page, above it enlarges one — and reduces that density when the page would pass
-`WebSurface.MAX_DIMENSION`. `SurfaceInput` and `Bridge.SlotRect` already map between the rectangle and
-the page, so nothing else depends on the two being equal. `internal.options` owns the settings file
-and Glue's own options page; `OptionsScreenMixin` adds its entry to Minecraft's options screen. That
-page is the only one the library ships, and it edits the scale it is drawn at.
+The web scale is the GUI scale times the page's zoom. Every page follows the game; the zoom says how
+the page was designed relative to it. The default of 1 gives one CSS pixel per GUI pixel, which suits
+a page drawn in the game's own units such as the showcase's vitals; a page built with a desktop design
+system declares less through `WebBuilder.zoom`. A page always covers its host rectangle on screen, so
+`HostSizing` turns the difference into CSS pixels — a zoom below 1 buys a denser page, above it
+enlarges one — and reduces that density when the page would pass `WebSurface.MAX_DIMENSION`.
+`SurfaceInput` and `Bridge.SlotRect` already map between the rectangle and the page, so nothing else
+depends on the two being equal.
+
+The zoom is per page, never global: 2.4 had one scale for every page, which made a dense editor
+readable only by shrinking every HUD with it. `WebScreen` and `WebWidget` pass Ctrl +, Ctrl - and
+Ctrl 0 (Command on macOS) to `PageZoom` before the page sees them, and `internal.options.SettingsFile`
+keeps the player's choice per origin, as a browser keeps it per site. Ctrl 0 forgets it. Layers take
+no keys, so a HUD or overlay keeps the zoom its builder declared.
 
 ### Local resources
 

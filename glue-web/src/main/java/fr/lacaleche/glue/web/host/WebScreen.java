@@ -3,6 +3,7 @@ package fr.lacaleche.glue.web.host;
 import fr.lacaleche.glue.web.WebBuilder;
 import fr.lacaleche.glue.web.WebSurface;
 import fr.lacaleche.glue.web.internal.host.HostSizing;
+import fr.lacaleche.glue.web.internal.host.PageZoom;
 import fr.lacaleche.glue.web.internal.host.HostTicker;
 import fr.lacaleche.glue.web.internal.host.SurfaceInput;
 import net.minecraft.client.Minecraft;
@@ -14,6 +15,7 @@ import org.lwjgl.glfw.GLFW;
 import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
  * A full-window screen whose content is one page. It forwards all pointer and keyboard input,
@@ -27,6 +29,9 @@ import java.util.Optional;
 public final class WebScreen extends Screen {
 
     private final WebSurface.Builder page;
+    private final URI address;
+    private final double declaredZoom;
+    private double zoom;
     private final Screen parent;
     private final boolean pausesGame;
     private final boolean closeOnEscape;
@@ -36,9 +41,12 @@ public final class WebScreen extends Screen {
     private boolean tracked;
     private boolean windowActive = true;
 
-    private WebScreen(Builder builder, Screen parent, WebSurface.Builder page) {
+    private WebScreen(Builder builder, Screen parent, WebSurface.Builder page, URI address, double zoom) {
         super(builder.title);
         this.page = page;
+        this.address = address;
+        this.declaredZoom = zoom;
+        this.zoom = zoom;
         this.parent = parent;
         this.pausesGame = builder.pausesGame;
         this.closeOnEscape = builder.closeOnEscape;
@@ -52,7 +60,8 @@ public final class WebScreen extends Screen {
     @Override
     protected void init() {
         if (this.surface == null || this.surface.isClosed()) {
-            HostSizing.Fit fit = HostSizing.fit(this.width, this.height);
+            this.zoom = PageZoom.initial(this.address, this.declaredZoom);
+            HostSizing.Fit fit = HostSizing.fit(this.width, this.height, this.zoom);
             this.surface = this.page.size(fit.width(), fit.height()).scale(fit.scale()).open();
             this.surface.onCloseRequest(this::onClose);
             if (!this.tracked) {
@@ -142,6 +151,11 @@ public final class WebScreen extends Screen {
             return true;
         }
         if (!this.isOpen()) return super.keyPressed(key, scanCode, modifiers);
+        OptionalDouble zoomed = PageZoom.handle(this.address, this.declaredZoom, this.zoom, key, scanCode, modifiers);
+        if (zoomed.isPresent()) {
+            this.zoom = zoomed.getAsDouble();
+            return true;
+        }
         this.surface.keyPressed(key, scanCode, modifiers);
         return true;
     }
@@ -205,7 +219,7 @@ public final class WebScreen extends Screen {
     }
 
     private void drawPage(GuiGraphics graphics, int width, int height) {
-        HostSizing.apply(this.surface, width, height);
+        HostSizing.apply(this.surface, width, height, this.zoom);
         this.input.setBounds(0, 0, width, height);
         this.surface.draw(graphics, 0, 0, width, height);
     }
@@ -276,7 +290,7 @@ public final class WebScreen extends Screen {
 
         /** A screen that returns to the given parent, or to the game for null, when closed. */
         public WebScreen build(Screen parent) {
-            return new WebScreen(this, parent, this.surfaceBuilder());
+            return new WebScreen(this, parent, this.surfaceBuilder(), this.address(), this.zoom());
         }
 
         /** Builds the screen over the displayed screen and displays it. */

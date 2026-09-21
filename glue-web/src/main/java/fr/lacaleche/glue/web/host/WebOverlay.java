@@ -89,7 +89,8 @@ public final class WebOverlay {
             if (this.registered) throw new IllegalStateException("This overlay builder is already registered");
             this.registered = true;
             WebOverlay overlay = new WebOverlay(
-                    new LayerHost(this.surfaceBuilder(), this.declaresBridge(), this.placement, this.condition));
+                    new LayerHost(this.surfaceBuilder(), this.declaresBridge(), this.placement, this.condition,
+                            this.zoom()));
             OverlayLayers.add(overlay::render);
             return overlay;
         }

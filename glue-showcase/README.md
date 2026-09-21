@@ -82,7 +82,7 @@ are under `gametest/web/`.
 | Field notes, `panel.html` | Survival inventory | A `WebWidget` beside the inventory. It marks camps and opens the waypoint manager. |
 | Waypoints, `waypoints.html` and `confirm.html` | Hub, field notes, `/web waypoints` | Stacked web screens: the removal dialog returns to the unchanged manager. |
 | Browser | Hub, `/web browser [url]` | Vanilla toolbar widgets around a `WebWidget` that grants no bridge, even to this mod's pages. |
-| Web scale | Minecraft's options screen, `/web scale <1..4 \| game>` | Glue's own options page sets how large every page is drawn; the command drives the same `WebSettings`. |
+| Page zoom | Any focused page, Ctrl + / Ctrl - / Ctrl 0 | Each page follows the GUI scale times its own zoom. The vitals are drawn in GUI pixels and keep the default; a player zooms any page, and the choice is kept for its origin. |
 | Versioned bundles | `/web bundles` | Embedded fallback, observable selection, activation/rollback controls and a deferred module. |
 
 The two HUDs start disabled so the other showcase scenarios keep the vanilla HUD. Waypoints are kept

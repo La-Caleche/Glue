@@ -1,10 +1,8 @@
 package fr.lacaleche.glue.testmod.web;
 
-import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.lacaleche.glue.testmod.web.browser.BrowserScreen;
-import fr.lacaleche.glue.web.WebSettings;
 import fr.lacaleche.glue.web.host.WebHud;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -34,14 +32,6 @@ final class WebCommands {
                             schedule(() -> BrowserScreen.open(url));
                             return 1;
                         })))
-                .then(literal("scale")
-                        .then(action("game", WebSettings::followGameScale))
-                        .then(argument("scale", DoubleArgumentType.doubleArg(WebSettings.MIN_SCALE, WebSettings.MAX_SCALE))
-                                .executes(context -> {
-                                    double scale = DoubleArgumentType.getDouble(context, "scale");
-                                    schedule(() -> WebSettings.setScale(scale));
-                                    return 1;
-                                })))
                 .then(action("hud", () -> toggle(WebDemos.vitals())))
                 .then(action("minimap", () -> toggle(WebDemos.minimap())))
                 .then(literal("toast").then(argument("message", StringArgumentType.greedyString()).executes(context -> {

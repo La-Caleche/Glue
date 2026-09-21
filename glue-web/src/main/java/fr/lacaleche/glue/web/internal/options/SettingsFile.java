@@ -1,9 +1,10 @@
 package fr.lacaleche.glue.web.internal.options;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import fr.lacaleche.glue.web.WebSettings;
+import fr.lacaleche.glue.web.internal.host.PageZoom;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,41 +13,56 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
+import java.util.TreeMap;
 
-/** Glue Web's client settings on disk; a missing or damaged file falls back to the defaults. */
+/**
+ * Glue Web's client settings on disk: the zoom a player chose for each page origin. A missing or
+ * damaged file means no choice was made. So does a file written by 2.4, which held one scale for every
+ * page; its keys are ignored and dropped on the next save.
+ */
 public final class SettingsFile {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue-web");
-    private static final Values DEFAULTS = new Values(true, 2);
 
     private SettingsFile() {
     }
 
-    public static Values load() {
+    public static Map<String, Double> load() {
         return load(path());
     }
 
-    public static void save(Values values) {
-        save(path(), values);
+    public static void save(Map<String, Double> zoom) {
+        save(path(), zoom);
     }
 
-    static Values load(Path file) {
-        if (!Files.isRegularFile(file)) return DEFAULTS;
+    static Map<String, Double> load(Path file) {
+        if (!Files.isRegularFile(file)) return Map.of();
         try {
             JsonObject saved = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
-            boolean followsGameScale = !saved.has("followGameScale") || saved.get("followGameScale").getAsBoolean();
-            double scale = saved.has("scale") ? saved.get("scale").getAsDouble() : DEFAULTS.scale();
-            return new Values(followsGameScale, clamp(scale));
+            JsonElement zoom = saved.get("zoom");
+            if (zoom == null || !zoom.isJsonObject()) return Map.of();
+            Map<String, Double> chosen = new TreeMap<>();
+            for (Map.Entry<String, JsonElement> entry : zoom.getAsJsonObject().entrySet()) {
+                JsonElement value = entry.getValue();
+                if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) continue;
+                double factor = value.getAsDouble();
+                if (Double.isFinite(factor) && factor >= PageZoom.MIN && factor <= PageZoom.MAX) {
+                    chosen.put(entry.getKey(), factor);
+                }
+            }
+            return Map.copyOf(chosen);
         } catch (IOException | RuntimeException exception) {
             LOGGER.warn("Unusable settings at {}, keeping the defaults: {}", file, exception.toString());
-            return DEFAULTS;
+            return Map.of();
         }
     }
 
-    static void save(Path file, Values values) {
+    static void save(Path file, Map<String, Double> zoom) {
+        JsonObject chosen = new JsonObject();
+        new TreeMap<>(zoom).forEach(chosen::addProperty);
         JsonObject saved = new JsonObject();
-        saved.addProperty("followGameScale", values.followsGameScale());
-        saved.addProperty("scale", values.scale());
+        saved.add("zoom", chosen);
         try {
             Files.createDirectories(file.getParent());
             Files.writeString(file, new GsonBuilder().setPrettyPrinting().create().toJson(saved), StandardCharsets.UTF_8);
@@ -55,16 +71,7 @@ public final class SettingsFile {
         }
     }
 
-    private static double clamp(double scale) {
-        if (!Double.isFinite(scale)) return DEFAULTS.scale();
-        return Math.clamp(scale, WebSettings.MIN_SCALE, WebSettings.MAX_SCALE);
-    }
-
     private static Path path() {
         return FabricLoader.getInstance().getConfigDir().resolve("glue-web.json");
-    }
-
-    /** The persisted settings; the scale is remembered while pages follow the GUI scale. */
-    public record Values(boolean followsGameScale, double scale) {
     }
 }

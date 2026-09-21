@@ -12,6 +12,7 @@ import fr.lacaleche.glue.web.internal.bridge.BridgeSettings;
 import fr.lacaleche.glue.web.internal.bridge.SlotBinding;
 import fr.lacaleche.glue.web.internal.bridge.WebOrigin;
 import fr.lacaleche.glue.web.internal.browser.SurfaceOptions;
+import fr.lacaleche.glue.web.internal.host.PageZoom;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -42,6 +43,7 @@ public abstract class WebBuilder<B extends WebBuilder<B>> {
     private boolean bridgeDisabled;
     private int frameRate = 60;
     private boolean transparent = true;
+    private double zoom = 1;
 
     protected WebBuilder(URI address) {
         this.address = SurfaceOptions.address(address);
@@ -109,7 +111,29 @@ public abstract class WebBuilder<B extends WebBuilder<B>> {
         return this.addSlot(name, new SlotBinding(SlotBinding.Layer.BEHIND, renderer));
     }
 
+    /**
+     * How large the page is drawn, as a factor of Minecraft's GUI scale, in 0.25..4; defaults to 1,
+     * one CSS pixel per GUI pixel, which is how vanilla interfaces are drawn. A page designed at desktop
+     * density declares less: at 0.5, a 15px desktop text is drawn about as tall as the game's own. The
+     * page still follows the GUI scale, and a player adjusts a focused page with Ctrl +, Ctrl - and
+     * Ctrl 0, a choice kept per origin. A raw {@link WebSurface} is sized by its caller and ignores this.
+     */
+    public B zoom(double zoom) {
+        this.zoom = PageZoom.validate(zoom);
+        return this.self();
+    }
+
     protected abstract B self();
+
+    /** The zoom the page declares; hosts start from it unless the player chose another. */
+    protected final double zoom() {
+        return this.zoom;
+    }
+
+    /** The page's address, which identifies it for the player's zoom. */
+    protected final URI address() {
+        return this.address;
+    }
 
     /** Copies common options into a private surface builder owned by the resulting host. */
     protected final WebSurface.Builder surfaceBuilder() {

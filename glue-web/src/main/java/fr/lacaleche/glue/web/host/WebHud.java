@@ -143,7 +143,8 @@ public final class WebHud {
             this.registered = true;
 
             WebHud hud = new WebHud(this.id,
-                    new LayerHost(this.surfaceBuilder(), this.declaresBridge(), this.placement, this.condition));
+                    new LayerHost(this.surfaceBuilder(), this.declaresBridge(), this.placement, this.condition,
+                            this.zoom()));
             if (!this.replaced.isEmpty()) {
                 HudElementRegistry.replaceElement(this.replaced.getFirst(), vanilla -> (graphics, delta) -> {
                     if (!hud.prepareAndDraw(graphics)) vanilla.render(graphics, delta);

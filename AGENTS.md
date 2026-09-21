@@ -65,8 +65,8 @@ implementations belong in client modules. `glue-core` contains the legacy client
   a small showcase example; changes to demonstrated behavior should update the existing example.
 - Do not leave TODOs, stubs, placeholder implementations, commented-out code, or debug output.
 - `glue-web` keeps JCEF behind `internal`; its public signatures expose only Glue, Minecraft, and JDK
-  types. Preserve `org.cef` JNI names when shading. The library ships one page of its own, the options page
-  under `assets/glue-web/web/options/`; application pages never enter the library jar.
+  types. Preserve `org.cef` JNI names when shading. The library ships no page of its own, only
+  `assets/glue-web/web/bridge.js`; application pages never enter the library jar.
   The showcase frontend lives in `glue-showcase/web/`: a vanilla input lab and React/Vite demos,
   built only by showcase tasks into `assets/glue-showcase/web/`. Library tasks never require Node.
 - Base architectural recommendations on the actual code and constraints. State material corrections

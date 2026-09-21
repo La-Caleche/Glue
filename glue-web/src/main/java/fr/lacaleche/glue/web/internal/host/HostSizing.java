@@ -1,34 +1,34 @@
 package fr.lacaleche.glue.web.internal.host;
 
-import fr.lacaleche.glue.web.WebSettings;
 import fr.lacaleche.glue.web.WebSurface;
 import fr.lacaleche.glue.web.internal.browser.SurfaceOptions;
 import net.minecraft.client.Minecraft;
 
-/** Keeps host pages at one CSS pixel per web-scale pixel within the browser's resolution limit. */
+/** Sizes host pages from the GUI rectangle they cover, the GUI scale and the page's zoom. */
 public final class HostSizing {
 
     private HostSizing() {
     }
 
-    /** The page size and device pixel ratio for a rectangle given in GUI pixels. */
-    public static Fit fit(int guiWidth, int guiHeight) {
-        return fit(guiWidth, guiHeight, Minecraft.getInstance().getWindow().getGuiScale(), WebSettings.effectiveScale());
+    /** The page size and device pixel ratio for a rectangle given in GUI pixels, at a page zoom. */
+    public static Fit fit(int guiWidth, int guiHeight, double zoom) {
+        double gameScale = Minecraft.getInstance().getWindow().getGuiScale();
+        return fit(guiWidth, guiHeight, gameScale, gameScale * zoom);
     }
 
-    /** Resizes the page when its rectangle, the GUI scale or the web scale changed. */
-    public static void apply(WebSurface surface, int guiWidth, int guiHeight) {
-        Fit fit = fit(guiWidth, guiHeight);
+    /** Resizes the page when its rectangle, the GUI scale or its zoom changed. */
+    public static void apply(WebSurface surface, int guiWidth, int guiHeight, double zoom) {
+        Fit fit = fit(guiWidth, guiHeight, zoom);
         if (fit.width() != surface.width() || fit.height() != surface.height() || fit.scale() != surface.scale()) {
             surface.resize(fit.width(), fit.height(), fit.scale());
         }
     }
 
     /**
-     * A page always covers its rectangle on screen; the web scale decides how many CSS pixels it is
-     * given to do it with. A scale below the GUI scale buys CSS pixels and a denser page, a scale
-     * above it enlarges the page. The density is reduced when the page would otherwise exceed the
-     * browser's maximum dimension.
+     * A page always covers its rectangle on screen; the web scale — the GUI scale times the page's
+     * zoom — decides how many CSS pixels it is given to do it with. A scale below the GUI scale buys
+     * CSS pixels and a denser page, a scale above it enlarges the page. The density is reduced when the
+     * page would otherwise exceed the browser's maximum dimension.
      */
     static Fit fit(int guiWidth, int guiHeight, double gameScale, double webScale) {
         double density = Math.min(gameScale / webScale,

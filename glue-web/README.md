@@ -31,12 +31,14 @@ await call('menu.save', { name: 'Base' });
 - `slot` and `slotBehind` draw native content, such as items or a map, where the page asks.
 - `WebScreen`, `WebHud`, `WebOverlay` and `WebWidget` host pages; `WebSurface` is the primitive.
 
-Hosts run on Minecraft's client thread, size pages to one CSS pixel per web-scale pixel and manage
-page lifetime. `WebSettings` holds that scale: pages follow Minecraft's GUI scale unless a player
-picks a fixed one in Glue's options page, reached from Minecraft's options screen. The native runtime
+Hosts run on Minecraft's client thread, follow Minecraft's GUI scale and manage page lifetime. A
+page is drawn at one CSS pixel per GUI pixel, which is how vanilla interfaces are drawn, times its own
+zoom: a page designed for the game keeps the default of 1, a page designed at desktop density declares
+less with `zoom(0.5)` on its builder. Players zoom a focused page with Ctrl +, Ctrl - and Ctrl 0, as
+in a browser, and the choice is kept per origin in `config/glue-web.json`. The native runtime
 is preloaded asynchronously at mod startup, with a discreet progress indicator. The native
 distribution and browser profile are stored under the game directory's `glue-web/`. The jar ships the
-bridge module and Glue's own options page, and no application page. Gradle builds and tests Glue Web
+bridge module and no page. Gradle builds and tests Glue Web
 without Node or pnpm. The showcase demonstrates every host with React components and keeps a
 standalone HTML/JS input lab; its Vite build belongs exclusively to `glue-showcase/web/`.
 
