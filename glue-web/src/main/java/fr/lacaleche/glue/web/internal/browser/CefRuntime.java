@@ -16,7 +16,10 @@ import org.cef.CefSettings;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.browser.CefMessageRouter;
+import org.cef.callback.CefContextMenuParams;
+import org.cef.callback.CefMenuModel;
 import org.cef.callback.CefQueryCallback;
+import org.cef.handler.CefContextMenuHandlerAdapter;
 import org.cef.handler.CefDisplayHandlerAdapter;
 import org.cef.handler.CefLifeSpanHandlerAdapter;
 import org.cef.handler.CefLoadHandler;
@@ -222,6 +225,18 @@ public final class CefRuntime {
                 if (frame.isMain() && browser instanceof CefView view && code != CefLoadHandler.ErrorCode.ERR_ABORTED) {
                     view.error = code + ": " + text;
                 }
+            }
+        });
+        // A page embedded in the game has no browser around it, so Chromium's own menu has nothing
+        // to offer: Back and Forward navigate the application away from itself, Print opens a native
+        // dialog over the game, View source leaves it for an external program. Clearing the model
+        // leaves nothing to show. The DOM contextmenu event is dispatched before this and is not
+        // affected, so a page that wants a menu of its own still draws one.
+        client.addContextMenuHandler(new CefContextMenuHandlerAdapter() {
+            @Override
+            public void onBeforeContextMenu(CefBrowser browser, CefFrame frame, CefContextMenuParams params,
+                                            CefMenuModel model) {
+                model.clear();
             }
         });
         client.addDisplayHandler(new CefDisplayHandlerAdapter() {
