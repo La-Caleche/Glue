@@ -48,10 +48,9 @@ check:
     - job: showcase-web
       artifacts: true
   script:
-    # build/check are blocked by a PMD snapshot in the caldle plugin; test + remapJar is the gate
-    # (remapJar also validates resource expansion and jar packaging).
-    # The frontend job already built the resource input; the Java image needs no Node installation.
-    - ./gradlew test remapJar -x :glue-showcase:installWeb -x :glue-showcase:buildWeb
+    # check covers the tests and the static analysis; remapJar also validates resource expansion and
+    # jar packaging. The frontend job already built the resource input, so this image needs no Node.
+    - ./gradlew check remapJar -x :glue-showcase:installWeb -x :glue-showcase:buildWeb
   rules:
     - if: $CI_COMMIT_BRANCH
 

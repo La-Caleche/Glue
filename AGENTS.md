@@ -44,6 +44,7 @@ Glue is a library. Public behavior and supported APIs are what `glue-docs` docum
 | `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light renderer, material passes, shadows, and GLSL. |
 | `glue-web` | `glue-web` | client | none | Chromium surfaces and hosts, native input, cursors, page bridge, local app resources, and shaded JCEF infrastructure. |
 | `glue-gametest` | `glue-gametest` | client, development | none | Scripted live-client tests, tools, screenshots, and reports. |
+| `glue-dist` | `glue-dist` | both | nests four library modules | No code: one jar for players, holding `glue-core`, `glue-render`, `glue-lumos` and `glue-lumos-client`; not published to Maven. |
 | `glue-showcase` | `glue-showcase` | both, development | all library modules | Sole run configuration, demos, and integration scenarios; not published by release CI. |
 
 Keep environment boundaries explicit. Shared models belong in both-side modules; rendering and UI
@@ -122,8 +123,9 @@ changes.
 
 </details>
 
-`build` and `check` are currently blocked by a PMD snapshot resolved by the Caldle plugin. The CI gate
-uses `test` plus remapped jars instead.
+`build` and `check` both run. Caldle before 2.5.1 resolved a PMD snapshot that exists in no repository;
+2.5.1 pins a released one. The CI gate is `check` plus the remapped jars, which also validate resource
+expansion and jar packaging.
 
 Before reporting completion:
 

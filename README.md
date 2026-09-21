@@ -21,6 +21,7 @@ separate Fabric mod.
 | `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light rendering and shadows. |
 | `glue-web` | `glue-web` | client | - | Web screens, HUDs, overlays and widgets with Java actions and native slots. |
 | `glue-gametest` | `glue-gametest` | client, development | - | Scripted client tests, tools, screenshots, and reports. |
+| `glue-dist` | `glue-dist` | both | nests four library modules | One jar for players; see below. Not published to Maven. |
 | `glue-showcase` | `glue-showcase` | both, development | all modules | Runnable demos and integration scenarios. |
 
 The six library artifacts are published. `glue-showcase` is built as a development artifact but is
