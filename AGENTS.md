@@ -29,7 +29,7 @@ Fabric Loom, and the in-house `fr.lacaleche.caldle` plugin.
 - Version source: `app.version` in `gradle.properties`
 - Public documentation: the separate [`glue-docs`](https://gitlab.lacaleche.cc/loccamy/java/glue-docs) repository
 - Runnable examples and integration tests: [`glue-showcase/`](glue-showcase/README.md)
-- Remapped output: `build/libs/` at the repository root
+- Remapped output: `build/libs/` at the repository root; the player jar from `glue-dist` in `build/dist/`
 
 Glue is a library. Public behavior and supported APIs are what `glue-docs` documents; packages named
 `internal` are implementation details.

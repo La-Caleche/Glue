@@ -43,7 +43,8 @@ suite depends on it.
 | `glue-gametest-<version>.jar` | `glue-gametest` | Development only; never ship it |
 
 The nesting lives in `glue-dist`, a module with no code. Maven artifacts stay one per module — a build
-depends on `glue-render` alone if that is all it uses — and only the distribution is grouped.
+depends on `glue-render` alone if that is all it uses — and only the distribution is grouped. The
+grouped jar lands in `build/dist/`, apart from the per-module jars in `build/libs/`.
 
 ## Use Glue
 

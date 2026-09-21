@@ -24,8 +24,11 @@ tasks.processResources {
     }
 }
 
+// build/dist, not build/libs: the root project is also named glue, and its own jar lands at
+// build/libs/glue-<version>.jar. Sharing that path let whichever task ran last decide which jar a player got.
 tasks.named<RemapJarTask>("remapJar") {
     archiveBaseName.set("glue")
+    destinationDirectory.set(rootDir.resolve("build").resolve("dist"))
 }
 
 // A distribution artifact, not a library: nothing should depend on it from Maven.
