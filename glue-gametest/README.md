@@ -92,7 +92,7 @@ shader state can be restored and rendered.
 ```powershell
 .\gradlew.bat :glue-showcase:listClientTests
 .\gradlew.bat :glue-showcase:clientTest
-.\gradlew.bat :glue-showcase:clientTest --tests web --tests scenes
+.\gradlew.bat :glue-showcase:clientTest --tests inventory --tests scenes
 ```
 
 Each task creates a fresh profile under `glue-showcase/build/run/<task-name>`, runs the
@@ -104,7 +104,7 @@ render or server thread.
 Without a selector, all automatically runnable tests are selected. Tests marked
 `@ClientTestSpec(explicitOnly = true)` are listed but require explicit selection. The inventory
 scenario checks pickup, deposit, synchronization, layout changes and stale handles; the default
-suite also includes the scene, web, bundle, startup and viewport scenarios.
+suite also includes the scene and viewport scenarios.
 
 Optional-mod variants have named tasks:
 
@@ -129,18 +129,18 @@ constructor; invalid implementations are diagnosed at compilation.
 
 Default short names are kebab-case, stripping a final `ClientTest`, `GameTest` or `Test`:
 `InventoryClientTest` becomes `inventory`, and nested `ViewportSky` becomes `viewport-sky`.
-An optional `@ClientTestSpec("web-bundles")` keeps a custom short name next to its class.
+An optional `@ClientTestSpec("scenes")` keeps a custom short name next to its class.
 Short names use lowercase letters/digits and `_.:-`; `auto` and `all` are reserved selectors.
 
 For tests with external prerequisites, use metadata on the concrete class:
 
 ```java
-@ClientTestSpec(value = "web-sites", explicitOnly = true)
+@ClientTestSpec(explicitOnly = true)
 ```
 
-The annotation is optional and is not inherited from fixtures or enclosing types. Shaderpack,
-external-site and human-assisted tests in the showcase use `explicitOnly`; ordinary tests need no
-annotation. The [existing web-site class](../glue-showcase/src/test/e2e/java/fr/lacaleche/glue/testmod/gametest/web/WebSitesClientTest.java)
+The annotation is optional and is not inherited from fixtures or enclosing types. Human-assisted
+tests in the showcase use `explicitOnly`; ordinary tests need no annotation. The
+[native-dialog class](../glue-showcase/src/test/e2e/java/fr/lacaleche/glue/testmod/gametest/NativeDialogsClientTest.java)
 shows the complete example.
 
 ### Selection
@@ -201,12 +201,11 @@ try-with-resources. The showcase's twelve previous scenarios live under `src/tes
 the inventory example. Main mod initialization no longer registers tests or requires this module.
 
 The showcase's `WorldClientTest` is a shared disposable-world fixture, with a failure capture and
-screen cleanup. `WebTestPage` shares DOM queries, input and asynchronous waits between its web
-and scene tests. It stays in the showcase test sources so this library does not acquire a dependency
-on Glue Web. There is no parallel execution engine or string-based tool registry.
+screen cleanup. There is no parallel execution engine or string-based tool registry.
 
 Rendering tests build a reproducible arena instead of modifying an existing world. The Lumos
-scenarios left with Lumos for its own repository, where they run on these helpers.
+scenarios left with Lumos for its own repository, and the web scenarios with
+[Porthole](https://gitlab.lacaleche.cc/loccamy/java/porthole); both run on these helpers.
 
 ### Verification notes
 

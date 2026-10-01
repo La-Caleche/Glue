@@ -10,8 +10,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -54,7 +52,6 @@ class ShowcaseContentResourcesTest {
     void keybindingAndComponentTranslationsArePackaged() throws IOException {
         for (String locale : List.of("en_us", "fr_fr")) {
             JsonObject translations = resourceJson("assets/glue-test/lang/" + locale + ".json");
-            assertTrue(translations.has("key.glue-test.open_showcase"));
             assertTrue(translations.has("key.glue-test.toggle_raycast_debug"));
             assertTrue(translations.has("item.glue-test.test_component.tooltip.use"));
             for (int preset = 0; preset < 5; preset++) {
@@ -67,39 +64,10 @@ class ShowcaseContentResourcesTest {
     void descriptorRequiresEveryDirectModule() throws IOException {
         JsonObject dependencies = resourceJson("fabric.mod.json").getAsJsonObject("depends");
 
-        for (String mod : List.of("glue", "glue-render", "glue-web")) {
+        for (String mod : List.of("glue", "glue-render")) {
             assertTrue(dependencies.has(mod), "Missing required dependency " + mod);
         }
         assertFalse(dependencies.has("glue-gametest"), "The client test helpers belong to the test mod only");
-    }
-
-    @Test
-    void webPagesIncludeBuiltReactAssetsAndAnUnbundledVanillaLab() throws IOException {
-        Pattern asset = Pattern.compile("(?:src|href)=\"\\./(assets/[^\"]+)\"");
-        for (String page : List.of("index.html", "waypoints.html", "confirm.html", "hud.html",
-                "minimap.html", "toasts.html", "panel.html")) {
-            String html = resourceText("assets/glue-showcase/web/" + page);
-            assertTrue(html.contains("data-page="), page + " must select a React demo");
-            Matcher references = asset.matcher(html);
-            int bundledAssets = 0;
-            while (references.find()) {
-                assertNotNull(resourceText("assets/glue-showcase/web/" + references.group(1)));
-                bundledAssets++;
-            }
-            assertTrue(bundledAssets > 0, page + " must reference packaged Vite output");
-        }
-        String lab = resourceText("assets/glue-showcase/web/lab.html");
-        assertTrue(lab.contains("data-renderer=\"vanilla\""));
-        assertTrue(lab.contains("from './vanilla.js'"));
-        assertTrue(resourceText("assets/glue-showcase/web/vanilla.js").contains("https://glue-web.glue/bridge.js"));
-        assertNotNull(resourceText("assets/glue-showcase/web/vanilla.css"));
-    }
-
-    private static String resourceText(String path) throws IOException {
-        try (InputStream stream = ShowcaseContentResourcesTest.class.getClassLoader().getResourceAsStream(path)) {
-            if (stream == null) throw new IllegalStateException("Missing showcase resource: " + path);
-            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-        }
     }
 
     private static JsonObject resourceJson(String path) throws IOException {

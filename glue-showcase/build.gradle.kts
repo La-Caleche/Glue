@@ -6,7 +6,6 @@ plugins {
 dependencies {
     implementation(project(path = ":glue-core", configuration = "namedElements"))
     implementation(project(path = ":glue-render", configuration = "namedElements"))
-    implementation(project(path = ":glue-web", configuration = "namedElements"))
 
     compileOnly(libs.iris)
 
@@ -17,26 +16,6 @@ dependencies {
     }
 }
 
-// Frontend tooling belongs to the showcase. No library task depends on these tasks.
-val webResources = layout.buildDirectory.dir("generated/webResources")
-val pnpm = if (System.getProperty("os.name").startsWith("Windows")) listOf("cmd", "/c", "pnpm") else listOf("pnpm")
-val installWeb by tasks.registering(Exec::class) {
-    workingDir("web")
-    inputs.files("web/package.json", "web/pnpm-lock.yaml")
-    outputs.file("web/node_modules/.pnpm/lock.yaml")
-    commandLine(pnpm + listOf("install", "--frozen-lockfile"))
-}
-val buildWeb by tasks.registering(Exec::class) {
-    dependsOn(installWeb)
-    workingDir("web")
-    inputs.files(fileTree("web") {
-        include("*.html", "*.js", "package.json", "pnpm-lock.yaml", "src/**", "public/**")
-    })
-    outputs.dir(webResources)
-    commandLine(pnpm + "build")
-}
-sourceSets.main { resources.srcDir(buildWeb) }
-
 loom {
     runs {
         named("client") {
@@ -44,8 +23,6 @@ loom {
             configName = "Glue Showcase"
             ideConfigGenerated(true)
             runDir("../../.run/client")
-            // pnpm --dir glue-showcase/web watch rebuilds this directory; F5 reloads a page in game.
-            vmArg("-Dglue.web.source.glue-showcase=${webResources.get().dir("assets/glue-showcase/web").asFile.absolutePath}")
         }
 
         named("server") {

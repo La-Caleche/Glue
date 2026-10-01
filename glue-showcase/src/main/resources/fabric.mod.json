@@ -18,7 +18,6 @@
         "java": ">=21",
         "fabric-api": "*",
         "glue": "${version}",
-        "glue-render": "${version}",
-        "glue-web": "${version}"
+        "glue-render": "${version}"
     }
 }

@@ -7,13 +7,12 @@ import fr.lacaleche.glue.client.render.scene.BlockSceneRenderer;
 import fr.lacaleche.glue.data.components.TransformationComponent;
 import fr.lacaleche.glue.gametest.ClientTestSpec;
 import fr.lacaleche.glue.testmod.gametest.WorldClientTest;
-import fr.lacaleche.glue.testmod.gametest.web.WebTestPage;
 import fr.lacaleche.glue.testmod.scene.BlockSceneTestScreen;
 import fr.lacaleche.glue.testmod.scene.FpsViewportTestScreen;
 import fr.lacaleche.glue.testmod.scene.GizmoTestScreen;
+import fr.lacaleche.glue.testmod.scene.SceneDemos;
 import fr.lacaleche.glue.testmod.scene.SceneTestController;
 import fr.lacaleche.glue.testmod.scene.UpdateBlockCommand;
-import fr.lacaleche.glue.web.host.WebScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -23,29 +22,22 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
-/** Hub navigation, three scene previews, camera input, history and target disposal. */
+import java.util.function.Supplier;
+
+/** The three scene previews behind {@code /showcase scene}: camera input, history and target disposal. */
 @SuppressWarnings({"PMD.TestClassWithoutTestCases", "PMD.CompareObjectsWithEquals"})
 @ClientTestSpec("scenes")
 public final class SceneClientTest extends WorldClientTest {
 
     @Override
     protected void test() {
-        this.context.getInput().pressKey(GLFW.GLFW_KEY_F6);
-        this.context.waitForScreen(WebScreen.class);
-        WebScreen hub = this.context.computeOnClient(client -> (WebScreen) client.screen);
-        WebTestPage page = new WebTestPage(this.context, () -> hub.surface().orElse(null));
-        page.ready(true);
-        this.screenshot("scene-hub");
-        this.orbit(hub, page);
-        this.fps(hub, page);
-        this.gizmo(hub, page);
-        this.context.getInput().pressKey(GLFW.GLFW_KEY_ESCAPE);
-        this.context.waitForScreen(null);
-        page.disposed();
+        this.orbit();
+        this.fps();
+        this.gizmo();
     }
 
-    private void orbit(WebScreen hub, WebTestPage page) {
-        BlockSceneTestScreen screen = this.open(page, "orbit", BlockSceneTestScreen.class);
+    private void orbit() {
+        BlockSceneTestScreen screen = this.open(SceneDemos::openOrbit);
         this.waitUntil("orbit preview rendered", client -> rendered(client, screen.getSceneRenderer()));
         this.context.runOnClient(client -> {
             OrbitCameraController camera = screen.getCameraController();
@@ -68,12 +60,12 @@ public final class SceneClientTest extends WorldClientTest {
         this.screenshot("scene-orbit");
         this.context.getInput().pressKey(GLFW.GLFW_KEY_HOME);
         this.game.expect("reset camera", client -> require(screen.getCameraController().getZoom() == 5, "Default zoom"));
-        this.backToHub(hub, page);
+        this.close();
         this.game.expect("orbit disposed", client -> require(screen.getSceneRenderer().getFramebuffer() == null, "Orbit target leaked"));
     }
 
-    private void fps(WebScreen hub, WebTestPage page) {
-        FpsViewportTestScreen screen = this.open(page, "fps", FpsViewportTestScreen.class);
+    private void fps() {
+        FpsViewportTestScreen screen = this.open(SceneDemos::openFps);
         this.waitUntil("FPS preview rendered", client -> rendered(client, screen.getSceneRenderer()));
         Vec3 playerPosition = this.context.computeOnClient(client -> client.player.position());
         this.context.runOnClient(client -> screen.mouseClicked(screen.width / 2.0, screen.height / 2.0, 0));
@@ -96,15 +88,14 @@ public final class SceneClientTest extends WorldClientTest {
             screen.mouseClicked(100, 100, 0);
             screen.onClose();
         });
-        this.waitUntil("FPS returns to hub", client -> client.screen == hub);
-        page.ready(true);
+        this.context.waitForScreen(null);
         this.game.expect("FPS disposal", client -> require(!screen.isCapturing() && screen.getSceneRenderer().getFramebuffer() == null
                 && GLFW.glfwGetInputMode(client.getWindow().getWindow(), GLFW.GLFW_CURSOR) == GLFW.GLFW_CURSOR_NORMAL,
                 "FPS pointer or render target leaked"));
     }
 
-    private void gizmo(WebScreen hub, WebTestPage page) {
-        GizmoTestScreen screen = this.open(page, "gizmo", GizmoTestScreen.class);
+    private void gizmo() {
+        GizmoTestScreen screen = this.open(SceneDemos::openGizmo);
         this.waitUntil("gizmo preview rendered", client -> rendered(client, screen.getSceneRenderer()));
         this.context.runOnClient(client -> {
             screen.mouseClicked(screen.width / 2.0, screen.height / 2.0, 0);
@@ -140,20 +131,19 @@ public final class SceneClientTest extends WorldClientTest {
                 && worldState.equals(client.level.getBlockState(selected)), "Redo changed the world or lost the preview"));
         this.context.getInput().pressKey(GLFW.GLFW_KEY_DELETE);
         this.game.expect("deselect", client -> require(screen.getSceneController().getSelectedBlockPos() == null, "Selection remains"));
-        this.backToHub(hub, page);
+        this.close();
         this.game.expect("gizmo disposed", client -> require(screen.getSceneRenderer().getFramebuffer() == null, "Gizmo target leaked"));
     }
 
-    private <T extends Screen> T open(WebTestPage page, String name, Class<T> screenType) {
-        page.click("[data-scene=" + name + "]");
-        this.context.waitForScreen(screenType);
-        return this.context.computeOnClient(client -> screenType.cast(client.screen));
+    private <T extends Screen> T open(Supplier<T> scene) {
+        T screen = this.context.computeOnClient(client -> scene.get());
+        this.context.waitForScreen(screen.getClass());
+        return screen;
     }
 
-    private void backToHub(WebScreen hub, WebTestPage page) {
+    private void close() {
         this.context.getInput().pressKey(GLFW.GLFW_KEY_ESCAPE);
-        this.waitUntil("return to the same hub", client -> client.screen == hub);
-        page.ready(true);
+        this.context.waitForScreen(null);
     }
 
     private static boolean rendered(Minecraft client, BlockSceneRenderer renderer) {

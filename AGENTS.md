@@ -20,9 +20,9 @@ and do not reproduce them in new APIs.
 ## Project Snapshot
 
 Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
-provides typed registries, rendering and shader infrastructure, native dialogs, web surfaces, and
-Fabric client GameTest helpers. Lumos, the colored-lighting mod, lives in its own repository and
-depends on Glue. The build uses Gradle Kotlin DSL,
+provides typed registries, rendering and shader infrastructure, native dialogs, and Fabric client
+GameTest helpers. Lumos, the colored-lighting mod, lives in its own repository and depends on Glue;
+Porthole, the web-interface library, lives in its own repository and does not. The build uses Gradle Kotlin DSL,
 Fabric Loom, and the in-house `fr.lacaleche.caldle` plugin.
 
 - Maven group: `fr.lacaleche.glue`
@@ -41,7 +41,6 @@ Glue is a library. Public behavior and supported APIs are what `glue-docs` docum
 |---|---|---|---|---|
 | `glue-core` | `glue` | both | none | Shared registries, packets/codecs, math, shapes, and history. |
 | `glue-render` | `glue-render` | client | `glue-core` | Pipelines, post effects, materials, outlines, scenes, render events, compatibility, and native dialogs. |
-| `glue-web` | `glue-web` | client | none | Chromium surfaces and hosts, native input, cursors, page bridge, local app resources, and shaded JCEF infrastructure. |
 | `glue-gametest` | `glue-gametest` | client, development | none | Fabric client GameTest helpers: UI input, assertions, async waits and Iris. |
 | `glue-dist` | `glue-dist` | both | nests `glue-core` and `glue-render` | No code: one jar for players, holding `glue-core` and `glue-render`; not published to Maven. |
 | `glue-showcase` | `glue-showcase` | both, development | all library modules (`glue-gametest` only in tests) | Run configurations, demos, and Fabric scenarios under `src/test/e2e`; not published by release CI. |
@@ -63,11 +62,6 @@ implementations belong in client modules. `glue-core` contains the legacy client
 - Update the matching `glue-docs` page when public behavior changes. New public capabilities should have
   a small showcase example; changes to demonstrated behavior should update the existing example.
 - Do not leave TODOs, stubs, placeholder implementations, commented-out code, or debug output.
-- `glue-web` keeps JCEF behind `internal`; its public signatures expose only Glue, Minecraft, and JDK
-  types. Preserve `org.cef` JNI names when shading. The library ships no page of its own, only
-  `assets/glue-web/web/bridge.js`; application pages never enter the library jar.
-  The showcase frontend lives in `glue-showcase/web/`: a vanilla input lab and React/Vite demos,
-  built only by showcase tasks into `assets/glue-showcase/web/`. Library tasks never require Node.
 - Base architectural recommendations on the actual code and constraints. State material corrections
   and tradeoffs plainly; do not endorse a weak design merely to agree with the maintainer.
 

@@ -25,9 +25,6 @@ is installed during normal play: use the showcase commands, F2, or an explicit t
 
 ## Controls
 
-Press **F6** by default to open the Glue Web hub. It opens the web demos and the three native scene
-previews, and toggles the web HUD, minimap and toasts.
-
 Post-effect and scene examples use client commands:
 
 - `/showcase effects blur` or `grayscale` toggles a steady post effect.
@@ -65,63 +62,13 @@ over the full 20-block ray.
 | `BlockSceneRenderer` and `OrbitCameraController` | `scene/BlockSceneTestScreen.java` |
 | `FpsCameraController`, mouse capture and entity previews | `scene/FpsViewportTestScreen.java` |
 | Block picking, `GlfwGizmoController` and undo/redo | `scene/GizmoTestScreen.java`, `SceneTestController.java`, `UpdateBlockCommand.java` |
-| `WebScreen`, `WebHud`, `WebOverlay`, `WebWidget`, `@WebAction`, native slots | Java `web/` demo packages and the [`web/` frontend](web/README.md) |
-| Signed, versioned web applications | `web/BundleDemo.java`, `assets/glue-showcase/web-bundles/` |
-
-## Web demos
-
-Frontend sources live in [`web/`](web/README.md). The input lab is plain HTML/JavaScript under
-`web/public/`; the seven richer pages use React components and separate styles under `web/src/`,
-organized by demo. A small shared hook connects React to the framework-neutral Glue bridge.
-
-Showcase resource tasks install the pinned frontend dependencies and run Vite, so a compatible Node
-version (`^20.19.0 || >=22.12.0`) and pnpm 11.5.2 are required. Output is generated under
-`build/generated/webResources/assets/glue-showcase/web/` and packaged only in the showcase jar.
-The client serves this generated directory directly. Run `pnpm --dir glue-showcase/web watch` from
-the repository root while editing, then press F5 in a page. Library tasks never invoke Node.
-
-Java examples are grouped under `fr.lacaleche.glue.testmod.web`: `hub`, `lab`, `browser`, `hud`,
-`inventory`, `waypoint` and `toast`. `WebDemos` wires registration and entry points; their live tests
-are under `src/test/e2e/java/fr/lacaleche/glue/testmod/gametest/web/`.
-
-| Demo | Opens with | Shows |
-|---|---|---|
-| React hub, `index.html` | F6, `/web hub` | A `WebScreen` whose actions open the other demos and toggle the layers. |
-| Vanilla input lab, `lab.html` | Hub, `/web lab` | Native input, select popups, cursors, actions with results and refusals, state and events, with no framework or compilation. |
-| Vitals HUD, `hud.html` | Hub, `/web hud` | A `WebHud` replacing the hotbar and status bars. Items are native slots above the page; vanilla returns for spectators and on jumping mounts. |
-| Minimap, `minimap.html` | Hub, `/web minimap` | A second `WebHud`. Java samples the terrain into a texture drawn behind the page's brass bezel, compass and waypoint pins. |
-| Toasts, `toasts.html` | Actions, `/web toast <message>` | A `WebOverlay` above every screen. Toasts raised before the page connects wait in a queue. |
-| Field notes, `panel.html` | Survival inventory | A `WebWidget` beside the inventory. It marks camps and opens the waypoint manager. |
-| Waypoints, `waypoints.html` and `confirm.html` | Hub, field notes, `/web waypoints` | Stacked web screens: the removal dialog returns to the unchanged manager. |
-| Browser | Hub, `/web browser [url]` | Vanilla toolbar widgets around a `WebWidget` that grants no bridge, even to this mod's pages. |
-| Page zoom | Any focused page, Ctrl + / Ctrl - / Ctrl 0 | Each page follows the GUI scale times its own zoom. The vitals are drawn in GUI pixels and keep the default; a player zooms any page, and the choice is kept for its origin. |
-| Versioned bundles | `/web bundles` | Embedded fallback, observable selection, activation/rollback controls and a deferred module. |
-
-The two HUDs start disabled so the other showcase scenarios keep the vanilla HUD. Waypoints are kept
-for the current connection only. In the browser, F3 expands delivery metrics, F9 switches the 60/30
-FPS cap, F5 reloads and Ctrl+L focuses the address bar. Mod startup preloads the native runtime into
-the game profile's `glue-web/` directory, with a small global progress indicator.
-
-The `web` client test drives the original host demos with real mouse and keyboard input. `web-bundles`
-checks managed resource routing, imports, service-worker refusal, reload and disposal without a remote
-host. The bundle demo reads an optional `config/glue-showcase/bundles.properties` in the game profile.
-Supply `channel` (an HTTPS channel URL) and `publicKey` (a Base64 SPKI Ed25519 public key, key ID
-`release`) together. With no file, the demo stays offline; an invalid file fails explicitly. A test
-fixture can provide the same file under `src/test/assets/config/glue-showcase/`.
-See the [publication guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/web/bundles.md).
-`web-sites` is
-the opt-in internet test; its result distinguishes Google's challenge page from successful search
-results. `web-startup` inspects the runtime indicator. See the
-[library guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/web/index.md).
 
 ## Scene demos
 
-Join a world, press **F6**, then choose **Orbit scene**, **FPS scene** or **Gizmo scene**. The same
-examples are available through `/showcase scene orbit`, `/showcase scene fps` and `/showcase scene gizmo`.
+Join a world, then run `/showcase scene orbit`, `/showcase scene fps` or `/showcase scene gizmo`.
 They use `AbstractViewportScreen` directly, with native rendering and input. Each samples nearby
 terrain into an owned render target; moving the preview camera or transforming a preview block does
-not change the world or the real player. Escape returns to the opening screen, or to gameplay for a
-command. A web hub opens its page again when returned to from a native preview.
+not change the world or the real player. Escape returns to the screen that was open, or to gameplay.
 
 | Example | Controls |
 |---|---|
@@ -161,7 +108,7 @@ without opening Minecraft.
 Select one or more discovered tests by short name, class name, or wildcard:
 
 ```powershell
-.\gradlew.bat :glue-showcase:clientTest --tests web --tests scenes
+.\gradlew.bat :glue-showcase:clientTest --tests inventory --tests scenes
 .\gradlew.bat :glue-showcase:clientTestSodium --tests InventoryClientTest
 .\gradlew.bat :glue-showcase:clientTestIris --tests viewport-sky
 ```
@@ -169,12 +116,8 @@ Select one or more discovered tests by short name, class name, or wildcard:
 | Selection | Coverage / prerequisites |
 |---|---|
 | `inventory` | Real inventory input, client/server synchronization, resize and stale handles. |
-| `scenes` | Hub clicks, orbit/FPS/gizmo controls, undo/redo and target disposal. |
-| `web` | Input lab, bridge, cursors, HUD slots, inventory widget, stacked dialogs, browser isolation and shutdown. |
-| `web-bundles` | Pinned local release, module/fetch routing, service-worker refusal and reload. |
-| `web-startup` | Progress indicator over menu, inventory, gameplay, hidden HUD and loading overlay. |
+| `scenes` | Orbit/FPS/gizmo previews opened as `/showcase scene` opens them, their controls, undo/redo and target disposal. |
 | `viewport-sky` | Full-window and inset sky views, day/night and Nether; Iris optional. |
-| `web-sites` | Opt-in live La Calèche, Google and YouTube navigation; requires internet access. |
 | `native-dialogs` | Human-assisted: cancel the open/save/folder OS dialogs. |
 
 Every client-test task copies [`src/test/assets`](src/test/assets/README.md) into its profile before
@@ -190,8 +133,8 @@ selected tests sequentially and stops on the first failure. `WorldClientTest` ca
 and closes the world; rendering scenarios clean up viewport state in `finally` blocks.
 See the [helper guide](../glue-gametest/README.md) for API, registration and assertion semantics.
 
-`auto` (the default) selects the first six scenarios in the table. External-site and
-native-dialog tests use `@ClientTestSpec(explicitOnly = true)` and require explicit selection.
+`auto` (the default) selects the first three scenarios in the table. The native-dialog test uses
+`@ClientTestSpec(explicitOnly = true)` and requires explicit selection.
 `all` or `*` includes them as well. An unknown or ambiguous selector fails before the game launches;
 use the full binary class name from `listClientTests` to disambiguate a short name.
 

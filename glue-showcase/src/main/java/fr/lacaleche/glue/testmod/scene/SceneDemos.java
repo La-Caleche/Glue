@@ -5,7 +5,7 @@ import net.minecraft.client.gui.screens.Screen;
 
 import java.util.function.Function;
 
-/** Client-thread entry points shared by the showcase commands and the F6 hub. */
+/** Client-thread entry points behind {@code /showcase scene}. */
 public final class SceneDemos {
 
     private SceneDemos() {
