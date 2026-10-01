@@ -21,7 +21,7 @@ and do not reproduce them in new APIs.
 
 Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
 provides typed registries, rendering and shader infrastructure, Lumos deferred lighting,
-native dialogs, web surfaces, and a scripted in-game test harness. The build uses Gradle Kotlin DSL,
+native dialogs, web surfaces, and Fabric client GameTest helpers. The build uses Gradle Kotlin DSL,
 Fabric Loom, and the in-house `fr.lacaleche.caldle` plugin.
 
 - Maven group: `fr.lacaleche.glue`
@@ -43,9 +43,9 @@ Glue is a library. Public behavior and supported APIs are what `glue-docs` docum
 | `glue-lumos` | `glue-lumos` | both | `glue-core` | Shared light model, codecs, synchronization, and persistence. |
 | `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light renderer, material passes, shadows, and GLSL. |
 | `glue-web` | `glue-web` | client | none | Chromium surfaces and hosts, native input, cursors, page bridge, local app resources, and shaded JCEF infrastructure. |
-| `glue-gametest` | `glue-gametest` | client, development | none | Scripted live-client tests, tools, screenshots, and reports. |
+| `glue-gametest` | `glue-gametest` | client, development | none | Fabric client GameTest helpers: UI input, assertions, async waits and Iris. |
 | `glue-dist` | `glue-dist` | both | nests four library modules | No code: one jar for players, holding `glue-core`, `glue-render`, `glue-lumos` and `glue-lumos-client`; not published to Maven. |
-| `glue-showcase` | `glue-showcase` | both, development | all library modules | Sole run configuration, demos, and integration scenarios; not published by release CI. |
+| `glue-showcase` | `glue-showcase` | both, development | all library modules (`glue-gametest` only in tests) | Run configurations, demos, and Fabric scenarios under `src/test/e2e`; not published by release CI. |
 
 Keep environment boundaries explicit. Shared models belong in both-side modules; rendering and UI
 implementations belong in client modules. `glue-core` contains the legacy client-only

@@ -2,7 +2,7 @@
 
 Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
 provides typed registries, rendering pipelines and post effects, Lumos deferred colored lighting,
-native dialogs, Chromium web surfaces, and scripted live-client tests.
+native dialogs, Chromium web surfaces, and Fabric client GameTest helpers.
 
 - [Documentation](https://gitlab.lacaleche.cc/loccamy/java/glue-docs), maintained in the separate `glue-docs` repository
 - [Getting started](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/getting-started.md)
@@ -20,7 +20,7 @@ separate Fabric mod.
 | `glue-lumos` | `glue-lumos` | both | `glue-core` | Light model, synchronization, and persistence. |
 | `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light rendering and shadows. |
 | `glue-web` | `glue-web` | client | - | Web screens, HUDs, overlays and widgets with Java actions and native slots. |
-| `glue-gametest` | `glue-gametest` | client, development | - | Scripted client tests, tools, screenshots, and reports. |
+| `glue-gametest` | `glue-gametest` | client, development | - | Fabric client GameTest helpers: UI input, assertions, async waits and Iris. |
 | `glue-dist` | `glue-dist` | both | nests four library modules | One jar for players; see below. Not published to Maven. |
 | `glue-showcase` | `glue-showcase` | both, development | all modules | Runnable demos and integration scenarios. |
 
@@ -83,6 +83,9 @@ Declare the corresponding Fabric mod ids in `fabric.mod.json`. See
 
 `glue-gametest` is a development dependency. Put it in a dedicated testmod or development source
 set, never in the dependency graph or descriptor of a released mod.
+Its [Fabric client-test helpers](glue-gametest/README.md) provide sequential UI scenarios under
+the showcase's `src/test/e2e`, discovered automatically and runnable with
+`:glue-showcase:clientTest`. `:glue-showcase:listClientTests` lists them without launching Minecraft.
 
 ## Build
 
@@ -110,8 +113,8 @@ from `REPOSILITE_TOKEN_NAME` / `REPOSILITE_TOKEN_SECRET`, or from
 
 - `libraryJars` writes the six remapped library jars to `build/libs/`.
 - `remapJar` also builds the showcase jar.
-- `build` and `check` are currently blocked by a PMD snapshot in the Caldle plugin; CI uses `test`
-  plus remapped jars as the verification gate.
+- `check` runs unit tests and static analysis; CI also builds the remapped jars. Live client tests
+  are explicit `clientTest` tasks.
 
 ## Run the Showcase
 
@@ -130,11 +133,12 @@ from `REPOSILITE_TOKEN_NAME` / `REPOSILITE_TOKEN_SECRET`, or from
 
 </details>
 
-The client uses `run/`; the dedicated server uses `run-server/`. Runtime options and scripted test
+The client uses `../.run/client`; the dedicated server uses `../.run/server` (relative to the repo root). Launch profiles and client-test
 commands are documented in the [showcase README](glue-showcase/README.md). The first server launch
-stops for the Minecraft EULA; set `eula=true` in `run-server/eula.txt` before restarting it.
-`glue.showcase.iris` and `glue.showcase.sodium` in `gradle.properties` control the optional rendering
-integrations in the development profile.
+stops for the Minecraft EULA; set `eula=true` in that profile's `eula.txt` before restarting it.
+Use `runClientSodium` or `runClientIris` for the optional rendering integrations, and
+`clientTestSodium` or `clientTestIris --tests <scenario>` for their isolated tests. Assets under
+`glue-showcase/src/test/assets` are copied automatically into each test profile.
 
 The showcase frontend lives in [`glue-showcase/web/`](glue-showcase/web/README.md): one plain HTML/JS
 input lab and React demos built with Vite. Showcase resource tasks require Node and pnpm; library

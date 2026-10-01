@@ -14,6 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -66,10 +67,10 @@ class ShowcaseContentResourcesTest {
     void descriptorRequiresEveryDirectModule() throws IOException {
         JsonObject dependencies = resourceJson("fabric.mod.json").getAsJsonObject("depends");
 
-        for (String mod : List.of("glue", "glue-render", "glue-lumos", "glue-lumos-client",
-                "glue-gametest", "glue-web")) {
+        for (String mod : List.of("glue", "glue-render", "glue-lumos", "glue-lumos-client", "glue-web")) {
             assertTrue(dependencies.has(mod), "Missing required dependency " + mod);
         }
+        assertFalse(dependencies.has("glue-gametest"), "The client test helpers belong to the test mod only");
     }
 
     @Test

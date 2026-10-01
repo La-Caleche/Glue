@@ -593,4 +593,4 @@ des objets. Ils n'empêchent pas de commencer l'UI kit et une première applicat
 - [Outil de publication actuel](../glue-web/tools/publish-bundle.mjs).
 - [Démo Java](../glue-showcase/src/main/java/fr/lacaleche/glue/testmod/web/BundleDemo.java).
 - [Tests du gestionnaire](../glue-web/src/test/java/fr/lacaleche/glue/web/internal/app/BundleAppTest.java).
-- [GameTest natif](../glue-showcase/src/main/java/fr/lacaleche/glue/testmod/gametest/web/BundleGameTest.java).
+- [GameTest natif](../glue-showcase/src/test/e2e/java/fr/lacaleche/glue/testmod/gametest/web/BundleClientTest.java).

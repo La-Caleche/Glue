@@ -138,16 +138,16 @@ features: hub, lab, browser, HUDs, inventory, waypoints, toasts and game tests. 
 
 ```powershell
 .\gradlew.bat :glue-web:test :glue-showcase:test :glue-web:remapJar :glue-showcase:remapJar
-.\gradlew.bat :glue-showcase:runClient '-Pglue.gametest=glue-test:web' '-Pglue.showcase.quickplay=New World'
-.\gradlew.bat :glue-showcase:runClient '-Pglue.gametest=glue-test:web-bundles' '-Pglue.showcase.quickplay=New World'
+.\gradlew.bat :glue-showcase:clientTest --tests web
+.\gradlew.bat :glue-showcase:clientTest --tests web-bundles
 node --test glue-web/tools/publish-bundle.test.mjs
 ```
 
 Unit tests cover frame ownership, file resolution and traversal, action binding and invocation, the
 bridge protocol, trust, slot mapping, layer placement, public signatures and shaded packaging.
 
-`glue-test:web` drives the hub, the input lab, both HUD layers, the toast overlay, the inventory
+`web` drives the hub, the input lab, both HUD layers, the toast overlay, the inventory
 panel, the stacked waypoint dialog and an untrusted page in the browser screen, with real mouse and
-keyboard input. `glue-test:web-sites` is the opt-in internet scenario. `glue-test:web-startup`
+keyboard input. `web-sites` is the opt-in internet scenario. `web-startup`
 inspects the runtime indicator. After a run, check the client log for the module-owned surface's
 disposal and CEF `TERMINATED`, not just Gradle's exit code. Native validation has used Windows.

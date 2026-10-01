@@ -56,3 +56,9 @@ editor-design
 
 # Generated files left by the parked Obscura branch.
 /obscure-experiment/
+
+# Local third-party client-test fixtures; configuration and setup notes remain versioned.
+/glue-showcase/src/test/assets/shaderpacks/*
+!/glue-showcase/src/test/assets/shaderpacks/README.md
+/glue-showcase/src/test/assets/resourcepacks/
+/glue-showcase/src/test/assets/saves/

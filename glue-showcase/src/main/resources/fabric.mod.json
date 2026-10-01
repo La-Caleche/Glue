@@ -21,7 +21,6 @@
         "glue-lumos": "${version}",
         "glue-render": "${version}",
         "glue-lumos-client": "${version}",
-        "glue-gametest": "${version}",
         "glue-web": "${version}"
     }
 }

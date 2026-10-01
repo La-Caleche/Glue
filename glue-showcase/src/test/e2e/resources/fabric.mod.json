@@ -1,0 +1,14 @@
+{
+    "schemaVersion": 1,
+    "id": "glue-showcase-tests",
+    "version": "1.0.0",
+    "name": "Glue Client Tests",
+    "environment": "client",
+    "entrypoints": {
+        "fabric-client-gametest": []
+    },
+    "depends": {
+        "glue-gametest": "*",
+        "glue-showcase": "*"
+    }
+}

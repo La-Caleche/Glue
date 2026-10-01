@@ -1,6 +1,5 @@
 package fr.lacaleche.glue.testmod.web;
 
-import fr.lacaleche.glue.testmod.gametest.web.WebGameTest;
 import fr.lacaleche.glue.testmod.web.hub.HubActions;
 import fr.lacaleche.glue.testmod.web.hud.Minimap;
 import fr.lacaleche.glue.testmod.web.hud.PlayerVitals;
@@ -43,7 +42,6 @@ public final class WebDemos {
         Waypoints.register();
         InventoryPanel.register(app);
         WebCommands.register();
-        WebGameTest.register();
     }
 
     public static WebApp app() {

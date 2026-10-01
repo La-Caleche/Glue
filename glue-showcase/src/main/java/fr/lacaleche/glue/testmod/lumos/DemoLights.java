@@ -87,7 +87,7 @@ public final class DemoLights {
     }
 
     /** Three static shadowed point lights plus a 24-light unshadowed ring. Turning it off
-     *  despawns <b>every</b> demo light this class owns — spawned spots and autotest lights
+     *  despawns <b>every</b> demo light this class owns — spawned spots and ring lights
      *  included — so the toggle always restarts from a clean slate. */
     public void toggleStaticLights() {
         LocalPlayer player = Minecraft.getInstance().player;

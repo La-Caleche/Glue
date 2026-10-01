@@ -4,7 +4,10 @@ plugins {
 }
 
 dependencies {
-    // Optional at runtime: the built-in iris-shaders tool resolves Iris classes only when a test
-    // invokes it, behind a mod-loaded guard.
+    // IrisTest resolves Iris classes only when invoked, behind a mod-loaded guard.
     compileOnly(libs.iris)
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/glue-gametest.accesswidener")
 }

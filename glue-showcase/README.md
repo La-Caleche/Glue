@@ -9,6 +9,21 @@ opens the Lumos client request channel to operators; **`TestmodClient`** registe
 `onInitializeClient()`. The module runs on both sides: `:glue-showcase:runClient` and
 `:glue-showcase:runServer`.
 
+## Launch profiles
+
+| Rendering stack | Interactive client | Client tests |
+|---|---|---|
+| Vanilla | `runClient` | `clientTest` |
+| Sodium | `runClientSodium` | `clientTestSodium` |
+| Iris + Sodium | `runClientIris` | `clientTestIris` |
+
+Interactive clients share `../.run/client` relative to the repository root; the dedicated server
+uses `../.run/server`. Their options, worlds and shaderpacks are ordinary Minecraft profile files.
+Client tests instead own isolated directories under `glue-showcase/build/run/<task-name>`.
+The rendering stack is chosen by the task, not a project-wide property. No automatic light
+spawning or periodic screenshot job is installed during normal play: use the showcase commands,
+F2, or an explicit test scenario.
+
 ## Controls
 
 Press **F6** by default to open the Glue Web hub. It opens the web demos and the three native scene
@@ -70,7 +85,7 @@ the repository root while editing, then press F5 in a page. Library tasks never 
 
 Java examples are grouped under `fr.lacaleche.glue.testmod.web`: `hub`, `lab`, `browser`, `hud`,
 `inventory`, `waypoint` and `toast`. `WebDemos` wires registration and entry points; their live tests
-are under `gametest/web/`.
+are under `src/test/e2e/java/fr/lacaleche/glue/testmod/gametest/web/`.
 
 | Demo | Opens with | Shows |
 |---|---|---|
@@ -88,15 +103,18 @@ are under `gametest/web/`.
 The two HUDs start disabled so the other showcase scenarios keep the vanilla HUD. Waypoints are kept
 for the current connection only. In the browser, F3 expands delivery metrics, F9 switches the 60/30
 FPS cap, F5 reloads and Ctrl+L focuses the address bar. Mod startup preloads the native runtime into
-`run/glue-web/`, with a small global progress indicator.
+the game profile's `glue-web/` directory, with a small global progress indicator.
 
-`glue-test:web` drives the original host demos with real mouse and keyboard input. `glue-test:web-bundles`
+The `web` client test drives the original host demos with real mouse and keyboard input. `web-bundles`
 checks managed resource routing, imports, service-worker refusal, reload and disposal without a remote
-host. The bundle demo optionally accepts `-Pglue.showcase.web.channel=<HTTPS URL>` and
-`-Pglue.showcase.web.key=<SPKI Base64>`; see the [publication guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/web/bundles.md).
-`glue-test:web-sites` is
+host. The bundle demo reads an optional `config/glue-showcase/bundles.properties` in the game profile.
+Supply `channel` (an HTTPS channel URL) and `publicKey` (a Base64 SPKI Ed25519 public key, key ID
+`release`) together. With no file, the demo stays offline; an invalid file fails explicitly. A test
+fixture can provide the same file under `src/test/assets/config/glue-showcase/`.
+See the [publication guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/web/bundles.md).
+`web-sites` is
 the opt-in internet test; its result distinguishes Google's challenge page from successful search
-results. `glue-test:web-startup` inspects the runtime indicator. See the
+results. `web-startup` inspects the runtime indicator. See the
 [library guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/web/index.md).
 
 ## Scene demos
@@ -119,38 +137,72 @@ history are preview-only. Picking uses translated unit cubes, as in the original
 scale are not applied to the picking bounds. Each screen releases its render target and any pointer
 capture on removal. See the [scene guide](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/rendering/scene-viewport.md).
 
-## Scripted client tests
+## Fabric client tests
 
-The showcase registers its rendering scenarios from `gametest/ShowcaseGameTests.java` and its browser
-scenarios from `gametest/web/WebGameTest.java` with the shared `glue-gametest` runner.
-`gametest/scene/SceneGameTest.java` registers `glue-test:scenes`: it opens the three previews through
-their hub buttons, checks camera controls, selection, history and resource cleanup, and takes captures.
-
-Run one against an existing singleplayer world:
-
-```shell
-./gradlew :glue-showcase:runClient -Pglue.gametest=glue-test:web '-Pglue.showcase.quickplay=New World'
-```
-
-<details>
-<summary>PowerShell</summary>
+[`InventoryClientTest`](src/test/e2e/java/fr/lacaleche/glue/testmod/gametest/InventoryClientTest.java)
+is a sequential `FabricClientGameTest` using the new `glue-gametest` helpers. It creates a fresh
+world, opens the survival inventory through its key binding, moves items with mouse input, checks
+client and server state, and captures the rendered inventory. It also checks slot coordinates after
+a resize and recipe-book layout change.
 
 ```powershell
-.\gradlew.bat :glue-showcase:runClient '-Pglue.gametest=glue-test:web' '-Pglue.showcase.quickplay=New World'
+.\gradlew.bat :glue-showcase:listClientTests
+.\gradlew.bat :glue-showcase:clientTest
 ```
 
-</details>
+The test mod lives under `src/test/e2e`, separately from the showcase's published resources.
+The isolated profile and screenshots are under `build/run/<task-name>/` and are cleared on the
+next run of that task. Each client task has a ten-minute timeout. The main showcase no longer depends on
+`glue-gametest`; only its test source set does.
 
-The available test ids are `glue-test:scenes`, `glue-test:web`, `glue-test:web-bundles`, `glue-test:web-sites`, `glue-test:web-startup`, `glue-test:native-dialogs`,
-`glue-test:iris-hud`, `glue-test:lumos-smoke`, `glue-test:albedo-issue`, `glue-test:glass-quality`,
-`glue-test:spot-perf`, and `glue-test:viewport-sky`.
-Reports and screenshots are written under
-`run/screenshots/gametest/<namespace>_<path>/`.
+Java implementations of `FabricClientGameTest` are discovered automatically, including inherited
+implementations and static nested classes. Add the class under `src/test/e2e/java`; no build map or
+JSON registration is needed. `@ClientTestSpec` optionally specifies a short name or `explicitOnly`.
+The default run selects all tests without that flag. `listClientTests` lists the complete suite
+without opening Minecraft.
 
-The scene-preview and web scenarios run with or without Iris. The other rendering scenarios in `gametest/ShowcaseGameTests.java`, except `glue-test:native-dialogs`, toggle the shaderpack through `glue-gametest`'s
-built-in `glue-gametest:iris-shaders` tool (it settles the rebuilt pipeline itself, so the
-scripts add no wait after it), which means those runs need Iris: add
-`-Pglue.showcase.iris=true`.
+Select one or more discovered tests by short name, class name, or wildcard:
+
+```powershell
+.\gradlew.bat :glue-showcase:clientTest --tests web --tests scenes
+.\gradlew.bat :glue-showcase:clientTestSodium --tests InventoryClientTest
+.\gradlew.bat :glue-showcase:clientTestIris --tests iris-hud
+```
+
+| Selection | Coverage / prerequisites |
+|---|---|
+| `inventory` | Real inventory input, client/server synchronization, resize and stale handles. |
+| `scenes` | Hub clicks, orbit/FPS/gizmo controls, undo/redo and target disposal. |
+| `web` | Input lab, bridge, cursors, HUD slots, inventory widget, stacked dialogs, browser isolation and shutdown. |
+| `web-bundles` | Pinned local release, module/fetch routing, service-worker refusal and reload. |
+| `web-startup` | Progress indicator over menu, inventory, gameplay, hidden HUD and loading overlay. |
+| `viewport-sky` | Full-window and inset sky views, day/night and Nether; Iris optional. |
+| `iris-hud` | HUD/inventory with a nearby light, shaders on/off/on; requires Iris and a shaderpack. |
+| `lumos-smoke` | Server-owned synchronized light, fixed view, shaders off/on; requires Iris and a shaderpack. |
+| `albedo-issue` | Fixed-pose albedo comparison in the material arena; requires Iris and a shaderpack. |
+| `glass-quality` | Seven glass/pane columns, backlight, front light and floor transmission; requires Iris and a shaderpack. |
+| `spot-perf` | Baseline/spot/point FPS samples under Fabric's controlled scheduling; requires Iris and a shaderpack. |
+| `web-sites` | Opt-in live La Calèche, Google and YouTube navigation; requires internet access. |
+| `native-dialogs` | Human-assisted: cancel the open/save/folder OS dialogs. |
+
+Every client-test task copies [`src/test/assets`](src/test/assets/README.md) into its profile before
+launch. Put configuration, shaderpacks, resource packs and world fixtures there using normal game
+directory paths. `config/iris.properties` selects the shaderpack by its ordinary Iris filename;
+the default fixture name is `shaderpacks/test-shaderpack`. Third-party packs/worlds are local,
+Git-ignored assets; small configuration fixtures remain versioned. They never enter published jars.
+Each task also creates its own selected test-mod jar, so two profiles in the same Gradle invocation
+can select different tests without overwriting shared resources.
+
+Tests prepare their own worlds and rendering arenas; no existing save is required. Fabric runs
+selected tests sequentially and stops on the first failure. `WorldClientTest` captures failures
+and closes the world; rendering scenarios clean up lights and viewport state in `finally` blocks.
+The FPS samples include test orchestration and must not be compared to free-running gameplay FPS.
+See the [helper guide](../glue-gametest/README.md) for API, registration and assertion semantics.
+
+`auto` (the default) selects the first six scenarios in the table. Shaderpack, external-site and
+native-dialog tests use `@ClientTestSpec(explicitOnly = true)` and require explicit selection.
+`all` or `*` includes them as well. An unknown or ambiguous selector fails before the game launches;
+use the full binary class name from `listClientTests` to disambiguate a short name.
 
 ## Demo blocks
 

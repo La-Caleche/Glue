@@ -2,12 +2,10 @@ package fr.lacaleche.glue.testmod;
 
 import fr.lacaleche.glue.client.debug.DebugManager;
 import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
-import fr.lacaleche.glue.testmod.gametest.ShowcaseGameTests;
 import fr.lacaleche.glue.testmod.registries.TestBlocksRenderer;
 import fr.lacaleche.glue.testmod.registries.TestKeybinds;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
-import fr.lacaleche.glue.testmod.render.AutoScreenshot;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import fr.lacaleche.glue.testmod.web.WebDemos;
 import net.fabricmc.api.ClientModInitializer;
@@ -16,8 +14,8 @@ import org.slf4j.Logger;
 
 /**
  * Client entry point for the Glue test mod: wires up the client-only demos &mdash; keybinds,
- * block-entity renderers and render layers, shader/post-effect registrations, the Glue Web demos, and
- * the scripted gametests. The synced-registry content (blocks, items, components, block entities,
+ * block-entity renderers and render layers, shader/post-effect registrations and the Glue Web demos.
+ * The synced-registry content (blocks, items, components, block entities,
  * creative tab) is registered by {@link Testmod} so it exists on both sides. Start in either entry
  * point to trace what each feature demonstrates, or see {@code glue-showcase/README.md}.
  */
@@ -50,8 +48,6 @@ public class TestmodClient implements ClientModInitializer {
         TestPostShaderHandler.INSTANCE.register();
         ShowcaseCommands.register();
 
-        AutoScreenshot.init();
-        ShowcaseGameTests.register();
         AdditiveSpriteRenderer.init();
         WebDemos.init();
     }
