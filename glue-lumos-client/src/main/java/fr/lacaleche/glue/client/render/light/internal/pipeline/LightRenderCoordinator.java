@@ -23,10 +23,6 @@ import java.util.List;
 /** Owns Lumos frame admission, visibility, pass ordering, and global render resources. */
 public final class LightRenderCoordinator {
 
-    // TEMPORARY diagnostic: -Dglue.lumos.irisStage=off|blit|shadow|material|full limits how far
-    // the Iris-frame path runs, to bisect state leaks. Remove once the Iris mode is stable.
-    private static final String IRIS_STAGE = System.getProperty("glue.lumos.irisStage", "full");
-
     private final MaterialBufferPass materialPass = new MaterialBufferPass();
     private final DeferredLightPass deferredPass = new DeferredLightPass();
 
@@ -82,37 +78,31 @@ public final class LightRenderCoordinator {
         if (visible.isEmpty()) return;
 
         if (irisPack) {
-            if ("off".equals(IRIS_STAGE)) return;
             // The bypass keeps Iris away from the vanilla-path draws inside (shadow bakes, block
             // and entity re-renders): no vertex-format extension, no program overrides.
             int packFbo = packSceneFbo;
             SavedGlState state = SavedGlState.save();
             try {
                 blitColor(packFbo, fbo, main.width, main.height);
-                if (!"blit".equals(IRIS_STAGE)) {
-                    RenderCompat.withIrisBypass(() -> renderPasses(context, minecraft, frame,
-                            viewProjection, inverseViewProjection, camera, all, visible,
-                            partialTick, IRIS_STAGE));
-                }
+                RenderCompat.withIrisBypass(() -> renderPasses(context, minecraft, frame,
+                        viewProjection, inverseViewProjection, camera, all, visible, partialTick));
                 blitColor(fbo, packFbo, main.width, main.height);
             } finally {
                 state.restore();
             }
         } else {
             renderPasses(context, minecraft, frame, viewProjection, inverseViewProjection,
-                    camera, all, visible, partialTick, "full");
+                    camera, all, visible, partialTick);
         }
     }
 
     private void renderPasses(WorldLightContext context, Minecraft minecraft, LumosFrame frame,
                               Matrix4f viewProjection, Matrix4f inverseViewProjection,
                               Vector3d camera, List<Light> all, List<Light> visible,
-                              float partialTick, String stage) {
+                              float partialTick) {
         context.shadows().bake(minecraft, deferredPass.tintBlur(), visible, partialTick,
                 context::shadowAnchor);
-        if ("shadow".equals(stage)) return;
         materialPass.render(context, minecraft, frame, camera, all, visible);
-        if ("material".equals(stage)) return;
         deferredPass.render(frame, viewProjection, inverseViewProjection, camera,
                 visible, context.shadows(), minecraft, partialTick);
     }
