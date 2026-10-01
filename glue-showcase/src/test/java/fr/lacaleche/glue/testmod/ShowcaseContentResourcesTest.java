@@ -67,7 +67,7 @@ class ShowcaseContentResourcesTest {
     void descriptorRequiresEveryDirectModule() throws IOException {
         JsonObject dependencies = resourceJson("fabric.mod.json").getAsJsonObject("depends");
 
-        for (String mod : List.of("glue", "glue-render", "glue-lumos", "glue-lumos-client", "glue-web")) {
+        for (String mod : List.of("glue", "glue-render", "glue-web")) {
             assertTrue(dependencies.has(mod), "Missing required dependency " + mod);
         }
         assertFalse(dependencies.has("glue-gametest"), "The client test helpers belong to the test mod only");

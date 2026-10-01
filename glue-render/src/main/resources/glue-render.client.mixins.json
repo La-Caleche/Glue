@@ -14,10 +14,6 @@
     "EntityMixin"
   ],
   "client": [
-    "material.MixinCompositeRenderTypeDraw",
-    "material.MixinGlCommandEncoder",
-    "material.MixinGlRenderPass",
-    "material.MixinShaderManagerCache",
     "shader.pipeline.CompositeRenderTypeAccessor",
     "shader.pipeline.CompositeStateAccessor",
     "DebugRendererMixin",
@@ -30,8 +26,6 @@
     "shader.post.PostChainAccessor",
     "shader.post.PostPassAccessor",
     "PoseStackMixin",
-    "material.sodium.SodiumShaderChunkRendererMixin",
-    "material.sodium.SodiumShaderLoaderMixin",
     "shader.pipeline.TextureStateShardAccessor",
     "viewport.GameRendererScreenViewportMixin",
     "viewport.GameRendererViewportMixin",

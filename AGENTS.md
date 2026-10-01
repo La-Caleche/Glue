@@ -20,8 +20,9 @@ and do not reproduce them in new APIs.
 ## Project Snapshot
 
 Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
-provides typed registries, rendering and shader infrastructure, Lumos deferred lighting,
-native dialogs, web surfaces, and Fabric client GameTest helpers. The build uses Gradle Kotlin DSL,
+provides typed registries, rendering and shader infrastructure, native dialogs, web surfaces, and
+Fabric client GameTest helpers. Lumos, the colored-lighting mod, lives in its own repository and
+depends on Glue. The build uses Gradle Kotlin DSL,
 Fabric Loom, and the in-house `fr.lacaleche.caldle` plugin.
 
 - Maven group: `fr.lacaleche.glue`
@@ -40,11 +41,9 @@ Glue is a library. Public behavior and supported APIs are what `glue-docs` docum
 |---|---|---|---|---|
 | `glue-core` | `glue` | both | none | Shared registries, packets/codecs, math, shapes, and history. |
 | `glue-render` | `glue-render` | client | `glue-core` | Pipelines, post effects, materials, outlines, scenes, render events, compatibility, and native dialogs. |
-| `glue-lumos` | `glue-lumos` | both | `glue-core` | Shared light model, codecs, synchronization, and persistence. |
-| `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light renderer, material passes, shadows, and GLSL. |
 | `glue-web` | `glue-web` | client | none | Chromium surfaces and hosts, native input, cursors, page bridge, local app resources, and shaded JCEF infrastructure. |
 | `glue-gametest` | `glue-gametest` | client, development | none | Fabric client GameTest helpers: UI input, assertions, async waits and Iris. |
-| `glue-dist` | `glue-dist` | both | nests four library modules | No code: one jar for players, holding `glue-core`, `glue-render`, `glue-lumos` and `glue-lumos-client`; not published to Maven. |
+| `glue-dist` | `glue-dist` | both | nests `glue-core` and `glue-render` | No code: one jar for players, holding `glue-core` and `glue-render`; not published to Maven. |
 | `glue-showcase` | `glue-showcase` | both, development | all library modules (`glue-gametest` only in tests) | Run configurations, demos, and Fabric scenarios under `src/test/e2e`; not published by release CI. |
 
 Keep environment boundaries explicit. Shared models belong in both-side modules; rendering and UI
@@ -84,18 +83,9 @@ implementations belong in client modules. `glue-core` contains the legacy client
   such as `RenderCompat`; reflective access to Iris internals belongs in `ModCompatManager` rather
   than feature code. Development tests may call public Iris APIs only behind a mod-loaded guard.
   Everything must still load without Iris.
-- Lumos identifies surfaces through one material G-buffer, not post-hoc depth matching. Material data
-  and its owning depth are written in the same geometry draw through MRT.
-- Material targets own their attachments while borrowing host color and depth. Sodium integration
-  attaches those textures to Sodium's active framebuffer instead of duplicating the scene pass.
-- A pixel no material class claimed cannot have reliable albedo reconstructed from an already-lit
-  color. Preserve the `UNCAPTURED_LIGHT_CAP` contract.
-- Minecraft 1.21.8's material outputs currently rely on the core-shader source patch and explicit MRT
-  output constraints. Replace that seam only with an in-game-validated alternative.
-
-Lumos is intended to support the difficult cases too: entities, particles, water, and reflective
-materials. Do not silently downscope an agreed capability because it is hard. Within that scope, use
-the smallest correct design.
+- Lumos consumes `SavedGlState`, `FrameMatrices`, `FramebufferHelper`, `AbstractSceneRenderer`,
+  `GluePipeline`, `RenderEvents`, `RenderCompat` and `FboDebugHud`. Treat them as public contracts:
+  a change there is checked against Lumos.
 
 ## Verification
 

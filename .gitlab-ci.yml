@@ -63,8 +63,6 @@ publish:
     - ./gradlew test
         :glue-core:publish
         :glue-render:publish
-        :glue-lumos:publish
-        :glue-lumos-client:publish
         :glue-web:publish
         :glue-gametest:publish
         :glue-dist:remapJar

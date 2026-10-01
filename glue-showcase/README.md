@@ -1,11 +1,11 @@
 # Glue Showcase
 
-A runnable module (`glue-showcase`) with content, rendering and lighting examples. Its content
+A runnable module (`glue-showcase`) with content and rendering examples. Its content
 continues to use the `glue-test` resource namespace to avoid an unrelated asset migration.
 Each demo is intentionally small and maps to one library feature so it can be
 read as living documentation. Entry points: **`Testmod`** (both sides) registers the
-synced content — blocks, items, data components, block entities, creative tab — and
-opens the Lumos client request channel to operators; **`TestmodClient`** registers every client-only demo in
+synced content — blocks, items, data components, block entities, creative tab;
+**`TestmodClient`** registers every client-only demo in
 `onInitializeClient()`. The module runs on both sides: `:glue-showcase:runClient` and
 `:glue-showcase:runServer`.
 
@@ -20,18 +20,16 @@ opens the Lumos client request channel to operators; **`TestmodClient`** registe
 Interactive clients share `../.run/client` relative to the repository root; the dedicated server
 uses `../.run/server`. Their options, worlds and shaderpacks are ordinary Minecraft profile files.
 Client tests instead own isolated directories under `glue-showcase/build/run/<task-name>`.
-The rendering stack is chosen by the task, not a project-wide property. No automatic light
-spawning or periodic screenshot job is installed during normal play: use the showcase commands,
-F2, or an explicit test scenario.
+The rendering stack is chosen by the task, not a project-wide property. No periodic screenshot job
+is installed during normal play: use the showcase commands, F2, or an explicit test scenario.
 
 ## Controls
 
 Press **F6** by default to open the Glue Web hub. It opens the web demos and the three native scene
 previews, and toggles the web HUD, minimap and toasts.
 
-Lighting and post-effect examples use client commands:
+Post-effect and scene examples use client commands:
 
-- `/showcase lights flashlight`, `ring`, `spot`, or `clear`.
 - `/showcase effects blur` or `grayscale` toggles a steady post effect.
 - `/showcase effects chromatic`, `shattered`, or `impact` triggers a Java-built timed effect.
 - `/showcase effects chromatic-registry`, `vortex`, or `pulse` exercises registry-driven effects.
@@ -55,7 +53,6 @@ over the full 20-block ray.
 | `KeybindingsRegistry` | `registries/TestKeybinds.java` |
 | `CoreShaderRegistry` (`GluePipeline`) | `registries/TestShaders.java` |
 | `PostShaderRegistry` / `TimedEffectRegistry` | `registries/TestShaders.java` |
-| `Lumos` (visual lights + server-owned world lights) | `lumos/DemoLights.java`, `Testmod.java` |
 | `GlueBlock` + data-driven outline | `blocks/demo/TestOutlineBlock.java` (+ `glue/outlines/example.json`) |
 | `GlueVoxelShape` | `blocks/demo/TestOutlineBlock.java` |
 | `VoxelShaper` (directional shapes) | `blocks/demo/TestShapeBlock.java` |
@@ -166,7 +163,7 @@ Select one or more discovered tests by short name, class name, or wildcard:
 ```powershell
 .\gradlew.bat :glue-showcase:clientTest --tests web --tests scenes
 .\gradlew.bat :glue-showcase:clientTestSodium --tests InventoryClientTest
-.\gradlew.bat :glue-showcase:clientTestIris --tests iris-hud
+.\gradlew.bat :glue-showcase:clientTestIris --tests viewport-sky
 ```
 
 | Selection | Coverage / prerequisites |
@@ -177,11 +174,6 @@ Select one or more discovered tests by short name, class name, or wildcard:
 | `web-bundles` | Pinned local release, module/fetch routing, service-worker refusal and reload. |
 | `web-startup` | Progress indicator over menu, inventory, gameplay, hidden HUD and loading overlay. |
 | `viewport-sky` | Full-window and inset sky views, day/night and Nether; Iris optional. |
-| `iris-hud` | HUD/inventory with a nearby light, shaders on/off/on; requires Iris and a shaderpack. |
-| `lumos-smoke` | Server-owned synchronized light, fixed view, shaders off/on; requires Iris and a shaderpack. |
-| `albedo-issue` | Fixed-pose albedo comparison in the material arena; requires Iris and a shaderpack. |
-| `glass-quality` | Seven glass/pane columns, backlight, front light and floor transmission; requires Iris and a shaderpack. |
-| `spot-perf` | Baseline/spot/point FPS samples under Fabric's controlled scheduling; requires Iris and a shaderpack. |
 | `web-sites` | Opt-in live La Calèche, Google and YouTube navigation; requires internet access. |
 | `native-dialogs` | Human-assisted: cancel the open/save/folder OS dialogs. |
 
@@ -195,11 +187,10 @@ can select different tests without overwriting shared resources.
 
 Tests prepare their own worlds and rendering arenas; no existing save is required. Fabric runs
 selected tests sequentially and stops on the first failure. `WorldClientTest` captures failures
-and closes the world; rendering scenarios clean up lights and viewport state in `finally` blocks.
-The FPS samples include test orchestration and must not be compared to free-running gameplay FPS.
+and closes the world; rendering scenarios clean up viewport state in `finally` blocks.
 See the [helper guide](../glue-gametest/README.md) for API, registration and assertion semantics.
 
-`auto` (the default) selects the first six scenarios in the table. Shaderpack, external-site and
+`auto` (the default) selects the first six scenarios in the table. External-site and
 native-dialog tests use `@ClientTestSpec(explicitOnly = true)` and require explicit selection.
 `all` or `*` includes them as well. An unknown or ambiguous selector fails before the game launches;
 use the full binary class name from `listClientTests` to disambiguate a short name.
@@ -211,12 +202,11 @@ use the full binary class name from `listClientTests` to disambiguate a short na
 | `test_outline` | data-driven outline, `GlueVoxelShape`, transform stack | `TickingBlockEntity` |
 | `test_spinning` | animated orbit rendering via transform stack | `TickingBlockEntity` |
 | `test_shader`  | cycle an item through every `GluePipeline` (right-click) | `TestShaderBlockEntity` (stateful) |
-| `test_additive_sprite` | additive-blended sprite via `ShadedBufferSource`, plus an attached Lumos light | `TestAdditiveSpriteBlockEntity` (stateful) |
+| `test_additive_sprite` | additive-blended sprite via `ShadedBufferSource` | `TestAdditiveSpriteBlockEntity` |
 | `test_shape`   | `VoxelShaper` directional shapes (right-click cycles) | — (no entity) |
 
-Blocks that only need an animation clock share **`TickingBlockEntity`**; the two that
-carry state of their own keep a dedicated entity — `test_shader` its cycling index,
-`test_additive_sprite` the handle of the Lumos light that follows its sprite.
+Blocks that only need an animation clock share **`TickingBlockEntity`**; two keep a dedicated
+entity — `test_shader` for its cycling index, `test_additive_sprite` for its sprite animation.
 
 Every demo block has a matching blockstate, item definition, self-drop loot table, translation, and
 pickaxe mining tag. The standalone **Transform Preset Tool** stores a `TransformationComponent` on
@@ -260,40 +250,3 @@ in the same registry. The `/showcase effects` commands expose each path:
 
 The registered handles and timed definitions are exercised directly by
 `TestPostShaderHandler`.
-
-## Deferred lights (`glue-lumos`)
-
-Use `/showcase lights ring` to spawn the demo scene: three **static** shadowed point lights
-plus a 24-light unshadowed stress ring, or a warm **spot** along your view. The flashlight action
-controls a spot attached to the player's eyes via `Lumos.attach`, re-sampled every rendered frame; pressing again
-restyles it in place through `LightHandle.light()`, cycling colors before
-turning off. These are *visual* lights — `Lumos.spawn`, this client only,
-gone with the session. They illuminate
-existing world geometry via a screen-space deferred pass
-(`LightRenderer`, hung off `POST_WORLD_RENDER`): reconstruct world position from
-the scene depth buffer, derive edge-aware normals from depth (5-tap), accumulate
-colored `N·L` falloff into an **HDR (RGBA16F)** buffer, then composite in linear
-space with exponential rolloff so bright/overlapping lights do not hard-clip.
-
-Shadow-enabled lights use real maps. `LightDepthSceneRenderer` rasterises scene
-depth from the light's point of view: one map for the spot, six — a cube — for each
-point light. The pass filters them with **PCSS** (search for blockers, estimate the
-penumbra from how far in front of the receiver they sit, then filter over exactly
-that width), so contact shadows stay sharp while distant ones soften. The stress
-ring uses `withShadow(false)` to demonstrate the lower-cost many-light path.
-
-Maps are baked in **light-relative** space, which makes them independent of the
-camera and therefore **cacheable**: a light that hasn't moved costs nothing after
-its first bake. Separate resident-map and per-frame update budgets spread initial
-and invalidated bakes across frames. Loaded non-empty chunk sections are scanned
-once per point light, then the resulting casters are culled and reused for all six
-faces.
-
-Light is tinted by the surface it lands on through the shared material G-buffer, which captures
-linear albedo, normals, material id, ownership depth and material properties in the geometry pass.
-It is then exponentially rolled off in linear space so overlapping lights saturate in colour rather
-than blowing out.
-
-Entities participate in shadow-map rendering, and nearby block changes invalidate affected light maps.
-An active Iris shaderpack uses Lumos's reduced compatibility path; full parity with the vanilla render
-path remains future work.

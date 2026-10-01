@@ -6,8 +6,6 @@ plugins {
 dependencies {
     implementation(project(path = ":glue-core", configuration = "namedElements"))
     implementation(project(path = ":glue-render", configuration = "namedElements"))
-    implementation(project(path = ":glue-lumos", configuration = "namedElements"))
-    implementation(project(path = ":glue-lumos-client", configuration = "namedElements"))
     implementation(project(path = ":glue-web", configuration = "namedElements"))
 
     compileOnly(libs.iris)

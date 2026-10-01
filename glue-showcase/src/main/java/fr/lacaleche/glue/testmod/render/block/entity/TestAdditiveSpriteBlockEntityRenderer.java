@@ -24,8 +24,7 @@ import org.joml.Matrix4f;
  *
  * <p>The pipeline's {@link ShadedBufferSource} captures the sprite and blits it additively
  * ({@code GL_ONE, GL_ONE}) so it composites correctly under both vanilla and Iris. The bob height
- * comes from {@link TestAdditiveSpriteBlockEntity#spriteCenterY}, the same value its attached Lumos
- * light follows, so the light and the visible glow stay locked together.</p>
+ * comes from {@link TestAdditiveSpriteBlockEntity#spriteCenterY}.</p>
  */
 public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRenderer<TestAdditiveSpriteBlockEntity> {
 

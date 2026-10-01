@@ -8,8 +8,6 @@ plugins {
 dependencies {
     include(project(":glue-core"))
     include(project(":glue-render"))
-    include(project(":glue-lumos"))
-    include(project(":glue-lumos-client"))
 }
 
 tasks.processResources {

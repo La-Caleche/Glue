@@ -53,8 +53,6 @@ tasks.matching { it.name == "publish" }.configureEach {
 val libraryModules = listOf(
     "glue-core",
     "glue-render",
-    "glue-lumos",
-    "glue-lumos-client",
     "glue-web",
     "glue-gametest"
 )

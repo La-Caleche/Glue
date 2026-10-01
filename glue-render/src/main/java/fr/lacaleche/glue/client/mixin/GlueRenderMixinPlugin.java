@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import java.util.List;
 import java.util.Set;
 
-/** Prevents renderer-specific mixins from loading when their target mod is absent. */
+/** Prevents mod-specific mixins from loading when their target mod is absent. */
 public final class GlueRenderMixinPlugin implements IMixinConfigPlugin {
 
     @Override
@@ -22,10 +22,7 @@ public final class GlueRenderMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (mixinClassName.contains(".axiom.")) {
-            return FabricLoader.getInstance().isModLoaded("axiom");
-        }
-        return !mixinClassName.contains(".sodium.") || FabricLoader.getInstance().isModLoaded("sodium");
+        return !mixinClassName.contains(".axiom.") || FabricLoader.getInstance().isModLoaded("axiom");
     }
 
     @Override

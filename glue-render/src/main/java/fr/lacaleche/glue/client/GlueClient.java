@@ -8,8 +8,6 @@ import fr.lacaleche.glue.client.events.ParticleManagerEvents;
 import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.BlockRenderer;
-import fr.lacaleche.glue.client.render.internal.gbuffer.GBufferCapture;
-import fr.lacaleche.glue.client.render.internal.material.TerrainMaterialBuffer;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.client.shader.internal.DeferredDrawQueue;
@@ -42,10 +40,6 @@ public class GlueClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        TerrainMaterialBuffer.releaseOnClose(GBufferCapture::cleanup);
-        FboDebugHud.registerTexture("GBuffer Albedo+N", GBufferCapture::albedoNormalTextureId);
-        FboDebugHud.registerTexture("GBuffer MaterialID", GBufferCapture::materialIdTextureId);
-        FboDebugHud.registerTexture("GBuffer MaterialProps", GBufferCapture::materialPropsTextureId);
         GlueOutlineRenderers.registerOutlineRenderers();
 
         DrawSelectionEvents.BLOCK.register(BlockRenderer::drawBlockOutline);
@@ -53,17 +47,10 @@ public class GlueClient implements ClientModInitializer {
 
         DeferredDrawQueue.INSTANCE.register();
 
-        WorldRenderEvents.START.register(ctx -> {
-            RenderCompat.resetFrameCache();
-            TerrainMaterialBuffer.beginFrame();
-            GBufferCapture.beginFrame();
-        });
-        RenderEvents.POST_WORLD_RENDER.register(RenderEvents.PHASE_CAPTURE, GBufferCapture::endWorldPhase);
+        WorldRenderEvents.START.register(ctx -> RenderCompat.resetFrameCache());
         RaycastUtils.register();
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
-            TerrainMaterialBuffer.cleanup();
-            GBufferCapture.cleanup();
             ShaderContext.get().cleanup();
         });
 

@@ -1,7 +1,6 @@
 package fr.lacaleche.glue.testmod;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import fr.lacaleche.glue.testmod.lumos.DemoLights;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import fr.lacaleche.glue.testmod.scene.SceneDemos;
@@ -11,14 +10,13 @@ import net.minecraft.client.Minecraft;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 
-/** Client-thread controls for lighting, post effects and scene previews. */
+/** Client-thread controls for post effects and scene previews. */
 final class ShowcaseCommands {
 
     private ShowcaseCommands() {
     }
 
     static void register() {
-        DemoLights lights = DemoLights.INSTANCE;
         TestPostShaderHandler effects = TestPostShaderHandler.INSTANCE;
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) -> dispatcher.register(
                 literal("showcase")
@@ -27,11 +25,6 @@ final class ShowcaseCommands {
                                 .then(scene("orbit", SceneDemos::openOrbit))
                                 .then(scene("fps", SceneDemos::openFps))
                                 .then(scene("gizmo", SceneDemos::openGizmo)))
-                        .then(literal("lights")
-                                .then(action("flashlight", lights::toggleFlashlight))
-                                .then(action("ring", lights::toggleStaticLights))
-                                .then(action("spot", lights::spawnSpot))
-                                .then(action("clear", () -> lights.clear(Minecraft.getInstance().level))))
                         .then(literal("effects")
                                 .then(action("blur", () -> effects.toggleByHandle(TestShaders.BLUR)))
                                 .then(action("grayscale", () -> effects.toggleByHandle(TestShaders.GRAYSCALE)))

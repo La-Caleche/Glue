@@ -12,5 +12,5 @@ profiles do not require one.
 Run a shader scenario with:
 
 ```powershell
-.\gradlew.bat :glue-showcase:clientTestIris --tests iris-hud
+.\gradlew.bat :glue-showcase:clientTestIris --tests viewport-sky
 ```

@@ -1,6 +1,5 @@
 package fr.lacaleche.glue.testmod;
 
-import fr.lacaleche.glue.lumos.server.PersistentLights;
 import fr.lacaleche.glue.testmod.registries.TestBlockEntities;
 import fr.lacaleche.glue.testmod.registries.TestBlocks;
 import fr.lacaleche.glue.testmod.registries.TestDataComponents;
@@ -14,10 +13,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The showcase's both-sides initializer. Registers everything that lives in synced registries
  * (blocks, items, data components, block entities, creative tab) so the demo content exists on
- * dedicated servers too, and opens the Lumos client request channel &mdash; closed by default
- * &mdash; to operators at permission level 4 for placing, editing, and removing world lights.
- * Every request is still validated server-side
- * (well-formed, near the player, dimension cap).
+ * dedicated servers too.
  */
 public class Testmod implements ModInitializer {
 
@@ -37,7 +33,5 @@ public class Testmod implements ModInitializer {
         TestDataComponents.registerDataComponents();
         TestBlockEntities.registerBlockEntities();
         TestItemGroups.registerItemGroups();
-
-        PersistentLights.allowClientRequests(PersistentLights.OPERATORS);
     }
 }

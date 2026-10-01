@@ -18,9 +18,7 @@
         "java": ">=21",
         "fabric-api": "*",
         "glue": "${version}",
-        "glue-lumos": "${version}",
         "glue-render": "${version}",
-        "glue-lumos-client": "${version}",
         "glue-web": "${version}"
     }
 }

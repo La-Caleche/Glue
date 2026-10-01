@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
  * overload, so entities that pass their own type to the constructor need no self-referential
  * supplier. The outline and spinning blocks share the stateless
  * {@link fr.lacaleche.glue.testmod.blocks.demo.TickingBlockEntity}; the shader block
- * (cycling index) and the additive-sprite block (light handle) keep their own stateful entities.
+ * (cycling index) and the additive-sprite block (sprite animation) keep their own entities.
  */
 public class TestBlockEntities {
 

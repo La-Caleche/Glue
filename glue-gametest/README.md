@@ -110,7 +110,7 @@ Optional-mod variants have named tasks:
 
 ```powershell
 .\gradlew.bat :glue-showcase:clientTestSodium --tests inventory
-.\gradlew.bat :glue-showcase:clientTestIris --tests iris-hud
+.\gradlew.bat :glue-showcase:clientTestIris --tests viewport-sky
 ```
 
 `clientTest` has neither Iris nor Sodium. The other tasks add only their declared rendering stack.
@@ -128,7 +128,7 @@ from a fixture and public static nested classes are supported. Fabric needs a pu
 constructor; invalid implementations are diagnosed at compilation.
 
 Default short names are kebab-case, stripping a final `ClientTest`, `GameTest` or `Test`:
-`InventoryClientTest` becomes `inventory`, and nested `IrisHud` becomes `iris-hud`.
+`InventoryClientTest` becomes `inventory`, and nested `ViewportSky` becomes `viewport-sky`.
 An optional `@ClientTestSpec("web-bundles")` keeps a custom short name next to its class.
 Short names use lowercase letters/digits and `_.:-`; `auto` and `all` are reserved selectors.
 
@@ -205,14 +205,13 @@ screen cleanup. `WebTestPage` shares DOM queries, input and asynchronous waits b
 and scene tests. It stays in the showcase test sources so this library does not acquire a dependency
 on Glue Web. There is no parallel execution engine or string-based tool registry.
 
-Rendering tests build a reproducible arena instead of modifying an existing world. Lumos smoke and
-albedo tests create server-owned, synchronized lights. `spot-perf` still records the three FPS
-samples, but labels them as controlled Fabric measurements rather than a free-running benchmark.
+Rendering tests build a reproducible arena instead of modifying an existing world. The Lumos
+scenarios left with Lumos for its own repository, where they run on these helpers.
 
 ### Verification notes
 
 The inventory, scenes, bundles, startup indicator, full web and viewport scenarios have passed in
-a real Windows client without Iris/Sodium. The five shader scenarios have also passed with
+a real Windows client without Iris/Sodium. The five shader scenarios, since moved to Lumos, had also passed with
 Complementary Unbound 5.7.1 + Euphoria Patches 1.8.6, exercising actual shader toggles and rendered
 frame waits. Captures are diagnostic evidence; these scenarios do not claim pixel-golden validation.
 

@@ -16,7 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
  *
  * <p>Blocks that need real state extend this class rather than restate the
  * clock — see {@link TestShaderBlockEntity} (cycling shader index) and
- * {@link TestAdditiveSpriteBlockEntity} (attached Lumos light).</p>
+ * {@link TestAdditiveSpriteBlockEntity} (sprite animation).</p>
  */
 public class TickingBlockEntity extends BlockEntity {
 

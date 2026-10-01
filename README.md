@@ -1,8 +1,9 @@
 # Glue
 
 Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
-provides typed registries, rendering pipelines and post effects, Lumos deferred colored lighting,
-native dialogs, Chromium web surfaces, and Fabric client GameTest helpers.
+provides typed registries, rendering pipelines and post effects, native dialogs, Chromium web
+surfaces, and Fabric client GameTest helpers. Colored dynamic lighting lives in
+[Lumos](https://gitlab.lacaleche.cc/loccamy/java/lumos), a separate mod built on Glue.
 
 - [Documentation](https://gitlab.lacaleche.cc/loccamy/java/glue-docs), maintained in the separate `glue-docs` repository
 - [Getting started](https://gitlab.lacaleche.cc/loccamy/java/glue-docs/-/blob/main/src/content/docs/getting-started.md)
@@ -17,28 +18,26 @@ separate Fabric mod.
 |---|---|---|---|---|
 | `glue-core` | `glue` | both | - | Registries, packets/codecs, data components, math, shapes, and history. |
 | `glue-render` | `glue-render` | client | `glue-core` | Pipelines, post effects, materials, outlines, scenes, compatibility, and native dialogs. |
-| `glue-lumos` | `glue-lumos` | both | `glue-core` | Light model, synchronization, and persistence. |
-| `glue-lumos-client` | `glue-lumos-client` | client | `glue-core`, `glue-render`, `glue-lumos` | Deferred colored-light rendering and shadows. |
 | `glue-web` | `glue-web` | client | - | Web screens, HUDs, overlays and widgets with Java actions and native slots. |
 | `glue-gametest` | `glue-gametest` | client, development | - | Fabric client GameTest helpers: UI input, assertions, async waits and Iris. |
-| `glue-dist` | `glue-dist` | both | nests four library modules | One jar for players; see below. Not published to Maven. |
+| `glue-dist` | `glue-dist` | both | nests `glue-core` and `glue-render` | One jar for players; see below. Not published to Maven. |
 | `glue-showcase` | `glue-showcase` | both, development | all modules | Runnable demos and integration scenarios. |
 
-The six library artifacts are published. `glue-showcase` is built as a development artifact but is
+The four library artifacts are published. `glue-showcase` is built as a development artifact but is
 not published by release CI. Fabric API is required; Iris and Sodium integrations are optional and
 runtime-guarded. Packages named `internal` are not supported API.
 
 ## What a player installs
 
-Two files, not six. `glue-<version>.jar` carries `glue-core`, `glue-render`, `glue-lumos` and
-`glue-lumos-client` as nested mods: Fabric loads each one as if it had been installed on its own, so a
-dedicated server still skips the client half of Lumos. `glue-web-<version>.jar` stays on its own,
+Two files, not four. `glue-<version>.jar` carries `glue-core` and `glue-render` as nested mods:
+Fabric loads each one as if it had been installed on its own, so a dedicated server still skips the
+client-only `glue-render`. `glue-web-<version>.jar` stays on its own,
 because it is 3.6 MB of Chromium installer against 550 KB for everything else, and nothing in the
 suite depends on it.
 
 | File | Holds | For |
 |---|---|---|
-| `glue-<version>.jar` | `glue`, `glue-render`, `glue-lumos`, `glue-lumos-client` | Every mod built on Glue |
+| `glue-<version>.jar` | `glue`, `glue-render` | Every mod built on Glue |
 | `glue-web-<version>.jar` | `glue-web` | Mods that host web interfaces |
 | `glue-gametest-<version>.jar` | `glue-gametest` | Development only; never ship it |
 
@@ -72,8 +71,6 @@ dependencies {
     modImplementation("fr.lacaleche.glue:glue-core:<version>")
 
     modImplementation("fr.lacaleche.glue:glue-render:<version>")
-    modImplementation("fr.lacaleche.glue:glue-lumos:<version>")
-    modImplementation("fr.lacaleche.glue:glue-lumos-client:<version>")
     modImplementation("fr.lacaleche.glue:glue-web:<version>")
 }
 ```
@@ -111,7 +108,7 @@ from `REPOSILITE_TOKEN_NAME` / `REPOSILITE_TOKEN_SECRET`, or from
 
 </details>
 
-- `libraryJars` writes the six remapped library jars to `build/libs/`.
+- `libraryJars` writes the four remapped library jars to `build/libs/`.
 - `remapJar` also builds the showcase jar.
 - `check` runs unit tests and static analysis; CI also builds the remapped jars. Live client tests
   are explicit `clientTest` tasks.
@@ -147,6 +144,6 @@ tasks remain independent of frontend tooling. See the [Glue Web guide](https://g
 ## Release
 
 `app.version` in `gradle.properties` is the release version. A pushed tag triggers CI publication of
-the six library modules and stores the remapped showcase jar as an artifact. Before tagging, verify
+the four library modules and stores the remapped showcase jar as an artifact. Before tagging, verify
 that the tag name exactly matches `app.version`; use an annotated, unprefixed tag to match existing
 releases. Tag `glue-docs` with the same version to publish the matching documentation.
