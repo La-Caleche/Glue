@@ -34,6 +34,11 @@ loom {
 }
 
 fabricApi {
+    // Writes src/main/generated, which joins the resources; the block shapes come from here.
+    configureDataGeneration {
+        modId.set("glue-showcase")
+    }
+
     configureTests {
         createSourceSet.set(true)
         modId.set("glue-showcase-tests")

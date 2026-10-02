@@ -1,0 +1,106 @@
+{
+  "shapes": [
+    [
+      "2 0 0 14 4 16",
+      "2 4 10 14 14 16"
+    ],
+    [
+      "3 3 10 13 13 16",
+      "5 5 0 11 11 10"
+    ],
+    [
+      "5 0 0 11 16 16",
+      "3 2 0 5 14 16",
+      "11 2 0 13 14 16"
+    ],
+    [
+      "2 2 0 14 14 3",
+      "2 2 13 14 14 16",
+      "5 5 3 11 11 13"
+    ],
+    [
+      "2 0 0 14 4 16",
+      "2 4 0 14 14 6"
+    ],
+    [
+      "3 3 0 13 13 6",
+      "5 5 6 11 11 16"
+    ],
+    [
+      "0 0 2 16 4 14",
+      "10 4 2 16 14 14"
+    ],
+    [
+      "10 3 3 16 13 13",
+      "0 5 5 10 11 11"
+    ],
+    [
+      "0 0 5 16 16 11",
+      "0 2 3 16 14 5",
+      "0 2 11 16 14 13"
+    ],
+    [
+      "0 2 2 3 14 14",
+      "13 2 2 16 14 14",
+      "3 5 5 13 11 11"
+    ],
+    [
+      "0 0 2 16 4 14",
+      "0 4 2 6 14 14"
+    ],
+    [
+      "0 3 3 6 13 13",
+      "6 5 5 16 11 11"
+    ]
+  ],
+  "states": {
+    "facing=east,mode=0": {
+      "outline": 10
+    },
+    "facing=east,mode=1": {
+      "outline": 11
+    },
+    "facing=east,mode=2": {
+      "outline": 8
+    },
+    "facing=east,mode=3": {
+      "outline": 9
+    },
+    "facing=north,mode=0": {
+      "outline": 0
+    },
+    "facing=north,mode=1": {
+      "outline": 1
+    },
+    "facing=north,mode=2": {
+      "outline": 2
+    },
+    "facing=north,mode=3": {
+      "outline": 3
+    },
+    "facing=south,mode=0": {
+      "outline": 4
+    },
+    "facing=south,mode=1": {
+      "outline": 5
+    },
+    "facing=south,mode=2": {
+      "outline": 2
+    },
+    "facing=south,mode=3": {
+      "outline": 3
+    },
+    "facing=west,mode=0": {
+      "outline": 6
+    },
+    "facing=west,mode=1": {
+      "outline": 7
+    },
+    "facing=west,mode=2": {
+      "outline": 8
+    },
+    "facing=west,mode=3": {
+      "outline": 9
+    }
+  }
+}

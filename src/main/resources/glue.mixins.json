@@ -9,6 +9,7 @@
     "conformVisibility": true
   },
   "mixins": [
+    "BlockBehaviourMixin",
     "VoxelShapeMixin"
   ]
 }
