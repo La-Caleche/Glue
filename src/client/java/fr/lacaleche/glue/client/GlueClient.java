@@ -8,6 +8,7 @@ import fr.lacaleche.glue.client.events.ParticleManagerEvents;
 import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.BlockRenderer;
+import fr.lacaleche.glue.client.render.composite.CompositeBlockModel;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.client.shader.internal.DeferredDrawQueue;
@@ -17,16 +18,19 @@ import fr.lacaleche.glue.client.shader.pipeline.PipelineDefinitionLoader;
 import fr.lacaleche.glue.client.render.outline.OutlineDefinitionLoader;
 import fr.lacaleche.glue.client.utils.RaycastUtils;
 import fr.lacaleche.glue.compat.RenderCompat;
+import fr.lacaleche.glue.composite.CompositeCells;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.world.level.block.state.BlockState;
 import org.lwjgl.glfw.GLFW;
 
 public class GlueClient implements ClientModInitializer {
@@ -46,6 +50,11 @@ public class GlueClient implements ClientModInitializer {
         ParticleManagerEvents.BLOCK_BREAK.register(BlockRenderer::getBreakParticleShape);
 
         DeferredDrawQueue.INSTANCE.register();
+
+        ModelLoadingPlugin.register(context -> context.registerBlockStateResolver(CompositeCells.BLOCK, resolver -> {
+            CompositeBlockModel.Unbaked model = new CompositeBlockModel.Unbaked();
+            for (BlockState state : resolver.block().getStateDefinition().getPossibleStates()) resolver.setModel(state, model);
+        }));
 
         WorldRenderEvents.START.register(ctx -> RenderCompat.resetFrameCache());
         RaycastUtils.register();
