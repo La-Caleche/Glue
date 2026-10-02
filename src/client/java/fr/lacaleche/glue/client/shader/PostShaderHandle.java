@@ -8,7 +8,7 @@ import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fr.lacaleche.glue.client.mixin.shader.post.PostChainAccessor;
 import fr.lacaleche.glue.client.mixin.shader.post.PostPassAccessor;
-import fr.lacaleche.glue.client.render.internal.gl.SavedGlState;
+import fr.lacaleche.glue.client.render.gl.SavedGlState;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
@@ -98,18 +98,18 @@ public record PostShaderHandle(ResourceLocation id, Set<ResourceLocation> extern
         SavedGlState state = SavedGlState.save();
         try {
             int mainFbo = FramebufferHelper.getFramebufferId(target);
-            boolean needsBlit = RenderCompat.isIrisShaderEnabled() && mainFbo >= 0 && mainFbo != state.fbo();
+            boolean needsBlit = RenderCompat.isIrisShaderEnabled() && mainFbo >= 0 && mainFbo != state.drawFramebuffer();
             int w = target.width;
             int h = target.height;
 
             if (needsBlit) {
-                blitFramebuffer(state.fbo(), mainFbo, w, h);
+                blitFramebuffer(state.drawFramebuffer(), mainFbo, w, h);
             }
 
             RenderCompat.withIrisBypass(() -> chain.process(target, resourceAllocator));
 
             if (needsBlit) {
-                blitFramebuffer(mainFbo, state.fbo(), w, h);
+                blitFramebuffer(mainFbo, state.drawFramebuffer(), w, h);
             }
         } finally {
             state.restore();

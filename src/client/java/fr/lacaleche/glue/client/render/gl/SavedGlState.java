@@ -1,57 +1,127 @@
-package fr.lacaleche.glue.client.render.internal.gl;
+package fr.lacaleche.glue.client.render.gl;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
-import fr.lacaleche.glue.client.shader.internal.GlDirectRenderer;
-
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.lwjgl.opengl.*;
 
 /**
- * Captures and restores a comprehensive snapshot of the OpenGL state
- * that Glue's shader operations may modify.
+ * A snapshot of the OpenGL state a raw GL pass may touch, restored afterwards.
  *
- * <p>Used by {@link GlDirectRenderer} and
- * {@link fr.lacaleche.glue.client.shader.PostShaderHandle PostShaderHandle}
- * to guarantee clean state around low-level GL calls.</p>
+ * <p>Minecraft caches GL state on the CPU side and skips calls it believes redundant, so a pass that
+ * calls GL directly must leave the context, and that cache, as it found them. Wrap the pass:</p>
+ *
+ * <pre>{@code
+ * SavedGlState saved = SavedGlState.save();
+ * try {
+ *     // bind, draw
+ * } finally {
+ *     saved.restore();
+ * }
+ * }</pre>
+ *
+ * <p>The snapshot covers the program, read and draw framebuffers and draw buffers, read buffer,
+ * vertex array and array buffer, blend, depth, cull, scissor, colour mask, viewport, clear colour,
+ * the active texture unit and the 2D texture bound on units 0 to 12. Anything else a pass changes, it
+ * restores itself. Save and restore on the render thread, around the pass only.</p>
  */
 @Environment(EnvType.CLIENT)
-public record SavedGlState(
-        int program, int drawFbo, int readFbo, int[] drawBuffers, int readBuffer,
-        int vao, int arrayBuffer,
-        boolean blend, int blendSrcRgb, int blendDstRgb, int blendSrcAlpha, int blendDstAlpha,
-        int blendEquationRgb, int blendEquationAlpha,
-        boolean depth, boolean depthWrite, int depthFunc,
-        boolean cull,
-        boolean scissor,
-        boolean colorRed, boolean colorGreen, boolean colorBlue, boolean colorAlpha,
-        int activeTexture,
-        int[] viewport, int[] scissorBox, float[] clearColor,
-        int[] textures
-) {
+public final class SavedGlState {
+
     /**
-     * Number of texture units saved and restored, covering units 0..12 — the full range Glue's
-     * passes bind (the deferred light pass reaches unit 12, {@code MaterialProps}). Vanilla and
-     * Sodium rebind their samplers unconditionally, so this is defence for consumer mods and
-     * Iris, which may leave a high unit active across a Glue pass.
+     * Number of texture units saved and restored, covering units 0..12, enough for passes that bind
+     * up to unit 12. Vanilla and Sodium rebind their samplers unconditionally, so this is defence
+     * for consumer mods and Iris, which may leave a high unit active across a pass.
      */
     private static final int TEXTURE_UNITS = 13;
 
     /**
      * How many texture units {@link GlStateManager} mirrors in its redundancy cache (indices
-     * 0..11). Higher units exist at the GL level and Glue binds one &mdash; {@code MaterialProps}
-     * at unit 12 &mdash; but the manager's texture-state array has exactly this many slots, so
-     * binding a higher unit <em>through</em> it indexes past the array
+     * 0..11). Higher units exist at the GL level, but the manager's texture-state array has exactly
+     * this many slots, so binding a higher unit <em>through</em> it indexes past the array
      * ({@link ArrayIndexOutOfBoundsException}). {@link #restore()} routes those units through raw
      * GL instead, where there is no cache to keep truthful anyway.
      */
     private static final int MANAGED_TEXTURE_UNITS = 12;
 
-    /** Compatibility accessor for operations that use one combined framebuffer binding. */
-    public int fbo() {
-        return drawFbo;
+    private final int program;
+    private final int drawFbo;
+    private final int readFbo;
+    private final int[] drawBuffers;
+    private final int readBuffer;
+    private final int vao;
+    private final int arrayBuffer;
+    private final boolean blend;
+    private final int blendSrcRgb;
+    private final int blendDstRgb;
+    private final int blendSrcAlpha;
+    private final int blendDstAlpha;
+    private final int blendEquationRgb;
+    private final int blendEquationAlpha;
+    private final boolean depth;
+    private final boolean depthWrite;
+    private final int depthFunc;
+    private final boolean cull;
+    private final boolean scissor;
+    private final boolean colorRed;
+    private final boolean colorGreen;
+    private final boolean colorBlue;
+    private final boolean colorAlpha;
+    private final int activeTexture;
+    private final int[] viewport;
+    private final int[] scissorBox;
+    private final float[] clearColor;
+    private final int[] textures;
+
+    private SavedGlState(
+            int program, int drawFbo, int readFbo, int[] drawBuffers, int readBuffer,
+            int vao, int arrayBuffer,
+            boolean blend, int blendSrcRgb, int blendDstRgb, int blendSrcAlpha, int blendDstAlpha,
+            int blendEquationRgb, int blendEquationAlpha,
+            boolean depth, boolean depthWrite, int depthFunc,
+            boolean cull,
+            boolean scissor,
+            boolean colorRed, boolean colorGreen, boolean colorBlue, boolean colorAlpha,
+            int activeTexture,
+            int[] viewport, int[] scissorBox, float[] clearColor,
+            int[] textures
+    ) {
+        this.program = program;
+        this.drawFbo = drawFbo;
+        this.readFbo = readFbo;
+        this.drawBuffers = drawBuffers;
+        this.readBuffer = readBuffer;
+        this.vao = vao;
+        this.arrayBuffer = arrayBuffer;
+        this.blend = blend;
+        this.blendSrcRgb = blendSrcRgb;
+        this.blendDstRgb = blendDstRgb;
+        this.blendSrcAlpha = blendSrcAlpha;
+        this.blendDstAlpha = blendDstAlpha;
+        this.blendEquationRgb = blendEquationRgb;
+        this.blendEquationAlpha = blendEquationAlpha;
+        this.depth = depth;
+        this.depthWrite = depthWrite;
+        this.depthFunc = depthFunc;
+        this.cull = cull;
+        this.scissor = scissor;
+        this.colorRed = colorRed;
+        this.colorGreen = colorGreen;
+        this.colorBlue = colorBlue;
+        this.colorAlpha = colorAlpha;
+        this.activeTexture = activeTexture;
+        this.viewport = viewport;
+        this.scissorBox = scissorBox;
+        this.clearColor = clearColor;
+        this.textures = textures;
     }
 
+    /** The draw framebuffer bound when the snapshot was taken. */
+    public int drawFramebuffer() {
+        return this.drawFbo;
+    }
+
+    /** Captures the current state. Call on the render thread, right before the pass. */
     public static SavedGlState save() {
         int[] vp = new int[4];
         GL11.glGetIntegerv(GL11.GL_VIEWPORT, vp);
@@ -101,12 +171,12 @@ public record SavedGlState(
     /**
      * Restores the snapshot <em>and</em> keeps Blaze3D's CPU-side state cache truthful.
      *
-     * <p>Draws issued through vanilla pipelines between {@link #save()} and here (light-POV
-     * re-renders, shadow bakes) update {@link GlStateManager}'s redundancy cache. Restoring the
-     * cached states with raw GL would leave that cache describing the pass's final state while
-     * the context holds the saved one; the next pipeline application then skips "already set"
-     * state and renders with the wrong one. Symptom of exactly that: the GUI's cached item-icon
-     * pre-renders coming out black for every icon first drawn after a Lumos Iris-mode frame.</p>
+     * <p>Draws issued through vanilla pipelines between {@link #save()} and here (re-renders from
+     * another point of view, shadow bakes) update {@link GlStateManager}'s redundancy cache.
+     * Restoring the cached states with raw GL would leave that cache describing the pass's final
+     * state while the context holds the saved one; the next pipeline application then skips
+     * "already set" state and renders with the wrong one. Symptom of exactly that: the GUI's cached
+     * item-icon pre-renders coming out black for every icon first drawn after such a pass.</p>
      *
      * <p>So every state {@code GlStateManager} caches (depth, blend enable/function, cull,
      * scissor enable, colour mask, active texture, per-unit 2D bindings, read/draw framebuffer
