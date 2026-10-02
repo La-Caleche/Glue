@@ -7,6 +7,10 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContex
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.BooleanOp;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.time.Duration;
 import java.util.function.Predicate;
@@ -67,5 +71,21 @@ public abstract class WorldClientTest implements FabricClientGameTest {
 
     protected static void require(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
+    }
+
+    /**
+     * The shapes enclose the same volume, give or take float rounding: a model's coordinates off the
+     * binary grid land a few ulps apart once turned.
+     */
+    protected static void requireSame(String what, VoxelShape expected, VoxelShape actual) {
+        double difference = volume(Shapes.join(expected, actual, BooleanOp.NOT_SAME));
+        require(difference < 1e-6, what + " differs by " + difference + ": it is " + actual.toAabbs()
+                + ", expected " + expected.toAabbs());
+    }
+
+    protected static double volume(VoxelShape shape) {
+        double volume = 0;
+        for (AABB box : shape.toAabbs()) volume += box.getXsize() * box.getYsize() * box.getZsize();
+        return volume;
     }
 }

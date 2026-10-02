@@ -33,5 +33,6 @@ public class Testmod implements ModInitializer {
         TestDataComponents.registerDataComponents();
         TestBlockEntities.registerBlockEntities();
         TestItemGroups.registerItemGroups();
+        CompositeCommands.register();
     }
 }

@@ -159,22 +159,6 @@ public final class ShapesClientTest extends WorldClientTest {
         }
     }
 
-    /**
-     * The shapes enclose the same volume, give or take float rounding: a model's coordinates off the
-     * binary grid land a few ulps apart once turned.
-     */
-    private static void requireSame(String what, VoxelShape expected, VoxelShape actual) {
-        double difference = volume(Shapes.join(expected, actual, BooleanOp.NOT_SAME));
-        require(difference < 1e-6, what + " differs by " + difference + ": it is " + actual.toAabbs()
-                + ", expected " + expected.toAabbs());
-    }
-
-    private static double volume(VoxelShape shape) {
-        double volume = 0;
-        for (AABB box : shape.toAabbs()) volume += box.getXsize() * box.getYsize() * box.getZsize();
-        return volume;
-    }
-
     private record Placed(BlockPos pos, BlockState state, int mode, Direction facing) {
     }
 }
