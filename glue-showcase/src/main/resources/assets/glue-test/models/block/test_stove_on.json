@@ -1,0 +1,11 @@
+{
+  "parent": "glue-test:block/template_stove_on",
+  "textures": {
+    "layer0": "glue-test:block/stove/kettle",
+    "layer1": "glue-test:block/stove/wood_stove_door",
+    "lit_log": "minecraft:block/campfire_log",
+    "particle": "minecraft:block/blast_furnace_top",
+    "texture": "glue-test:block/stove/wood_stove_main",
+    "fire": "minecraft:block/fire_0"
+  }
+}

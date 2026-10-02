@@ -23,6 +23,10 @@ public class TestItems {
             new Item.Properties());
     public static final Item TEST_SHAPE_BLOCK = REGISTRY.register(TestBlocks.TEST_SHAPE_BLOCK,
             new Item.Properties());
+    public static final Item TEST_CHAIR_BLOCK = REGISTRY.register(TestBlocks.TEST_CHAIR_BLOCK,
+            new Item.Properties());
+    public static final Item TEST_STOVE_BLOCK = REGISTRY.register(TestBlocks.TEST_STOVE_BLOCK,
+            new Item.Properties());
 
     public static final Item TEST_COMPONENT_ITEM = REGISTRY.register("test_component",
             TestComponentItem::new, new Item.Properties());

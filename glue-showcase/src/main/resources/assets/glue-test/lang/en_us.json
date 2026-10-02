@@ -5,6 +5,8 @@
   "block.glue-test.test_shader": "Shader Test Block",
   "block.glue-test.test_additive_sprite": "Additive Sprite Block",
   "block.glue-test.test_shape": "Shape Test Block",
+  "block.glue-test.test_chair": "Chair Test Block (Occamod)",
+  "block.glue-test.test_stove": "Stove Test Block (Occamod)",
   "item.glue-test.test_component": "Transform Preset Tool",
   "item.glue-test.test_component.selected": "Transform preset: %s",
   "item.glue-test.test_component.preset.0": "Identity",
