@@ -32,6 +32,4 @@ plugins {
 
 rootProject.name = "glue"
 
-val modules = listOf("core", "render", "gametest", "dist", "showcase")
-
-modules.forEach { include("glue-$it") }
+include("glue-gametest", "glue-showcase")

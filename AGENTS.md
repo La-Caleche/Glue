@@ -30,25 +30,23 @@ Fabric Loom, and the in-house `fr.lacaleche.caldle` plugin.
 - Version source: `app.version` in `gradle.properties`
 - Public documentation: the separate [`glue-docs`](https://gitlab.lacaleche.cc/loccamy/java/glue-docs) repository
 - Runnable examples and integration tests: [`glue-showcase/`](glue-showcase/README.md)
-- Remapped output: `build/libs/` at the repository root; the player jar from `glue-dist` in `build/dist/`
+- Remapped output: `build/libs/` at the repository root; `glue-<version>.jar` is also the player jar
 
 Glue is a library. Public behavior and supported APIs are what `glue-docs` documents; packages named
 `internal` are implementation details.
 
-## Modules
+## Projects
 
-| Module | Mod id | Environment | Direct Glue dependencies | Responsibility |
+| Project | Mod id | Environment | Direct Glue dependencies | Responsibility |
 |---|---|---|---|---|
-| `glue-core` | `glue` | both | none | Shared registries, packets/codecs, math, shapes, and history. |
-| `glue-render` | `glue-render` | client | `glue-core` | Pipelines, post effects, materials, outlines, scenes, render events, compatibility, and native dialogs. |
+| root (`glue`) | `glue` | both | none | `src/main`: shared registries, packets/codecs, math, shapes, and history. `src/client`: pipelines, post effects, materials, outlines, scenes, render events, compatibility, native dialogs, and key bindings. |
 | `glue-gametest` | `glue-gametest` | client, development | none | Fabric client GameTest helpers: UI input, assertions, async waits and Iris. |
-| `glue-dist` | `glue-dist` | both | nests `glue-core` and `glue-render` | No code: one jar for players, holding `glue-core` and `glue-render`; not published to Maven. |
-| `glue-showcase` | `glue-showcase` | both, development | all library modules (`glue-gametest` only in tests) | Run configurations, demos, and Fabric scenarios under `src/test/e2e`; not published by release CI. |
+| `glue-showcase` | `glue-showcase` | both, development | `glue` (`glue-gametest` only in tests) | Run configurations, demos, and Fabric scenarios under `src/test/e2e`; not published by release CI. |
 
-Keep environment boundaries explicit. Shared models belong in both-side modules; rendering and UI
-implementations belong in client modules. `glue-core` contains the legacy client-only
-`KeybindingsRegistry`; do not expand that exception. No library module may depend on
-`glue-showcase`.
+Keep environment boundaries explicit. Loom's split source sets enforce them: `src/main` cannot see
+client classes, so shared models belong there and rendering and UI implementations in `src/client`.
+Client mixins are declared in `glue.client.mixins.json`, which loads only on the client. Unit tests
+see both source sets. No published project may depend on `glue-showcase`.
 
 ## Engineering Rules
 
@@ -87,7 +85,7 @@ Use the narrowest useful command while iterating, then verify affected dependent
 changes.
 
 ```shell
-./gradlew compileJava
+./gradlew compileJava compileClientJava
 ./gradlew test
 ./gradlew libraryJars
 ./gradlew :glue-showcase:runClient
@@ -98,7 +96,7 @@ changes.
 <summary>PowerShell</summary>
 
 ```powershell
-.\gradlew.bat compileJava
+.\gradlew.bat compileJava compileClientJava
 .\gradlew.bat test
 .\gradlew.bat libraryJars
 .\gradlew.bat :glue-showcase:runClient

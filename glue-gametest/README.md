@@ -4,7 +4,7 @@
 Tests implement `FabricClientGameTest`; Fabric owns discovery, the test thread, ticks, client/server
 dispatch, worlds and screenshots. Glue adds compile-time test discovery, input-driven container
 interactions, retrying assertions, asynchronous waits and scoped Iris toggles. The module is a development dependency,
-with no dependency on another Glue module.
+with no dependency on Glue itself.
 
 ## Write a test
 
