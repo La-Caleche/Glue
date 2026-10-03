@@ -9,6 +9,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.joml.Matrix4f;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -122,11 +123,12 @@ class ShapeGeometryTest {
                 .rotated(new GeometryBox.Rotation(new Vec3(0.5, 0, 0.5), Direction.Axis.Y, 45, false));
         ShapeGeometry geometry = ShapeGeometry.of(plank);
 
-        Optional<Vec3> centre = geometry.clip(new Matrix4f(), new Vec3(0.5, 1, 0.5), new Vec3(0.5, -1, 0.5));
-        Optional<Vec3> unrotatedCorner = geometry.clip(new Matrix4f(), new Vec3(0.74, 1, 0.74), new Vec3(0.74, -1, 0.74));
+        Optional<GeometryHit> centre = geometry.clip(new Matrix4f(), new Vec3(0.5, 1, 0.5), new Vec3(0.5, -1, 0.5));
+        Optional<GeometryHit> unrotatedCorner = geometry.clip(new Matrix4f(), new Vec3(0.74, 1, 0.74), new Vec3(0.74, -1, 0.74));
 
         assertTrue(centre.isPresent());
-        assertEquals(2 / 16d, centre.get().y, 1e-5);
+        assertEquals(2 / 16d, centre.get().location().y, 1e-5);
+        assertEquals(Direction.UP, centre.get().face());
         assertTrue(unrotatedCorner.isEmpty(), "the unrotated box's corner is not part of the element");
     }
 
@@ -134,10 +136,50 @@ class ShapeGeometryTest {
     void clipReturnsTheNearestBox() {
         ShapeGeometry geometry = ShapeGeometry.of(SHELF, BACK_WALL);
 
-        Optional<Vec3> hit = geometry.clip(new Matrix4f(), new Vec3(0.5, 0.5, -1), new Vec3(0.5, 0.5, 2));
+        Optional<GeometryHit> hit = geometry.clip(new Matrix4f(), new Vec3(0.5, 0.5, -1), new Vec3(0.5, 0.5, 2));
 
         assertTrue(hit.isPresent());
-        assertEquals(10 / 16d, hit.get().z, 1e-5);
+        assertEquals(10 / 16d, hit.get().location().z, 1e-5);
+        assertEquals(Direction.NORTH, hit.get().face());
+    }
+
+    @Test
+    void clipTurnsTheHitFaceWithTheTransform() {
+        ShapeGeometry geometry = ShapeGeometry.of(BACK_WALL);
+        Matrix4f quarterTurn = ShapeGeometry.aboutCentre(new Matrix4f().rotationY((float) Math.toRadians(-90)));
+
+        Optional<GeometryHit> hit = geometry.clip(quarterTurn, new Vec3(-1, 0.5, 0.5), new Vec3(2, 0.5, 0.5));
+
+        assertTrue(hit.isPresent());
+        assertEquals(Direction.WEST, hit.get().face(), "the wall's south face turns west");
+        assertEquals(0, hit.get().location().x, 1e-5);
+    }
+
+    @Test
+    void placedGeometriesReportWhichOneIsHit() {
+        PlacedGeometry near = PlacedGeometry.of(ShapeGeometry.of(GeometryBox.pixels(0, 0, 0, 16, 16, 2)));
+        PlacedGeometry far = PlacedGeometry.of(ShapeGeometry.of(GeometryBox.pixels(0, 0, 14, 16, 16, 16)));
+
+        Optional<GeometryHit> hit = PlacedGeometry.clip(List.of(far, near), new Vec3(0.5, 0.5, -1), new Vec3(0.5, 0.5, 2));
+
+        assertTrue(hit.isPresent());
+        assertEquals(1, hit.get().placement());
+        assertEquals(new AABB(0, 0, 0, 1, 1, 1), PlacedGeometry.bounds(List.of(far, near)));
+    }
+
+    @Test
+    void alignedPartsGroupBoxesByTheirElementRotation() {
+        GeometryBox.Rotation turn = new GeometryBox.Rotation(new Vec3(0.5, 0, 0.5), Direction.Axis.Y, 22.5f, false);
+        ShapeGeometry geometry = ShapeGeometry.of(SHELF, BACK_WALL,
+                GeometryBox.pixels(6, 0, 6, 10, 2, 10).rotated(turn), GeometryBox.pixels(6, 2, 6, 10, 4, 10).rotated(turn));
+
+        List<ShapeGeometry.AlignedPart> parts = geometry.alignedParts();
+
+        assertEquals(2, parts.size());
+        assertSameShape(ShapeGeometry.of(SHELF, BACK_WALL).toShape(), parts.get(0).shape());
+        assertTrue(parts.get(0).matrix().equals(new Matrix4f(), 0f));
+        assertSameShape(Shapes.box(6 / 16d, 0, 6 / 16d, 10 / 16d, 4 / 16d, 10 / 16d), parts.get(1).shape());
+        assertTrue(parts.get(1).matrix().equals(turn.matrix(), 1e-6f));
     }
 
     @Test

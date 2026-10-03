@@ -205,16 +205,40 @@ class BlockShapeGenerationTest {
 
     @Test
     void shapesFileRoundTripsInPixels() {
+        GeometryBox turned = GeometryBox.pixels(4, 0, 4, 12, 2, 12)
+                .rotated(new GeometryBox.Rotation(new Vec3(0.5, 0, 0.5), Direction.Axis.Y, 22.5f, true));
         BlockShapesFile file = new BlockShapesFile(
                 List.of(List.of(new AABB(0.125, 0, 0, 0.875, 0.25, 1)), List.of(new AABB(-0.03125, 0, 0, 1, 0.5, 1.5))),
-                Map.of("facing=north", new BlockShapesFile.StateShapes(0, Optional.of(1)),
-                        "facing=south", new BlockShapesFile.StateShapes(0, Optional.empty())));
+                List.of(List.of(GeometryBox.pixels(2, 0, 0, 14, 4, 16), turned)),
+                Map.of("facing=north", new BlockShapesFile.StateShapes(0, Optional.of(1), List.of(new BlockShapesFile.PlacedModel(0, 0, 0, 0))),
+                        "facing=south", new BlockShapesFile.StateShapes(0, Optional.empty(), List.of(new BlockShapesFile.PlacedModel(0, 0, 180, 22.5f)))));
 
         JsonObject json = BlockShapesFile.CODEC.encodeStart(JsonOps.INSTANCE, file).getOrThrow().getAsJsonObject();
         BlockShapesFile decoded = BlockShapesFile.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
 
         assertEquals("2 0 0 14 4 16", json.getAsJsonArray("shapes").get(0).getAsJsonArray().get(0).getAsString());
+        assertEquals("4 0 4 12 2 12 y 22.5 8 0 8 rescale", json.getAsJsonArray("geometries").get(0).getAsJsonArray().get(1).getAsString());
         assertEquals(file, decoded);
+    }
+
+    @Test
+    void placedModelTurnsLikeItsBlockstateRotationThenItsTurn() {
+        BlockstateResolver.Placement placement = new BlockstateResolver.Placement(ResourceLocation.parse("test:block/a"), Quadrant.R90, Quadrant.R180);
+        Matrix4f expected = ShapeGeometry.aboutCentre(new Matrix4f().rotationY((float) Math.toRadians(-45)).mul(placement.rotation()));
+
+        Matrix4f transform = new BlockShapesFile.PlacedModel(0, 90, 180, 45).transform();
+
+        assertTrue(transform.equals(expected, 1e-6f), transform + " is not " + expected);
+    }
+
+    @Test
+    void zeroAngleElementStaysAligned() throws IOException {
+        writeModel("test", "block/flat", """
+                {"elements": [{"from": [0, 0, 0], "to": [16, 2, 16], "rotation": {"angle": 0, "axis": "y", "origin": [8, 8, 8]}}]}""");
+
+        ShapeGeometry geometry = new ModelSource(List.of(this.root)).geometry(ResourceLocation.parse("test:block/flat"));
+
+        assertNull(geometry.boxes().getFirst().rotation());
     }
 
     @Test

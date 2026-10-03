@@ -1,15 +1,24 @@
 package fr.lacaleche.glue.shaper;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.BooleanOp;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -73,30 +82,50 @@ public record ShapeGeometry(List<GeometryBox> boxes) {
     }
 
     /**
-     * The point where the segment from {@code from} to {@code to} first enters the transformed
-     * geometry, tested against the boxes themselves rather than a voxel approximation. The segment is
-     * in the geometry's own block-local space, not world coordinates: transforms are single
-     * precision.
+     * Where the segment from {@code from} to {@code to} first enters the transformed geometry,
+     * tested against the boxes themselves rather than a voxel approximation, with the block side the
+     * hit face points to the most. The segment is in the geometry's own block-local space, not world
+     * coordinates: transforms are single precision.
      */
-    public Optional<Vec3> clip(Matrix4fc transform, Vec3 from, Vec3 to) {
-        Vec3 nearest = null;
+    public Optional<GeometryHit> clip(Matrix4fc transform, Vec3 from, Vec3 to) {
+        GeometryHit nearest = null;
         double nearestDistance = Double.POSITIVE_INFINITY;
         for (GeometryBox box : this.boxes) {
             Matrix4f toWorld = new Matrix4f(transform).mul(box.matrix());
             if (Math.abs(toWorld.determinant()) < 1e-9f) continue;
 
             Matrix4f toLocal = new Matrix4f(toWorld).invert();
-            Optional<Vec3> hit = box.box().clip(transform(toLocal, from), transform(toLocal, to));
-            if (hit.isEmpty()) continue;
+            BlockHitResult hit = AABB.clip(List.of(box.box()), transform(toLocal, from), transform(toLocal, to), BlockPos.ZERO);
+            if (hit == null) continue;
 
-            Vec3 point = transform(toWorld, hit.get());
+            Vec3 point = transform(toWorld, hit.getLocation());
             double distance = point.distanceToSqr(from);
             if (distance < nearestDistance) {
-                nearest = point;
+                nearest = new GeometryHit(point, face(toWorld, hit.getDirection()), 0);
                 nearestDistance = distance;
             }
         }
         return Optional.ofNullable(nearest);
+    }
+
+    /**
+     * The geometry as axis-aligned shapes, each with the matrix that places it: the unrotated boxes
+     * together, then the boxes sharing each element rotation. Drawing each shape's edges through its
+     * matrix draws the geometry exactly, merged edges included.
+     */
+    public List<AlignedPart> alignedParts() {
+        Map<GeometryBox.Rotation, VoxelShape> rotated = new LinkedHashMap<>();
+        VoxelShape aligned = Shapes.empty();
+        for (GeometryBox box : this.boxes) {
+            VoxelShape shape = Shapes.create(box.box());
+            if (box.rotation() == null) aligned = Shapes.joinUnoptimized(aligned, shape, BooleanOp.OR);
+            else rotated.merge(box.rotation(), shape, (first, second) -> Shapes.joinUnoptimized(first, second, BooleanOp.OR));
+        }
+
+        List<AlignedPart> parts = new ArrayList<>();
+        if (!aligned.isEmpty()) parts.add(new AlignedPart(new Matrix4f(), aligned.optimize()));
+        rotated.forEach((rotation, shape) -> parts.add(new AlignedPart(rotation.matrix(), shape.optimize())));
+        return parts;
     }
 
     /** The bounds of the transformed geometry, or {@code null} when it has no boxes. */
@@ -109,8 +138,22 @@ public record ShapeGeometry(List<GeometryBox> boxes) {
         return bounds;
     }
 
+    private static Direction face(Matrix4fc toWorld, Direction localFace) {
+        Vector3f normal = toWorld.normal(new Matrix3f()).transform(new Vector3f(localFace.getUnitVec3f()));
+        return Direction.getApproximateNearest(normal.x, normal.y, normal.z);
+    }
+
     private static Vec3 transform(Matrix4fc matrix, Vec3 point) {
         Vector3f transformed = matrix.transformPosition((float) point.x, (float) point.y, (float) point.z, new Vector3f());
         return new Vec3(transformed.x, transformed.y, transformed.z);
+    }
+
+    /**
+     * Axis-aligned boxes and the matrix that places them in the geometry's space.
+     *
+     * @param matrix where the shape's boxes go: identity, or an element rotation
+     * @param shape  the boxes before that matrix
+     */
+    public record AlignedPart(Matrix4fc matrix, VoxelShape shape) {
     }
 }

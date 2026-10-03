@@ -81,7 +81,10 @@ final class ModelSource {
             Vec3 from = vector(object, "from", model).scale(1 / 16d);
             Vec3 to = vector(object, "to", model).scale(1 / 16d);
             GeometryBox box = GeometryBox.of(new AABB(from, to));
-            if (object.has("rotation")) box = box.rotated(rotation(GsonHelper.getAsJsonObject(object, "rotation"), model));
+            // A zero angle leaves the element aligned, so its edges merge with its neighbours' in outlines.
+            if (object.has("rotation") && GsonHelper.getAsFloat(GsonHelper.getAsJsonObject(object, "rotation"), "angle") != 0f) {
+                box = box.rotated(rotation(GsonHelper.getAsJsonObject(object, "rotation"), model));
+            }
             boxes.add(box);
         }
         return new ShapeGeometry(boxes);

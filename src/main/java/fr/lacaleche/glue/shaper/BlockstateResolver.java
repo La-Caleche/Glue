@@ -107,7 +107,7 @@ final class BlockstateResolver {
                 quadrant(GsonHelper.getAsInt(model, "y", 0), context));
     }
 
-    private static Quadrant quadrant(int degrees, String context) {
+    static Quadrant quadrant(int degrees, String context) {
         return switch (Math.floorMod(degrees, 360)) {
             case 0 -> Quadrant.R0;
             case 90 -> Quadrant.R90;

@@ -114,21 +114,30 @@ public abstract class BlockShapeProvider implements DataProvider {
         JsonObject blockstate = source.blockstate(id);
         List<List<AABB>> shapes = new ArrayList<>();
         Map<List<AABB>, Integer> indices = new HashMap<>();
+        List<List<GeometryBox>> geometries = new ArrayList<>();
+        Map<ResourceLocation, Integer> geometryIndices = new HashMap<>();
         Map<String, BlockShapesFile.StateShapes> states = new LinkedHashMap<>();
 
         for (BlockState state : block.getStateDefinition().getPossibleStates()) {
             List<BlockstateResolver.Placement> placements = BlockstateResolver.resolve(blockstate, properties(state), id.toString());
-            Matrix4f extraRotation = rule.extraRotation(state);
+            float turn = rule.turn(state);
+            Matrix4f extraRotation = new Matrix4f().rotationY((float) Math.toRadians(-turn));
 
             int outline = index(shape(placements, null, extraRotation, rule.resolution, source), shapes, indices);
-            Optional<Integer> collision = Optional.empty();
-            if (rule.collisionModel != null) {
-                int index = index(shape(placements, rule.collisionModel, extraRotation, rule.resolution, source), shapes, indices);
-                if (index != outline) collision = Optional.of(index);
+            int collisionIndex = index(shape(placements, rule.collisionModel, extraRotation, rule.collisionResolution, source), shapes, indices);
+            Optional<Integer> collision = collisionIndex == outline ? Optional.empty() : Optional.of(collisionIndex);
+
+            List<BlockShapesFile.PlacedModel> models = new ArrayList<>();
+            for (BlockstateResolver.Placement placement : placements) {
+                int geometry = geometryIndices.computeIfAbsent(placement.model(), model -> {
+                    geometries.add(source.geometry(model).boxes());
+                    return geometries.size() - 1;
+                });
+                models.add(new BlockShapesFile.PlacedModel(geometry, placement.x().ordinal() * 90, placement.y().ordinal() * 90, turn));
             }
-            states.put(BlockShapes.stateKey(state), new BlockShapesFile.StateShapes(outline, collision));
+            states.put(BlockShapes.stateKey(state), new BlockShapesFile.StateShapes(outline, collision, models));
         }
-        return new BlockShapesFile(shapes, states);
+        return new BlockShapesFile(shapes, geometries, states);
     }
 
     /**
@@ -163,10 +172,18 @@ public abstract class BlockShapeProvider implements DataProvider {
     /** How the shapes of one block are generated. */
     public static final class Rule {
 
+        /**
+         * Voxels per block for collision where a rotation leaves elements unaligned: coarser than
+         * the outline, since entities need no pixel detail and every coordinate a shape adds makes
+         * its collision checks slower.
+         */
+        public static final int DEFAULT_COLLISION_RESOLUTION = 8;
+
         private final Block block;
         private @Nullable ResourceLocation collisionModel;
         private @Nullable IntegerProperty rotation16;
         private int resolution = ShapeGeometry.DEFAULT_RESOLUTION;
+        private int collisionResolution = DEFAULT_COLLISION_RESOLUTION;
 
         private Rule(Block block) {
             this.block = block;
@@ -174,7 +191,7 @@ public abstract class BlockShapeProvider implements DataProvider {
 
         /**
          * Collision from another model, usually simpler than the drawn one, placed and rotated like
-         * the drawn models. Without it, collision is the outline.
+         * the drawn models. Without it, collision is the drawn models at the collision resolution.
          */
         public Rule collision(ResourceLocation model) {
             this.collisionModel = model;
@@ -200,18 +217,31 @@ public abstract class BlockShapeProvider implements DataProvider {
             return this;
         }
 
-        /** Voxels per block for elements left unaligned by a rotation; see {@link ShapeGeometry#toShape}. */
+        /**
+         * Voxels per block for the outline shape where a rotation leaves elements unaligned; see
+         * {@link ShapeGeometry#toShape}. A {@code GlueBlock}'s drawn outline and ray casts follow its
+         * model exactly; this shape is what code reading {@code getShape} sees.
+         */
         public Rule resolution(int resolution) {
-            if (resolution < 1 || resolution > ShapeVoxelizer.MAX_RESOLUTION) {
-                throw new IllegalArgumentException("Resolution must be between 1 and " + ShapeVoxelizer.MAX_RESOLUTION);
-            }
-            this.resolution = resolution;
+            this.resolution = checkResolution(resolution);
             return this;
         }
 
-        private Matrix4f extraRotation(BlockState state) {
-            if (this.rotation16 == null) return new Matrix4f();
-            return new Matrix4f().rotationY((float) Math.toRadians(-22.5 * state.getValue(this.rotation16)));
+        /** Voxels per block for collision where a rotation leaves elements unaligned; see {@link #DEFAULT_COLLISION_RESOLUTION}. */
+        public Rule collisionResolution(int resolution) {
+            this.collisionResolution = checkResolution(resolution);
+            return this;
+        }
+
+        private float turn(BlockState state) {
+            return this.rotation16 == null ? 0f : 22.5f * state.getValue(this.rotation16);
+        }
+
+        private static int checkResolution(int resolution) {
+            if (resolution < 1 || resolution > ShapeVoxelizer.MAX_RESOLUTION) {
+                throw new IllegalArgumentException("Resolution must be between 1 and " + ShapeVoxelizer.MAX_RESOLUTION);
+            }
+            return resolution;
         }
     }
 }

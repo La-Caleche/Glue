@@ -3,6 +3,9 @@ package fr.lacaleche.glue.composite;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import fr.lacaleche.glue.data.components.TransformationComponent;
+import fr.lacaleche.glue.shaper.BlockShapeProvider;
+import fr.lacaleche.glue.shaper.BlockShapes;
+import fr.lacaleche.glue.shaper.PlacedGeometry;
 import fr.lacaleche.glue.shaper.ShapeGeometry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.EmptyBlockGetter;
@@ -12,6 +15,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
+
+import java.util.List;
 
 /**
  * One block drawn inside a composite cell: its state, and the transform that moves, turns and scales
@@ -45,23 +50,34 @@ public record CompositePart(BlockState state, TransformationComponent transform)
         return matrix().equals(new Matrix4f(), IDENTITY_TOLERANCE);
     }
 
+    /**
+     * What the part looks like in its cell: its block's generated geometry when it has some, its
+     * block's outline otherwise, moved by the part's transform.
+     */
+    public List<PlacedGeometry> geometry() {
+        Matrix4f matrix = matrix();
+        List<PlacedGeometry> generated = BlockShapes.geometry(this.state);
+        if (generated != null) return generated.stream().map(geometry -> geometry.placed(matrix)).toList();
+        return List.of(new PlacedGeometry(ShapeGeometry.of(blockOutline()), matrix));
+    }
+
     /** The part's outline once transformed, voxelized where it leaves the axes. */
     public VoxelShape outline() {
-        return transformed(this.state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, CollisionContext.empty()));
+        return PlacedGeometry.toShape(geometry(), ShapeGeometry.DEFAULT_RESOLUTION);
     }
 
     /** The part's collision once transformed, voxelized where it leaves the axes. */
     public VoxelShape collision() {
-        return transformed(this.state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, CollisionContext.empty()));
+        VoxelShape collision = this.state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, CollisionContext.empty());
+        return ShapeGeometry.of(collision).toShape(matrix(), BlockShapeProvider.Rule.DEFAULT_COLLISION_RESOLUTION);
     }
 
-    /** The bounds of the transformed outline, or {@code null} when the block has no outline. */
+    /** The bounds of the part's geometry, or {@code null} when it has none. */
     public @Nullable AABB bounds() {
-        return ShapeGeometry.of(this.state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, CollisionContext.empty()))
-                .bounds(matrix());
+        return PlacedGeometry.bounds(geometry());
     }
 
-    private VoxelShape transformed(VoxelShape shape) {
-        return ShapeGeometry.of(shape).toShape(matrix(), ShapeGeometry.DEFAULT_RESOLUTION);
+    private VoxelShape blockOutline() {
+        return this.state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, CollisionContext.empty());
     }
 }

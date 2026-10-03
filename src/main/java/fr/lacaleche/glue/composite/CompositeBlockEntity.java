@@ -1,5 +1,7 @@
 package fr.lacaleche.glue.composite;
 
+import fr.lacaleche.glue.shaper.PlacedGeometry;
+import fr.lacaleche.glue.shaper.ShapeGeometry;
 import net.fabricmc.fabric.api.blockview.v2.RenderDataBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -16,6 +18,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -27,6 +30,7 @@ import java.util.List;
 public class CompositeBlockEntity extends BlockEntity implements RenderDataBlockEntity {
 
     private List<CompositePart> parts = List.of();
+    private List<PlacedGeometry> geometry = List.of();
     private VoxelShape outline = Shapes.empty();
     private VoxelShape collision = Shapes.empty();
 
@@ -73,6 +77,11 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         return this.parts;
     }
 
+    /** Every part's geometry, in part order. The list is immutable. */
+    public List<PlacedGeometry> geometry() {
+        return this.geometry;
+    }
+
     public VoxelShape outline() {
         return this.outline;
     }
@@ -93,13 +102,14 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
 
     private void update(List<CompositePart> parts) {
         this.parts = List.copyOf(parts);
-        VoxelShape outline = Shapes.empty();
+        List<PlacedGeometry> geometry = new ArrayList<>();
         VoxelShape collision = Shapes.empty();
         for (CompositePart part : this.parts) {
-            outline = Shapes.or(outline, part.outline());
+            geometry.addAll(part.geometry());
             collision = Shapes.or(collision, part.collision());
         }
-        this.outline = outline.optimize();
+        this.geometry = List.copyOf(geometry);
+        this.outline = PlacedGeometry.toShape(this.geometry, ShapeGeometry.DEFAULT_RESOLUTION);
         this.collision = collision.optimize();
     }
 }
