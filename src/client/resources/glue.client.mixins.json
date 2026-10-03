@@ -10,7 +10,6 @@
     "conformVisibility": true
   },
   "client": [
-    "CollisionGetterMixin",
     "EntityMixin",
     "shader.pipeline.CompositeRenderTypeAccessor",
     "shader.pipeline.CompositeStateAccessor",

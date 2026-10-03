@@ -103,7 +103,7 @@ public final class ShapesClientTest extends WorldClientTest {
         this.context.waitTicks(5);
         this.context.runOnClient(client -> require(client.hitResult instanceof BlockHitResult hit
                         && hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(turned),
-                "the player targets " + client.hitResult + " instead of the chair at " + turned));
+                "the player targets " + describe(client.hitResult) + " instead of the chair at " + turned));
         screenshot("shapes-chair-outline");
 
         BlockPos stove = stoveRow.east(2 * stoves.indexOf(TestBlocks.TEST_STOVE_BLOCK.defaultBlockState()));
@@ -119,8 +119,13 @@ public final class ShapesClientTest extends WorldClientTest {
         this.context.waitTicks(5);
         this.context.runOnClient(client -> require(client.hitResult instanceof BlockHitResult hit
                         && hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(stove),
-                "aiming above the stove targets " + client.hitResult + " instead of the stove at " + stove));
+                "aiming above the stove targets " + describe(client.hitResult) + " instead of the stove at " + stove));
         screenshot("shapes-stove-overhang");
+    }
+
+    private static String describe(HitResult hit) {
+        if (!(hit instanceof BlockHitResult block)) return String.valueOf(hit);
+        return block.getType() + " " + block.getBlockPos().toShortString() + " " + block.getDirection() + " at " + block.getLocation();
     }
 
     /** A point of the stove's geometry in the cell above it, which only its overhang can answer for. */
