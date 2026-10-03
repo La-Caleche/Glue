@@ -18,7 +18,7 @@ import fr.lacaleche.glue.client.shader.pipeline.PipelineDefinitionLoader;
 import fr.lacaleche.glue.client.render.outline.OutlineDefinitionLoader;
 import fr.lacaleche.glue.client.utils.RaycastUtils;
 import fr.lacaleche.glue.compat.RenderCompat;
-import fr.lacaleche.glue.composite.CompositeCells;
+import fr.lacaleche.glue.internal.GlueBlocks;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -51,7 +51,7 @@ public class GlueClient implements ClientModInitializer {
 
         DeferredDrawQueue.INSTANCE.register();
 
-        ModelLoadingPlugin.register(context -> context.registerBlockStateResolver(CompositeCells.BLOCK, resolver -> {
+        ModelLoadingPlugin.register(context -> context.registerBlockStateResolver(GlueBlocks.COMPOSITE, resolver -> {
             CompositeBlockModel.Unbaked model = new CompositeBlockModel.Unbaked();
             for (BlockState state : resolver.block().getStateDefinition().getPossibleStates()) resolver.setModel(state, model);
         }));

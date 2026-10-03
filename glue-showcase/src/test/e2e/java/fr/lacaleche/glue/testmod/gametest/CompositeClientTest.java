@@ -5,6 +5,7 @@ import fr.lacaleche.glue.composite.CompositeBlockEntity;
 import fr.lacaleche.glue.composite.CompositeCells;
 import fr.lacaleche.glue.composite.CompositePart;
 import fr.lacaleche.glue.data.components.TransformationComponent;
+import fr.lacaleche.glue.internal.GlueBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
@@ -68,7 +69,7 @@ public final class CompositeClientTest extends WorldClientTest {
             requireSuccess("a plain block", CompositeCells.set(level, plain, List.of(new CompositePart(Blocks.STONE.defaultBlockState()))));
             require(level.getBlockState(plain).is(Blocks.STONE), "one untransformed part is " + level.getBlockState(plain));
             requireSuccess("a part on a plain block", CompositeCells.add(level, plain, CORNER));
-            require(level.getBlockState(plain).is(CompositeCells.BLOCK), "two parts are " + level.getBlockState(plain));
+            require(level.getBlockState(plain).is(GlueBlocks.COMPOSITE), "two parts are " + level.getBlockState(plain));
             requireSuccess("removing the corner", CompositeCells.remove(level, plain, 1));
             require(level.getBlockState(plain).is(Blocks.STONE), "the remaining part is " + level.getBlockState(plain));
             requireSuccess("clearing", CompositeCells.set(level, plain, List.of()));
@@ -98,7 +99,7 @@ public final class CompositeClientTest extends WorldClientTest {
     }
 
     private static void check(String side, BlockGetter level, BlockPos pos) {
-        require(level.getBlockState(pos).is(CompositeCells.BLOCK), side + " has " + level.getBlockState(pos) + " at the cell");
+        require(level.getBlockState(pos).is(GlueBlocks.COMPOSITE), side + " has " + level.getBlockState(pos) + " at the cell");
         require(sameParts(CompositeCells.parts(level, pos), CELL), side + " parts are " + CompositeCells.parts(level, pos));
 
         VoxelShape outline = Shapes.empty();

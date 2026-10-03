@@ -2,6 +2,7 @@ package fr.lacaleche.glue.composite;
 
 import com.mojang.serialization.MapCodec;
 import fr.lacaleche.glue.block.GlueBlock;
+import fr.lacaleche.glue.internal.GlueBlocks;
 import fr.lacaleche.glue.shaper.PlacedGeometry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
@@ -34,7 +35,7 @@ public class CompositeBlock extends BaseEntityBlock implements GlueBlock {
 
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new CompositeBlockEntity(CompositeCells.BLOCK_ENTITY, pos, state);
+        return new CompositeBlockEntity(GlueBlocks.COMPOSITE_ENTITY, pos, state);
     }
 
     @Override
