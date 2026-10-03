@@ -1,4 +1,23 @@
 {
+  "geometries": [
+    [
+      "2 0 0 14 4 16",
+      "2 4 10 14 14 16"
+    ],
+    [
+      "5 5 0 11 11 10",
+      "3 3 10 13 13 16"
+    ],
+    [
+      "3 2 0 13 14 16",
+      "5 0 0 11 16 16"
+    ],
+    [
+      "2 2 0 14 14 3",
+      "5 5 3 11 11 13",
+      "2 2 13 14 14 16"
+    ]
+  ],
   "shapes": [
     [
       "2 0 0 14 4 16",
@@ -55,51 +74,143 @@
   ],
   "states": {
     "facing=east,mode=0": {
+      "models": [
+        {
+          "geometry": 0,
+          "y": 90
+        }
+      ],
       "outline": 10
     },
     "facing=east,mode=1": {
+      "models": [
+        {
+          "geometry": 1,
+          "y": 90
+        }
+      ],
       "outline": 11
     },
     "facing=east,mode=2": {
+      "models": [
+        {
+          "geometry": 2,
+          "y": 90
+        }
+      ],
       "outline": 8
     },
     "facing=east,mode=3": {
+      "models": [
+        {
+          "geometry": 3,
+          "y": 90
+        }
+      ],
       "outline": 9
     },
     "facing=north,mode=0": {
+      "models": [
+        {
+          "geometry": 0
+        }
+      ],
       "outline": 0
     },
     "facing=north,mode=1": {
+      "models": [
+        {
+          "geometry": 1
+        }
+      ],
       "outline": 1
     },
     "facing=north,mode=2": {
+      "models": [
+        {
+          "geometry": 2
+        }
+      ],
       "outline": 2
     },
     "facing=north,mode=3": {
+      "models": [
+        {
+          "geometry": 3
+        }
+      ],
       "outline": 3
     },
     "facing=south,mode=0": {
+      "models": [
+        {
+          "geometry": 0,
+          "y": 180
+        }
+      ],
       "outline": 4
     },
     "facing=south,mode=1": {
+      "models": [
+        {
+          "geometry": 1,
+          "y": 180
+        }
+      ],
       "outline": 5
     },
     "facing=south,mode=2": {
+      "models": [
+        {
+          "geometry": 2,
+          "y": 180
+        }
+      ],
       "outline": 2
     },
     "facing=south,mode=3": {
+      "models": [
+        {
+          "geometry": 3,
+          "y": 180
+        }
+      ],
       "outline": 3
     },
     "facing=west,mode=0": {
+      "models": [
+        {
+          "geometry": 0,
+          "y": 270
+        }
+      ],
       "outline": 6
     },
     "facing=west,mode=1": {
+      "models": [
+        {
+          "geometry": 1,
+          "y": 270
+        }
+      ],
       "outline": 7
     },
     "facing=west,mode=2": {
+      "models": [
+        {
+          "geometry": 2,
+          "y": 270
+        }
+      ],
       "outline": 8
     },
     "facing=west,mode=3": {
+      "models": [
+        {
+          "geometry": 3,
+          "y": 270
+        }
+      ],
       "outline": 9
     }
   }

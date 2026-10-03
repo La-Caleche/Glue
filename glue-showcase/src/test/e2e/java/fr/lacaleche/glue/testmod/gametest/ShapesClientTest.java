@@ -1,5 +1,8 @@
 package fr.lacaleche.glue.testmod.gametest;
 
+import fr.lacaleche.glue.block.GeometryRaycast;
+import fr.lacaleche.glue.block.GlueBlock;
+import fr.lacaleche.glue.shaper.PlacedGeometry;
 import fr.lacaleche.glue.shaper.VoxelShaper;
 import fr.lacaleche.glue.testmod.blocks.demo.TestChairBlock;
 import fr.lacaleche.glue.testmod.blocks.demo.TestShapeBlock;
@@ -11,6 +14,9 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -35,6 +41,9 @@ public final class ShapesClientTest extends WorldClientTest {
             Shapes.or(Block.box(5, 5, 0, 11, 11, 10), Block.box(3, 3, 10, 13, 13, 16)),
             Shapes.or(Block.box(3, 2, 0, 13, 14, 16), Block.box(5, 0, 0, 11, 16, 16)),
             Shapes.or(Block.box(2, 2, 0, 14, 14, 3), Block.box(2, 2, 13, 14, 14, 16), Block.box(5, 5, 3, 11, 11, 13)));
+
+    /** Rays per side of a block in {@link #checkPicks}. */
+    private static final int PICK_GRID = 32;
 
     @Override
     protected void test() {
@@ -91,6 +100,10 @@ public final class ShapesClientTest extends WorldClientTest {
                 .teleportTo(server.overworld(), closeX, closeY, closeZ, Set.of(), 180, 50, false));
         waitUntil("the camera faces the chair turned by 45°",
                 client -> client.player.position().distanceToSqr(closeX, closeY, closeZ) < 0.01);
+        this.context.waitTicks(5);
+        this.context.runOnClient(client -> require(client.hitResult instanceof BlockHitResult hit
+                        && hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(turned),
+                "the player targets " + client.hitResult + " instead of the chair at " + turned));
         screenshot("shapes-chair-outline");
     }
 
@@ -104,8 +117,9 @@ public final class ShapesClientTest extends WorldClientTest {
 
     /**
      * Quarter turns of the chair are its unturned shape rotated exactly, the way blockstate y turns a
-     * model; the steps between them are voxelized, differ from both and stay within the circle the chair turns in, a
-     * pixel past the cell at 22.5�.
+     * model; the steps between them are voxelized, differ from both and stay within the circle the
+     * chair turns in, a pixel past the cell at 22.5°. Its collision is its outline at quarter turns
+     * and a coarser shape between them, and picks hit its geometry.
      */
     private static void checkChair(String side, BlockGetter level, BlockPos row) {
         List<VoxelShape> outlines = new ArrayList<>();
@@ -115,7 +129,12 @@ public final class ShapesClientTest extends WorldClientTest {
             require(level.getBlockState(pos) == state, side + " has " + level.getBlockState(pos) + " at " + pos);
             VoxelShape outline = state.getShape(level, pos, CollisionContext.empty());
             require(!outline.isEmpty(), side + " outline of " + state + " is empty");
-            requireSame(side + " collision of " + state, outline, state.getCollisionShape(level, pos, CollisionContext.empty()));
+            VoxelShape collision = state.getCollisionShape(level, pos, CollisionContext.empty());
+            if (rotation % 4 == 0) requireSame(side + " collision of " + state, outline, collision);
+            else require(collision.toAabbs().size() < outline.toAabbs().size(),
+                    side + " collision of " + state + " has " + collision.toAabbs().size() + " boxes, the outline "
+                            + outline.toAabbs().size());
+            checkPicks(side, level, pos, state, outline, rotation % 4 != 0);
             outlines.add(outline);
         }
         Direction[] quarters = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
@@ -134,6 +153,32 @@ public final class ShapesClientTest extends WorldClientTest {
             require(volume(Shapes.join(outlines.get(rotation), outlines.get(rotation - 1), BooleanOp.NOT_SAME)) > 1e-4,
                     side + " chair outline at rotation " + rotation + " is the one at " + (rotation - 1));
         }
+    }
+
+    /**
+     * Rays dropped on a grid over a geometry block hit within its geometry's bounds; when the block
+     * is turned off the quarters, some of them pass or meet its geometry where its voxel outline
+     * would not.
+     */
+    private static void checkPicks(String side, BlockGetter level, BlockPos pos, BlockState state, VoxelShape outline,
+                                   boolean turned) {
+        List<PlacedGeometry> geometry = ((GlueBlock) state.getBlock()).getGeometry(state, level, pos);
+        require(geometry != null && !geometry.isEmpty(), side + " " + state + " has no geometry");
+        AABB bounds = PlacedGeometry.bounds(geometry).move(pos).inflate(1e-4);
+        int differing = 0;
+        for (int i = 0; i < PICK_GRID; i++) {
+            for (int j = 0; j < PICK_GRID; j++) {
+                Vec3 from = Vec3.atLowerCornerOf(pos).add((i + 0.5) / PICK_GRID, 2, (j + 0.5) / PICK_GRID);
+                Vec3 to = from.subtract(0, 3, 0);
+                BlockHitResult exact = GeometryRaycast.clipGeometry(level, pos, state, from, to);
+                BlockHitResult voxel = outline.clip(from, to, pos);
+                if (exact != null) require(bounds.contains(exact.getLocation()),
+                        side + " pick of " + state + " at " + exact.getLocation() + " is outside " + bounds);
+                if (exact == null || voxel == null ? exact != voxel
+                        : Math.abs(exact.getLocation().y - voxel.getLocation().y) > 1e-4) differing++;
+            }
+        }
+        require(!turned || differing > 0, side + " picks of " + state + " all land on its voxel outline");
     }
 
     /**
