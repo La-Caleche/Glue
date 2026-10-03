@@ -105,6 +105,36 @@ public final class ShapesClientTest extends WorldClientTest {
                         && hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(turned),
                 "the player targets " + client.hitResult + " instead of the chair at " + turned));
         screenshot("shapes-chair-outline");
+
+        BlockPos stove = stoveRow.east(2 * stoves.indexOf(TestBlocks.TEST_STOVE_BLOCK.defaultBlockState()));
+        Vec3 overhang = this.context.computeOnClient(client -> overhangPoint(client.level, stove));
+        Vec3 eye = overhang.add(0, 0.4, 1.6);
+        double eyeHeight = this.context.computeOnClient(client -> (double) client.player.getEyeHeight());
+        float yaw = (float) Math.toDegrees(Math.atan2(-(overhang.x - eye.x), overhang.z - eye.z));
+        float pitch = (float) Math.toDegrees(Math.atan2(eye.y - overhang.y, eye.distanceTo(new Vec3(overhang.x, eye.y, overhang.z))));
+        this.world.getServer().runOnServer(server -> server.getPlayerList().getPlayers().getFirst()
+                .teleportTo(server.overworld(), eye.x, eye.y - eyeHeight, eye.z, Set.of(), yaw, pitch, false));
+        waitUntil("the camera faces the stove's upper half",
+                client -> client.player.getEyePosition().distanceToSqr(eye) < 0.01);
+        this.context.waitTicks(5);
+        this.context.runOnClient(client -> require(client.hitResult instanceof BlockHitResult hit
+                        && hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(stove),
+                "aiming above the stove targets " + client.hitResult + " instead of the stove at " + stove));
+        screenshot("shapes-stove-overhang");
+    }
+
+    /** A point of the stove's geometry in the cell above it, which only its overhang can answer for. */
+    private static Vec3 overhangPoint(BlockGetter level, BlockPos stove) {
+        BlockState state = level.getBlockState(stove);
+        require(GeometryRaycast.overhangs(level, stove, state), "the stove's geometry stays in its cell");
+        for (int i = 0; i < PICK_GRID; i++) {
+            for (int j = 0; j < PICK_GRID; j++) {
+                Vec3 from = Vec3.atLowerCornerOf(stove).add((i + 0.5) / PICK_GRID, 1.9, (j + 0.5) / PICK_GRID);
+                BlockHitResult hit = GeometryRaycast.clipGeometry(level, stove, state, from, from.subtract(0, 0.6, 0));
+                if (hit != null) return hit.getLocation().subtract(0, 0.05, 0);
+            }
+        }
+        throw new AssertionError("no part of the stove rises into the cell above it");
     }
 
     private static void check(String side, BlockGetter level, Placed block) {
