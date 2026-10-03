@@ -5,7 +5,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
@@ -25,21 +24,24 @@ import java.util.Optional;
  * Boxes in block units that can be moved, rotated and scaled, then turned into a {@link VoxelShape}
  * or ray-cast exactly.
  *
- * <p>Geometry is plain data, available on both sides: it comes from a block's shape
+ * <p>Geometry is plain, immutable data, available on both sides: it comes from a block's shape
  * ({@link #of(VoxelShape)}), from model elements, or from code. Conversion is not cached; callers
- * keep the shapes they reuse.</p>
- *
- * @param boxes the boxes, in no particular order; may overlap
+ * keep the shapes they reuse. Only {@link #alignedParts()}, which outlines draw every frame, is
+ * built once per geometry.</p>
  */
-public record ShapeGeometry(List<GeometryBox> boxes) {
+public final class ShapeGeometry {
 
     /** Voxels per block when a transform leaves a box unaligned: one per pixel. */
     public static final int DEFAULT_RESOLUTION = 16;
 
     public static final ShapeGeometry EMPTY = new ShapeGeometry(List.of());
 
-    public ShapeGeometry {
-        boxes = List.copyOf(boxes);
+    private final List<GeometryBox> boxes;
+    private volatile @Nullable List<AlignedPart> alignedParts;
+
+    /** @param boxes the boxes, in no particular order; may overlap */
+    public ShapeGeometry(List<GeometryBox> boxes) {
+        this.boxes = List.copyOf(boxes);
     }
 
     public static ShapeGeometry of(GeometryBox... boxes) {
@@ -59,6 +61,10 @@ public record ShapeGeometry(List<GeometryBox> boxes) {
         return new Matrix4f().translation(0.5f, 0.5f, 0.5f).mul(transform).translate(-0.5f, -0.5f, -0.5f);
     }
 
+    public List<GeometryBox> boxes() {
+        return this.boxes;
+    }
+
     /** The untransformed shape at the default resolution. */
     public VoxelShape toShape() {
         return toShape(new Matrix4f(), DEFAULT_RESOLUTION);
@@ -70,7 +76,9 @@ public record ShapeGeometry(List<GeometryBox> boxes) {
      * <p>A box that stays axis-aligned (no rotation, quarter turns, axis scales) is converted
      * exactly. Any other box is sampled on a grid of {@code resolution} voxels per block, a voxel
      * being filled when its centre lies inside the box, and the filled voxels are merged back into
-     * as few boxes as the greedy merge finds. Boxes with no thickness cover nothing.</p>
+     * as few boxes as the greedy merge finds. On a grid coarser than a pixel, a voxel is filled when
+     * any pixel centre in it lies inside, so a part thinner than a voxel still covers it. Boxes with
+     * no thickness cover nothing.</p>
      *
      * @param transform  an affine transform in block units
      * @param resolution voxels per block for unaligned boxes, from 1 to {@value ShapeVoxelizer#MAX_RESOLUTION}
@@ -111,21 +119,31 @@ public record ShapeGeometry(List<GeometryBox> boxes) {
     /**
      * The geometry as axis-aligned shapes, each with the matrix that places it: the unrotated boxes
      * together, then the boxes sharing each element rotation. Drawing each shape's edges through its
-     * matrix draws the geometry exactly, merged edges included.
+     * matrix draws the geometry exactly, merged edges included. Built on the first call and kept,
+     * since an outline asks for it every frame. The list is immutable.
      */
     public List<AlignedPart> alignedParts() {
-        Map<GeometryBox.Rotation, VoxelShape> rotated = new LinkedHashMap<>();
-        VoxelShape aligned = Shapes.empty();
+        List<AlignedPart> parts = this.alignedParts;
+        if (parts == null) {
+            parts = buildAlignedParts();
+            this.alignedParts = parts;
+        }
+        return parts;
+    }
+
+    private List<AlignedPart> buildAlignedParts() {
+        List<VoxelShape> aligned = new ArrayList<>();
+        Map<GeometryBox.Rotation, List<VoxelShape>> rotated = new LinkedHashMap<>();
         for (GeometryBox box : this.boxes) {
             VoxelShape shape = Shapes.create(box.box());
-            if (box.rotation() == null) aligned = Shapes.joinUnoptimized(aligned, shape, BooleanOp.OR);
-            else rotated.merge(box.rotation(), shape, (first, second) -> Shapes.joinUnoptimized(first, second, BooleanOp.OR));
+            if (box.rotation() == null) aligned.add(shape);
+            else rotated.computeIfAbsent(box.rotation(), rotation -> new ArrayList<>()).add(shape);
         }
 
         List<AlignedPart> parts = new ArrayList<>();
-        if (!aligned.isEmpty()) parts.add(new AlignedPart(new Matrix4f(), aligned.optimize()));
-        rotated.forEach((rotation, shape) -> parts.add(new AlignedPart(rotation.matrix(), shape.optimize())));
-        return parts;
+        if (!aligned.isEmpty()) parts.add(new AlignedPart(new Matrix4f(), ShapeVoxelizer.union(aligned)));
+        rotated.forEach((rotation, shapes) -> parts.add(new AlignedPart(rotation.matrix(), ShapeVoxelizer.union(shapes))));
+        return List.copyOf(parts);
     }
 
     /** The bounds of the transformed geometry, or {@code null} when it has no boxes. */
@@ -148,12 +166,58 @@ public record ShapeGeometry(List<GeometryBox> boxes) {
         return new Vec3(transformed.x, transformed.y, transformed.z);
     }
 
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof ShapeGeometry geometry && this.boxes.equals(geometry.boxes);
+    }
+
+    @Override
+    public int hashCode() {
+        return this.boxes.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return "ShapeGeometry" + this.boxes;
+    }
+
     /**
-     * Axis-aligned boxes and the matrix that places them in the geometry's space.
-     *
-     * @param matrix where the shape's boxes go: identity, or an element rotation
-     * @param shape  the boxes before that matrix
+     * Axis-aligned boxes and the matrix that places them in the geometry's space, with the edges of
+     * their union listed once so that drawing them does not walk the shape again.
      */
-    public record AlignedPart(Matrix4fc matrix, VoxelShape shape) {
+    public static final class AlignedPart {
+
+        private final Matrix4fc matrix;
+        private final VoxelShape shape;
+        private final double[] edges;
+
+        /**
+         * @param matrix where the shape's boxes go: identity, or an element rotation
+         * @param shape  the boxes before that matrix
+         */
+        public AlignedPart(Matrix4fc matrix, VoxelShape shape) {
+            this.matrix = new Matrix4f(matrix);
+            this.shape = shape;
+            List<double[]> edges = new ArrayList<>();
+            shape.forAllEdges((x1, y1, z1, x2, y2, z2) -> edges.add(new double[]{x1, y1, z1, x2, y2, z2}));
+            this.edges = new double[edges.size() * 6];
+            for (int i = 0; i < edges.size(); i++) System.arraycopy(edges.get(i), 0, this.edges, i * 6, 6);
+        }
+
+        public Matrix4fc matrix() {
+            return this.matrix;
+        }
+
+        public VoxelShape shape() {
+            return this.shape;
+        }
+
+        /** The shape's edges, as {@link VoxelShape#forAllEdges} gives them, from the list kept. */
+        public void forAllEdges(Shapes.DoubleLineConsumer consumer) {
+            for (int i = 0; i < this.edges.length; i += 6) {
+                consumer.consume(this.edges[i], this.edges[i + 1], this.edges[i + 2],
+                        this.edges[i + 3], this.edges[i + 4], this.edges[i + 5]);
+            }
+        }
     }
 }

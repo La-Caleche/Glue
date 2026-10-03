@@ -168,6 +168,18 @@ class ShapeGeometryTest {
     }
 
     @Test
+    void coarseGridKeepsPartsThinnerThanAVoxel() {
+        GeometryBox.Rotation turn = new GeometryBox.Rotation(new Vec3(0.5, 0, 0.5), Direction.Axis.Y, 45, false);
+        ShapeGeometry seat = ShapeGeometry.of(GeometryBox.pixels(2, 7.25, 2, 14, 8.75, 14).rotated(turn));
+
+        VoxelShape coarse = seat.toShape(new Matrix4f(), 8);
+
+        assertFalse(coarse.isEmpty(), "no voxel centre lies in the seat, but its pixels do");
+        assertEquals(6 / 16d, coarse.bounds().minY, 1e-9);
+        assertEquals(10 / 16d, coarse.bounds().maxY, 1e-9);
+    }
+
+    @Test
     void alignedPartsGroupBoxesByTheirElementRotation() {
         GeometryBox.Rotation turn = new GeometryBox.Rotation(new Vec3(0.5, 0, 0.5), Direction.Axis.Y, 22.5f, false);
         ShapeGeometry geometry = ShapeGeometry.of(SHELF, BACK_WALL,

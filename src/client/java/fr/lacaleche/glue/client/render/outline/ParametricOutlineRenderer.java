@@ -4,7 +4,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import fr.lacaleche.glue.math.Color;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.world.phys.shapes.Shapes;
+
+import java.util.function.Consumer;
 
 /**
  * A {@link SimpleBlockOutlineRenderer} that uses externally-provided color
@@ -24,13 +26,14 @@ public class ParametricOutlineRenderer extends SimpleBlockOutlineRenderer {
     }
 
     @Override
-    protected void renderShape(VoxelShape voxelShape, PoseStack.Pose transform, VertexConsumer consumer, Color ignored) {
+    protected void renderEdges(Consumer<Shapes.DoubleLineConsumer> edges, PoseStack.Pose transform, VertexConsumer consumer,
+                               Color ignored) {
         float r = color.getRed() / 255.0f;
         float g = color.getGreen() / 255.0f;
         float b = color.getBlue() / 255.0f;
         float a = this.alpha;
 
-        voxelShape.forAllEdges((x1, y1, z1, x2, y2, z2) -> {
+        edges.accept((x1, y1, z1, x2, y2, z2) -> {
             float xDiff = (float) (x2 - x1);
             float yDiff = (float) (y2 - y1);
             float zDiff = (float) (z2 - z1);

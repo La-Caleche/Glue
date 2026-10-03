@@ -2,8 +2,6 @@ package fr.lacaleche.glue.shaper;
 
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.BooleanOp;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
@@ -52,9 +50,7 @@ public record PlacedGeometry(ShapeGeometry geometry, Matrix4fc transform) {
 
     /** The union of the voxelized shapes of several placed geometries. */
     public static VoxelShape toShape(List<PlacedGeometry> geometries, int resolution) {
-        VoxelShape shape = Shapes.empty();
-        for (PlacedGeometry geometry : geometries) shape = Shapes.joinUnoptimized(shape, geometry.toShape(resolution), BooleanOp.OR);
-        return shape.optimize();
+        return ShapeVoxelizer.union(geometries.stream().map(geometry -> geometry.toShape(resolution)).toList());
     }
 
     /** The bounds of several placed geometries, or {@code null} when none has a box. */

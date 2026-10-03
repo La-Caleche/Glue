@@ -26,8 +26,7 @@ public interface GlueOutlineRenderer {
 
     /**
      * Outlines a block's geometry exactly, at any angle: each axis-aligned part of each placed
-     * geometry goes through {@link #render(Minecraft, Level, VoxelShape, PoseStack, MultiBufferSource, BlockPos, Vec3, Color)}
-     * under the matrix that places it, so a renderer that draws a voxel shape draws geometry too.
+     * geometry goes through {@link #renderPart} under the matrix that places it.
      */
     default void render(Minecraft client, Level world, List<PlacedGeometry> geometry, PoseStack matrices,
                         MultiBufferSource consumers, BlockPos blockPos, Vec3 cameraPos, Color color) {
@@ -35,10 +34,21 @@ public interface GlueOutlineRenderer {
             for (ShapeGeometry.AlignedPart part : placed.geometry().alignedParts()) {
                 matrices.pushPose();
                 matrices.mulPose(new Matrix4f(placed.transform()).mul(part.matrix()));
-                render(client, world, part.shape(), matrices, consumers, blockPos, cameraPos, color);
+                renderPart(client, world, part, matrices, consumers, blockPos, cameraPos, color);
                 matrices.popPose();
             }
         }
+    }
+
+    /**
+     * Outlines one aligned part of a geometry, already placed by {@code matrices}. Draws its shape
+     * through {@link #render(Minecraft, Level, VoxelShape, PoseStack, MultiBufferSource, BlockPos, Vec3, Color)},
+     * so a renderer that draws a voxel shape draws geometry too; drawing the part's kept edges
+     * instead avoids walking the shape every frame.
+     */
+    default void renderPart(Minecraft client, Level world, ShapeGeometry.AlignedPart part, PoseStack matrices,
+                            MultiBufferSource consumers, BlockPos blockPos, Vec3 cameraPos, Color color) {
+        render(client, world, part.shape(), matrices, consumers, blockPos, cameraPos, color);
     }
 
 }

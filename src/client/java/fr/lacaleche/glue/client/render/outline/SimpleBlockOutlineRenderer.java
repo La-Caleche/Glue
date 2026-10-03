@@ -3,6 +3,7 @@ package fr.lacaleche.glue.client.render.outline;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import fr.lacaleche.glue.math.Color;
+import fr.lacaleche.glue.shaper.ShapeGeometry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -10,7 +11,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+
+import java.util.function.Consumer;
 
 public class SimpleBlockOutlineRenderer implements GlueOutlineRenderer {
 
@@ -36,8 +40,20 @@ public class SimpleBlockOutlineRenderer implements GlueOutlineRenderer {
         renderShape(voxelShape, matrices.last(), consumers.getBuffer(RenderType.LINES), color);
     }
 
+    @Override
+    public void renderPart(Minecraft client, Level world, ShapeGeometry.AlignedPart part, PoseStack matrices,
+                           MultiBufferSource consumers, BlockPos blockPos, Vec3 cameraPos, Color color) {
+        renderEdges(part::forAllEdges, matrices.last(), consumers.getBuffer(RenderType.LINES), color);
+    }
+
     protected void renderShape(VoxelShape voxelShape, PoseStack.Pose transform, VertexConsumer consumer, Color color) {
-        voxelShape.forAllEdges((x1, y1, z1, x2, y2, z2) -> {
+        renderEdges(voxelShape::forAllEdges, transform, consumer, color);
+    }
+
+    /** Draws each edge {@code edges} gives as a line. */
+    protected void renderEdges(Consumer<Shapes.DoubleLineConsumer> edges, PoseStack.Pose transform, VertexConsumer consumer,
+                               Color color) {
+        edges.accept((x1, y1, z1, x2, y2, z2) -> {
             float xDiff = (float) (x2 - x1);
             float yDiff = (float) (y2 - y1);
             float zDiff = (float) (z2 - z1);
