@@ -69,6 +69,11 @@ public class BlockRenderer {
             matrices.translate(pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z);
             if (geometry != null) renderer.render(client, world, geometry, matrices, buffers, pos, camera, Color.BLACK);
             else renderer.render(client, world, shape, matrices, buffers, pos, camera, Color.BLACK);
+            // Hitboxes (F3+B) also show what the targeted block collides with.
+            if (client.getEntityRenderDispatcher().shouldRenderHitBoxes()) {
+                renderer.renderCollisionBox(client, world, blockstate.getCollisionShape(world, pos, CollisionContext.of(client.player)),
+                        matrices, buffers, Color.RED);
+            }
         } finally {
             matrices.popPose();
         }

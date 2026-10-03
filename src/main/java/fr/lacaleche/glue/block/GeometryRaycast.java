@@ -7,6 +7,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -57,6 +58,17 @@ public final class GeometryRaycast {
     /** Whether the block at a position is a {@link GlueBlock} with geometry. */
     public static boolean hasGeometry(BlockGetter level, BlockPos pos, BlockState state) {
         return geometry(level, pos, state) != null;
+    }
+
+    /**
+     * Whether a block's geometry reaches past its cell, so rays through the neighbouring cells must
+     * test it too, as for an {@link IHaveBigOutline} block.
+     */
+    public static boolean overhangs(BlockGetter level, BlockPos pos, BlockState state) {
+        List<PlacedGeometry> geometry = geometry(level, pos, state);
+        AABB bounds = geometry == null ? null : PlacedGeometry.bounds(geometry);
+        return bounds != null && (bounds.minX < 0 || bounds.minY < 0 || bounds.minZ < 0
+                || bounds.maxX > 1 || bounds.maxY > 1 || bounds.maxZ > 1);
     }
 
     private static @Nullable BlockHitResult clipBlock(BlockGetter level, ClipContext clip, BlockPos pos, BlockState state,

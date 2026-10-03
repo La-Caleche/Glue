@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.client.mixin;
 
 import com.google.common.collect.ImmutableList;
+import fr.lacaleche.glue.block.GeometryRaycast;
 import fr.lacaleche.glue.block.IHaveBigOutline;
 import fr.lacaleche.glue.client.extension.CollisionViewExtension;
 import net.minecraft.core.BlockPos;
@@ -24,7 +25,7 @@ public interface CollisionGetterMixin extends CollisionViewExtension {
         if (entity == null) return ImmutableList.of();
         return () -> new BlockCollisions<>(entity.level(), entity, box, false, (pos, voxelShape) -> {
             final BlockState state = entity.level().getBlockState(pos);
-            if (!(state.getBlock() instanceof IHaveBigOutline))
+            if (!(state.getBlock() instanceof IHaveBigOutline) && !GeometryRaycast.overhangs(entity.level(), pos, state))
                 return new Tuple<>(null, Shapes.empty());
             return new Tuple<>(pos.immutable(), state.getCollisionShape(entity.level(), pos, CollisionContext.empty()));
         });
