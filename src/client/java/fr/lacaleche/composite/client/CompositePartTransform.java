@@ -1,6 +1,6 @@
 package fr.lacaleche.composite.client;
 
-import fr.lacaleche.composite.CompositePart;
+import fr.lacaleche.composite.BlockPart;
 import fr.lacaleche.glue.client.render.model.MatrixQuadTransform;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
@@ -21,14 +21,14 @@ import org.jetbrains.annotations.Nullable;
  */
 final class CompositePartTransform implements QuadTransform {
 
-    private final CompositePart part;
+    private final BlockPart part;
     private final BlockAndTintGetter blockView;
     private final BlockPos pos;
     private final ChunkSectionLayer layer;
     private final @Nullable MatrixQuadTransform move;
     private final Int2IntMap tints = new Int2IntOpenHashMap();
 
-    CompositePartTransform(CompositePart part, boolean identity, BlockAndTintGetter blockView, BlockPos pos) {
+    CompositePartTransform(BlockPart part, boolean identity, BlockAndTintGetter blockView, BlockPos pos) {
         this.part = part;
         this.blockView = blockView;
         this.pos = pos;

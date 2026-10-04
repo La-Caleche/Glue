@@ -4,15 +4,19 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.DataResult;
+import fr.lacaleche.composite.BlockPart;
 import fr.lacaleche.composite.CompositeCells;
 import fr.lacaleche.composite.CompositePart;
+import fr.lacaleche.composite.ItemPart;
 import fr.lacaleche.glue.data.components.TransformationComponent;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.blocks.BlockStateArgument;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import net.minecraft.commands.arguments.item.ItemArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import org.joml.Quaternionf;
@@ -24,8 +28,11 @@ import java.util.List;
  * {@code /composite}: builds composite cells by hand.
  *
  * <ul>
- *   <li>{@code /composite add <pos> <block> [<x> <y> <z> [<yaw> [<scale>]]]} adds a part, offset in
- *   pixels, turned clockwise seen from above in degrees, and scaled about the cell centre;</li>
+ *   <li>{@code /composite add <pos> <block> [<x> <y> <z> [<yaw> [<scale>]]]} adds a block part,
+ *   offset in pixels, turned clockwise seen from above in degrees, and scaled about the cell
+ *   centre;</li>
+ *   <li>{@code /composite item <pos> <item> [<x> <y> <z> [<yaw> [<scale>]]]} adds an item part the
+ *   same way;</li>
  *   <li>{@code /composite remove <pos> <index>} removes one part;</li>
  *   <li>{@code /composite clear <pos>} empties the cell;</li>
  *   <li>{@code /composite pack copy|move <from> <to> <cell> [<x> <y> <z> [<yaw> [<scale>]]]} packs
@@ -44,7 +51,11 @@ final class CompositeCommands {
                 Commands.literal("composite")
                         .requires(source -> source.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.literal("add").then(Commands.argument("pos", BlockPosArgument.blockPos())
-                                .then(add(Commands.argument("block", BlockStateArgument.block(registries))))))
+                                .then(add(Commands.argument("block", BlockStateArgument.block(registries)), (context, transform) ->
+                                        new BlockPart(BlockStateArgument.getBlock(context, "block").getState(), transform)))))
+                        .then(Commands.literal("item").then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                .then(add(Commands.argument("item", ItemArgument.item(registries)), (context, transform) ->
+                                        new ItemPart(ItemArgument.getItem(context, "item").createItemStack(1, false), transform)))))
                         .then(Commands.literal("remove").then(Commands.argument("pos", BlockPosArgument.blockPos())
                                 .then(Commands.argument("index", IntegerArgumentType.integer(0))
                                         .executes(context -> report(context, CompositeCells.remove(
@@ -58,19 +69,19 @@ final class CompositeCommands {
                                 .then(pack(Commands.literal("move"), true)))));
     }
 
-    private static ArgumentBuilder<CommandSourceStack, ?> add(ArgumentBuilder<CommandSourceStack, ?> block) {
-        return block.executes(context -> add(context, 0, 0, 0, 0, 1))
+    private static ArgumentBuilder<CommandSourceStack, ?> add(ArgumentBuilder<CommandSourceStack, ?> what, PartFactory factory) {
+        return what.executes(context -> add(context, factory, 0, 0, 0, 0, 1))
                 .then(Commands.argument("x", FloatArgumentType.floatArg(-16, 16))
                         .then(Commands.argument("y", FloatArgumentType.floatArg(-16, 16))
                                 .then(Commands.argument("z", FloatArgumentType.floatArg(-16, 16))
-                                        .executes(context -> add(context, offset(context, "x"), offset(context, "y"),
+                                        .executes(context -> add(context, factory, offset(context, "x"), offset(context, "y"),
                                                 offset(context, "z"), 0, 1))
                                         .then(Commands.argument("yaw", FloatArgumentType.floatArg(-360, 360))
-                                                .executes(context -> add(context, offset(context, "x"),
+                                                .executes(context -> add(context, factory, offset(context, "x"),
                                                         offset(context, "y"), offset(context, "z"),
                                                         FloatArgumentType.getFloat(context, "yaw"), 1))
                                                 .then(Commands.argument("scale", FloatArgumentType.floatArg(1 / 16f, 1))
-                                                        .executes(context -> add(context, offset(context, "x"),
+                                                        .executes(context -> add(context, factory, offset(context, "x"),
                                                                 offset(context, "y"), offset(context, "z"),
                                                                 FloatArgumentType.getFloat(context, "yaw"),
                                                                 FloatArgumentType.getFloat(context, "scale"))))))));
@@ -117,10 +128,11 @@ final class CompositeCommands {
         return new Vector3f(offset(context, "x"), offset(context, "y"), offset(context, "z"));
     }
 
-    private static int add(CommandContext<CommandSourceStack> context, float x, float y, float z, float yaw, float scale) {
+    private static int add(CommandContext<CommandSourceStack> context, PartFactory factory, float x, float y, float z,
+                           float yaw, float scale) throws CommandSyntaxException {
         TransformationComponent transform = new TransformationComponent(new Vector3f(x, y, z),
                 new Quaternionf().rotationY((float) Math.toRadians(-yaw)), new Vector3f(scale), new Quaternionf());
-        CompositePart part = new CompositePart(BlockStateArgument.getBlock(context, "block").getState(), transform);
+        CompositePart part = factory.create(context, transform);
         return report(context, CompositeCells.add(context.getSource().getLevel(), pos(context), part));
     }
 
@@ -141,5 +153,12 @@ final class CompositeCommands {
 
     private static float offset(CommandContext<CommandSourceStack> context, String axis) {
         return FloatArgumentType.getFloat(context, axis) / 16;
+    }
+
+    /** The part a command adds, from its arguments, placed by the transform. */
+    @FunctionalInterface
+    private interface PartFactory {
+
+        CompositePart create(CommandContext<CommandSourceStack> context, TransformationComponent transform) throws CommandSyntaxException;
     }
 }

@@ -8,7 +8,8 @@ import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Draws composite cells: every state of the composite block takes the {@link CompositeBlockModel},
- * and the parts' block entities are drawn by the {@link CompositeBlockEntityRenderer}.
+ * and the block parts' block entities and the item parts are drawn by the
+ * {@link CompositeBlockEntityRenderer}.
  */
 public final class CompositeClient implements ClientModInitializer {
 

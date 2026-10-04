@@ -24,7 +24,6 @@ public final class CompositeBlocks {
                     .strength(1.0f)
                     .sound(SoundType.WOOD)
                     .noOcclusion()
-                    .lightLevel(state -> state.getValue(CompositeBlock.LIGHT))
                     .dynamicShape()
                     .noLootTable()
                     .pushReaction(PushReaction.BLOCK)

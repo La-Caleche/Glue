@@ -1,17 +1,11 @@
 package fr.lacaleche.composite;
 
+import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 import fr.lacaleche.glue.data.components.TransformationComponent;
-import fr.lacaleche.glue.shaper.BlockShapeProvider;
-import fr.lacaleche.glue.shaper.BlockShapes;
 import fr.lacaleche.glue.shaper.PlacedGeometry;
 import fr.lacaleche.glue.shaper.ShapeGeometry;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.EmptyBlockGetter;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
@@ -19,77 +13,55 @@ import org.joml.Matrix4f;
 import java.util.List;
 
 /**
- * One block drawn inside a composite cell: its state, and the transform that moves, turns and scales
- * it about the cell centre, in block units.
+ * One thing drawn inside a composite cell, a {@link BlockPart block} or an {@link ItemPart item},
+ * and the transform that moves, turns and scales it about the cell centre, in block units.
  *
- * <p>A part's block keeps its model, shape and block entity. Its cell ticks that block entity, and
- * hands it the interactions aimed at the part, with the part standing alone at the cell's position
- * (see {@link PartScope}).</p>
+ * <p>Parts are only drawn. A part's block keeps its model, shapes and block entity data, but never
+ * ticks, is used, or reacts to or acts on its neighbours: a lit lamp part looks lit because its
+ * state says so, and emits no light; a powered lever part powers nothing.</p>
  */
-public record CompositePart(BlockState state, TransformationComponent transform) {
-
-    /** Decoding fails for a block that is no longer registered, which drops the part from a cell. */
-    public static final Codec<CompositePart> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            BlockState.CODEC.fieldOf("state").forGetter(CompositePart::state),
-            TransformationComponent.CODEC.optionalFieldOf("transform", TransformationComponent.DEFAULT)
-                    .forGetter(CompositePart::transform)
-    ).apply(instance, CompositePart::new));
-
-    private static final float IDENTITY_TOLERANCE = 1e-6f;
-
-    public CompositePart(BlockState state) {
-        this(state, TransformationComponent.DEFAULT);
-    }
-
-    /** The transform as a matrix in block units, applied about the cell centre. */
-    public Matrix4f matrix() {
-        return ShapeGeometry.aboutCentre(this.transform.toTransformation().getMatrix());
-    }
-
-    /** Whether the part sits exactly where a plain block of its state would. */
-    public boolean isIdentity() {
-        return matrix().equals(new Matrix4f(), IDENTITY_TOLERANCE);
-    }
+public sealed interface CompositePart permits BlockPart, ItemPart {
 
     /**
-     * What the part looks like in its cell: its block's generated geometry when it has some, its
-     * block's outline otherwise, moved by the part's transform.
+     * A block part as its {@code state}, an item part as its {@code item}. Decoding fails for a block
+     * or an item that is no longer registered, which drops the part from a cell.
      */
-    public List<PlacedGeometry> geometry() {
-        Matrix4f matrix = matrix();
-        List<PlacedGeometry> generated = BlockShapes.geometry(this.state);
-        if (generated != null) return generated.stream().map(geometry -> geometry.placed(matrix)).toList();
-        return List.of(new PlacedGeometry(ShapeGeometry.of(blockOutline()), matrix));
+    // Lazy: the parts initialise this interface, which declares default methods, before their own codecs.
+    Codec<CompositePart> CODEC = Codec.lazyInitialized(() -> Codec.either(BlockPart.CODEC, ItemPart.CODEC).xmap(
+            either -> either.map(block -> block, item -> item),
+            part -> switch (part) {
+                case BlockPart block -> Either.left(block);
+                case ItemPart item -> Either.right(item);
+            }));
+
+    TransformationComponent transform();
+
+    /**
+     * What the part looks like in its cell, for its outline and for picking, moved by the part's
+     * transform.
+     */
+    List<PlacedGeometry> geometry();
+
+    /** The part's collision once transformed, voxelized where it leaves the axes. */
+    VoxelShape collision();
+
+    /** The transform as a matrix in block units, applied about the cell centre. */
+    default Matrix4f matrix() {
+        return ShapeGeometry.aboutCentre(transform().toTransformation().getMatrix());
+    }
+
+    /** Whether the part sits exactly where a plain block would. */
+    default boolean isIdentity() {
+        return matrix().equals(new Matrix4f(), 1e-6f);
     }
 
     /** The part's outline once transformed, voxelized where it leaves the axes. */
-    public VoxelShape outline() {
+    default VoxelShape outline() {
         return PlacedGeometry.toShape(geometry(), ShapeGeometry.DEFAULT_RESOLUTION);
     }
 
-    /**
-     * The part's collision once transformed, voxelized where it leaves the axes: from its block's
-     * generated collision models at their resolution when the block collides as generated, from its
-     * collision shape otherwise.
-     */
-    public VoxelShape collision() {
-        VoxelShape collision = this.state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, CollisionContext.empty());
-        List<PlacedGeometry> generated = BlockShapes.collisionGeometry(this.state);
-        // The generated shape is cached, so the same instance means the block did not override it.
-        if (generated == null || collision != BlockShapes.collision(this.state)) {
-            return ShapeGeometry.of(collision).toShape(matrix(), BlockShapeProvider.Rule.DEFAULT_COLLISION_RESOLUTION);
-        }
-        Matrix4f matrix = matrix();
-        return PlacedGeometry.toShape(generated.stream().map(geometry -> geometry.placed(matrix)).toList(),
-                BlockShapes.collisionResolution(this.state));
-    }
-
     /** The bounds of the part's geometry, or {@code null} when it has none. */
-    public @Nullable AABB bounds() {
+    default @Nullable AABB bounds() {
         return PlacedGeometry.bounds(geometry());
-    }
-
-    private VoxelShape blockOutline() {
-        return this.state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, CollisionContext.empty());
     }
 }

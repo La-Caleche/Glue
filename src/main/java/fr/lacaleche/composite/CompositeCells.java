@@ -17,12 +17,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Composite cells: several blocks sharing one position, each moved, turned and scaled on its own.
+ * Composite cells: several blocks and items drawn at one position, each moved, turned and scaled
+ * on its own.
  *
- * <p>A cell is the {@code glue:composite} block ({@link CompositeBlocks#COMPOSITE}) holding an ordered list of {@link CompositePart}s.
- * A cell left with one untransformed part becomes that plain block, and a cell left with none
- * becomes air, so cells exist only where they are needed. Edits run on the server, which sends the
- * result to the clients.</p>
+ * <p>A cell is the {@code glue:composite} block ({@link CompositeBlocks#COMPOSITE}) holding an
+ * ordered list of {@link CompositePart}s. A cell left with one untransformed block part becomes that
+ * plain block, and a cell left with none becomes air, so cells exist only where they are needed.
+ * Edits run on the server, which sends the result to the clients. The parts are only drawn: see
+ * {@link CompositePart}.</p>
  */
 public final class CompositeCells {
 
@@ -42,23 +44,23 @@ public final class CompositeCells {
     }
 
     /**
-     * The parts at a position: a cell's parts, a plain block as one untransformed part, or nothing
-     * for air and replaceable blocks.
+     * The parts at a position: a cell's parts, a plain block as one untransformed block part, or
+     * nothing for air and replaceable blocks.
      */
     public static List<CompositePart> parts(BlockGetter level, BlockPos pos) {
         if (level.getBlockEntity(pos) instanceof CompositeBlockEntity cell) return cell.parts();
         BlockState state = level.getBlockState(pos);
         if (state.isAir() || state.canBeReplaced()) return List.of();
-        return List.of(new CompositePart(state));
+        return List.of(new BlockPart(state));
     }
 
     /**
      * Replaces what stands at a position with these parts: air for none, the plain block for one
-     * untransformed part, a cell otherwise.
+     * untransformed block part, a cell otherwise.
      *
      * <p>The block standing at the position keeps its block entity's data as the first untransformed
-     * part of its state, and a cell's part kept as the plain block keeps its own. Block entities of
-     * parts that go react as to their block's removal: a container drops its items.</p>
+     * part of its state, and a cell's part kept as the plain block keeps its own. Parts that go take
+     * their block entities' data with them: a chest part drops nothing.</p>
      *
      * @return the parts now at the position, or why they were refused: too many, a part that is
      * itself a cell, or a part reaching more than {@link #MAX_REACH} past the cell
@@ -78,8 +80,8 @@ public final class CompositeCells {
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
             return DataResult.success(List.of());
         }
-        if (parts.size() == 1 && parts.getFirst().isIdentity()) {
-            toPlainBlock(level, pos, parts.getFirst());
+        if (parts.size() == 1 && parts.getFirst() instanceof BlockPart part && part.isIdentity()) {
+            toPlainBlock(level, pos, part);
             return DataResult.success(List.copyOf(parts));
         }
 
@@ -118,15 +120,16 @@ public final class CompositeCells {
     }
 
     /**
-     * Stands one untransformed part as its plain block. A part kept from a cell keeps its block
-     * entity's data; the cell's other parts are removed as {@link CompositeBlockEntity#setParts} removes them.
+     * Stands one untransformed block part as its plain block. A part kept from a cell keeps its block
+     * entity's data.
      */
-    private static void toPlainBlock(Level level, BlockPos pos, CompositePart part) {
+    private static void toPlainBlock(Level level, BlockPos pos, BlockPart part) {
         CompoundTag kept = null;
-        if (level.getBlockEntity(pos) instanceof CompositeBlockEntity cell && cell.parts().stream().anyMatch(candidate -> candidate == part)) {
-            cell.setParts(List.of(part));
-            BlockEntity entity = cell.entity(0);
-            if (entity != null) kept = entity.saveWithoutMetadata(level.registryAccess());
+        if (level.getBlockEntity(pos) instanceof CompositeBlockEntity cell) {
+            for (int i = 0; i < cell.parts().size() && kept == null; i++) {
+                BlockEntity entity = cell.entity(i);
+                if (cell.parts().get(i) == part && entity != null) kept = entity.saveWithoutMetadata(level.registryAccess());
+            }
         }
         level.setBlock(pos, part.state(), kept == null ? Block.UPDATE_ALL : Block.UPDATE_ALL | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS);
         BlockEntity entity = kept == null ? null : level.getBlockEntity(pos);
@@ -136,7 +139,7 @@ public final class CompositeCells {
     /** The index of the first untransformed part of a state, which the block of that state becomes, or {@code -1}. */
     private static int untransformedPart(List<CompositePart> parts, BlockState state) {
         for (int i = 0; i < parts.size(); i++) {
-            if (parts.get(i).state() == state && parts.get(i).isIdentity()) return i;
+            if (parts.get(i) instanceof BlockPart part && part.state() == state && part.isIdentity()) return i;
         }
         return -1;
     }
@@ -149,14 +152,22 @@ public final class CompositeCells {
     }
 
     private static DataResult<CompositePart> check(CompositePart part) {
-        BlockState state = part.state();
-        if (state.is(CompositeBlocks.COMPOSITE)) return DataResult.error(() -> "A cell cannot hold another cell");
+        if (part instanceof BlockPart block && block.state().is(CompositeBlocks.COMPOSITE)) {
+            return DataResult.error(() -> "A cell cannot hold another cell");
+        }
         AABB bounds = part.bounds();
         if (bounds != null && !withinReach(bounds)) {
-            return DataResult.error(() -> state.getBlock().getName().getString() + " reaches more than "
+            return DataResult.error(() -> name(part) + " reaches more than "
                     + MAX_REACH + " block past its cell: " + bounds);
         }
         return DataResult.success(part);
+    }
+
+    private static String name(CompositePart part) {
+        return switch (part) {
+            case BlockPart block -> block.state().getBlock().getName().getString();
+            case ItemPart item -> item.stack().getHoverName().getString();
+        };
     }
 
     private static boolean withinReach(AABB bounds) {

@@ -1,70 +1,49 @@
 package fr.lacaleche.composite;
 
-import fr.lacaleche.composite.mixin.RedStoneWireBlockAccessor;
 import fr.lacaleche.glue.data.components.TransformationComponent;
-import fr.lacaleche.glue.shaper.GeometryHit;
 import fr.lacaleche.glue.shaper.PlacedGeometry;
 import fr.lacaleche.glue.shaper.ShapeGeometry;
 import net.fabricmc.fabric.api.blockview.v2.RenderDataBlockEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.util.ProblemReporter;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
-import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 
 /**
- * The parts of a composite cell, the block entities of those that have one, and the shapes they add
- * up to.
+ * The parts of a composite cell, the block entities of block parts that have one, and the shapes
+ * they add up to.
  *
  * <p>The shapes are rebuilt when the parts change, on whichever side receives them, so collision
  * never recomputes per tick. The parts are the render data the chunk mesher reads.</p>
  *
- * <p>A part's block entity is saved and sent with the cell, ticked by the cell's ticker, and given
- * the interactions aimed at its part. Its code runs in a {@link PartScope}, so that it reads and
- * sets its own block at the cell's position: a part whose block sets itself to air leaves the cell.
- * Scheduled ticks and block events addressed to a part's block at the cell's position reach the
- * first part of that block, and a part's menu stays open while the cell holds the part. The cell
- * sends the strongest signal and comparator output of its parts, and emits the light of the
- * brightest.</p>
+ * <p>A block part's block entity only holds what its renderer draws: it is saved and sent with the
+ * cell, but never ticked, used or told of its neighbours, and goes with its part without side
+ * effects, so a chest part's items go with it.</p>
  */
 public class CompositeBlockEntity extends BlockEntity implements RenderDataBlockEntity {
 
     private List<CompositePart> parts = List.of();
     private final List<@Nullable BlockEntity> entities = new ArrayList<>();
-    private List<List<PlacedGeometry>> partGeometry = List.of();
     private List<PlacedGeometry> geometry = List.of();
     private VoxelShape outline = Shapes.empty();
     private VoxelShape collision = Shapes.empty();
@@ -80,14 +59,20 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         List<@Nullable BlockEntity> entities = new ArrayList<>();
         for (ValueInput entry : input.childrenListOrEmpty("parts")) {
             if (parts.size() == CompositeCells.MAX_PARTS) break;
-            // A part whose block is gone fails to decode and is skipped, reported by the input.
+            // A part whose block or item is gone fails to decode and is skipped, reported by the input.
+            TransformationComponent transform = entry.read("transform", TransformationComponent.CODEC).orElse(TransformationComponent.DEFAULT);
+            Optional<ItemStack> item = entry.read("item", ItemStack.CODEC);
+            if (item.isPresent()) {
+                parts.add(new ItemPart(item.get(), transform));
+                entities.add(null);
+                continue;
+            }
             Optional<BlockState> state = entry.read("state", BlockState.CODEC);
             if (state.isEmpty()) continue;
 
             BlockEntity entity = reusedEntity(parts.size(), state.get());
             if (entity != null) entry.child("entity").ifPresent(entity::loadWithComponents);
-            parts.add(new CompositePart(state.get(),
-                    entry.read("transform", TransformationComponent.CODEC).orElse(TransformationComponent.DEFAULT)));
+            parts.add(new BlockPart(state.get(), transform));
             entities.add(entity);
         }
         replace(parts, entities);
@@ -114,7 +99,7 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
-    /** The parts, each with what its own block entity sends to clients. */
+    /** The parts, each block part with what its own block entity sends to clients. */
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(problemPath(), Composite.LOGGER)) {
@@ -154,12 +139,6 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         }
     }
 
-    /** Each part's block entity reacts to its removal along with the cell: a container drops its items. */
-    @Override
-    public void preRemoveSideEffects(BlockPos pos, BlockState state) {
-        for (int i = 0; i < this.parts.size(); i++) removeSideEffects(i);
-    }
-
     /** The parts, as the mesher draws them: an immutable {@code List<CompositePart>}. */
     @Override
     public Object getRenderData() {
@@ -171,7 +150,7 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         return this.parts;
     }
 
-    /** The block entity of the part at an index, or {@code null} when its block has none. */
+    /** The block entity of the part at an index, or {@code null} for an item part or a block without one. */
     public @Nullable BlockEntity entity(int index) {
         return this.entities.get(index);
     }
@@ -189,143 +168,10 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         return this.collision;
     }
 
-    /** Whether a part's block entity is this very one. */
-    public boolean holds(BlockEntity entity) {
-        return containsInstance(this.entities, entity);
-    }
-
-    /** Whether a part is of this block. */
-    public boolean holdsPartOf(Block block) {
-        return partOf(block) >= 0;
-    }
-
-    /**
-     * Runs code addressed to a block at the cell's position, such as a scheduled tick or a block
-     * event, for the first part of that block, in its scope.
-     *
-     * @return the action's result, or empty when no part is of that block
-     */
-    public <T> Optional<T> runPartOf(Block block, Function<PartScope, T> action) {
-        int index = partOf(block);
-        return index < 0 ? Optional.empty() : Optional.of(runPart(index, action));
-    }
-
-    /**
-     * The strongest signal a part sends towards {@code direction}, turned into the part's own
-     * orientation; the direct signal when {@code direct}.
-     */
-    int signal(BlockGetter level, Direction direction, boolean direct) {
-        int signal = 0;
-        for (int i = 0; i < this.parts.size(); i++) {
-            BlockState state = this.parts.get(i).state();
-            if (state.getBlock() instanceof RedStoneWireBlockAccessor wire && !wire.composite$shouldSignal()) {
-                // A wire computing its power reads neighbouring wires' power, one less, from their
-                // states, and is no signal source meanwhile; the cell's state is not a wire, so its
-                // wire parts answer as a signal.
-                if (direction.getAxis().isHorizontal()) signal = Math.max(signal, state.getValue(RedStoneWireBlock.POWER) - 1);
-                continue;
-            }
-            if (!state.isSignalSource()) continue;
-            Direction local = Direction.rotate(this.parts.get(i).matrix().invert(), direction);
-            int partSignal = this.level == null || level != this.level
-                    ? partSignal(state, level, local, direct)
-                    : runPart(i, scope -> partSignal(scope.state(), level, local, direct));
-            signal = Math.max(signal, partSignal);
-        }
-        return signal;
-    }
-
-    /** The strongest comparator output of the parts. */
-    int analogSignal() {
-        int signal = 0;
-        for (int i = 0; i < this.parts.size(); i++) {
-            if (!this.parts.get(i).state().hasAnalogOutputSignal()) continue;
-            signal = Math.max(signal, runPart(i, scope -> scope.state().getAnalogOutputSignal(this.level, this.worldPosition)));
-        }
-        return signal;
-    }
-
-    /** Tells each part a neighbour changed, as the level tells a plain block. */
-    void neighborChanged(Block block, @Nullable Orientation orientation, boolean movedByPiston) {
-        for (int i = 0; i < this.parts.size(); i++) {
-            int count = this.parts.size();
-            runPart(i, scope -> {
-                scope.state().handleNeighborChanged(this.level, this.worldPosition, block, orientation, movedByPiston);
-                return null;
-            });
-            if (this.parts.size() < count) i--;
-        }
-    }
-
-    /**
-     * The index of the part a player aims at within reach, or {@code -1}: the part whose geometry
-     * their view enters first.
-     */
-    public int targetedPart(Player player) {
-        Vec3 origin = Vec3.atLowerCornerOf(this.worldPosition);
-        Vec3 eye = player.getEyePosition();
-        Vec3 from = eye.subtract(origin);
-        Vec3 to = eye.add(player.getViewVector(1).scale(player.blockInteractionRange() + 1)).subtract(origin);
-        int nearest = -1;
-        double nearestDistance = Double.POSITIVE_INFINITY;
-        for (int i = 0; i < this.partGeometry.size(); i++) {
-            Optional<GeometryHit> hit = PlacedGeometry.clip(this.partGeometry.get(i), from, to);
-            if (hit.isEmpty()) continue;
-
-            double distance = hit.get().location().distanceToSqr(from);
-            if (distance < nearestDistance) {
-                nearest = i;
-                nearestDistance = distance;
-            }
-        }
-        return nearest;
-    }
-
-    InteractionResult useItemOn(ItemStack stack, Player player, InteractionHand hand, BlockHitResult hit) {
-        int index = targetedPart(player);
-        if (index < 0) return InteractionResult.TRY_WITH_EMPTY_HAND;
-        BlockHitResult partHit = partHit(index, hit);
-        return runPart(index, scope -> scope.state().useItemOn(stack, this.level, player, hand, partHit));
-    }
-
-    InteractionResult useWithoutItem(Player player, BlockHitResult hit) {
-        int index = targetedPart(player);
-        if (index < 0) return InteractionResult.PASS;
-        BlockHitResult partHit = partHit(index, hit);
-        return runPart(index, scope -> scope.state().useWithoutItem(this.level, player, partHit));
-    }
-
-    void attack(Player player) {
-        int index = targetedPart(player);
-        if (index < 0) return;
-        runPart(index, scope -> {
-            scope.state().attack(this.level, this.worldPosition, player);
-            return null;
-        });
-    }
-
-    /** Ticks each part's block entity as its block's ticker on this side would. */
-    void tick() {
-        for (int i = 0; i < this.parts.size(); i++) {
-            BlockState state = this.parts.get(i).state();
-            BlockEntity entity = this.entities.get(i);
-            BlockEntityTicker<BlockEntity> ticker = ticker(state, entity);
-            if (ticker == null) continue;
-
-            int count = this.parts.size();
-            runPart(i, scope -> {
-                ticker.tick(this.level, this.worldPosition, state, entity);
-                return null;
-            });
-            // A part that removed itself shifts the next one to this index.
-            if (this.parts.size() < count) i--;
-        }
-    }
-
     /**
      * Replaces the parts and sends them to the clients tracking the cell. Server side. A part kept
-     * from the current list, the same instance, keeps its block entity; a removed part's block entity
-     * reacts as to its block's removal.
+     * from the current list, the same instance, keeps its block entity; a new block part gets a new
+     * one, empty.
      */
     void setParts(List<CompositePart> parts) {
         boolean[] kept = new boolean[this.parts.size()];
@@ -333,97 +179,13 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         for (CompositePart part : parts) {
             int current = indexOf(part, kept);
             if (current >= 0) kept[current] = true;
-            entities.add(current >= 0 ? this.entities.get(current) : PartScope.newEntity(this.level, this.worldPosition, part.state()));
-        }
-        for (int i = 0; i < kept.length; i++) {
-            if (!kept[i]) removeSideEffects(i);
+            entities.add(current >= 0 ? this.entities.get(current) : newEntity(part));
         }
         replace(parts, entities);
-        changed(Block.UPDATE_CLIENTS);
-    }
-
-    private <T> T runPart(int index, Function<PartScope, T> action) {
-        CompositePart part = this.parts.get(index);
-        PartScope scope = PartScope.open(this.level, this.worldPosition, part.state(), this.entities.get(index));
-        T result;
-        try {
-            result = action.apply(scope);
-        } finally {
-            scope.close();
-        }
-        if (scope.changed()) apply(part, scope);
-        return result;
-    }
-
-    /** Applies the state a part's code set: a new state for the part, or its removal for air. */
-    private void apply(CompositePart part, PartScope scope) {
-        int index = indexOf(part, new boolean[this.parts.size()]);
-        if (index < 0) return;
-
-        List<CompositePart> parts = new ArrayList<>(this.parts);
-        List<@Nullable BlockEntity> entities = new ArrayList<>(this.entities);
-        if (scope.state().isAir()) {
-            parts.remove(index);
-            entities.remove(index);
-        } else {
-            parts.set(index, new CompositePart(scope.state(), part.transform()));
-            entities.set(index, scope.entity());
-        }
-        replace(parts, entities);
-        if (this.level != null && !this.level.isClientSide() && this.parts.isEmpty()) {
-            this.level.removeBlock(this.worldPosition, false);
-        } else {
-            changed(Block.UPDATE_ALL);
-        }
-    }
-
-    private int partSignal(BlockState state, BlockGetter level, Direction direction, boolean direct) {
-        return direct ? state.getDirectSignal(level, this.worldPosition, direction) : state.getSignal(level, this.worldPosition, direction);
-    }
-
-    /**
-     * Sums up the new parts in the cell's state, saves and sends them, and tells the neighbours, whose
-     * signals and comparator readings may have changed with them.
-     */
-    private void changed(int flags) {
-        summarize();
         setChanged();
-        if (this.level == null) return;
-        BlockState state = getBlockState();
-        this.level.sendBlockUpdated(this.worldPosition, state, state, flags);
-        if (!this.level.isClientSide() && !this.isRemoved()) {
-            this.level.updateNeighborsAt(this.worldPosition, state.getBlock());
-            this.level.updateNeighbourForOutputSignal(this.worldPosition, state.getBlock());
-        }
-    }
-
-    /**
-     * Sets the cell's state to sum up its parts, keeping this block entity; the level then relights
-     * the cell and updates its neighbours. Server side.
-     */
-    private void summarize() {
-        if (this.level == null || this.level.isClientSide() || this.isRemoved()) return;
-        int light = 0;
-        boolean signal = false;
-        boolean analog = false;
-        for (CompositePart part : this.parts) {
-            light = Math.max(light, part.state().getLightEmission());
-            signal |= part.state().isSignalSource();
-            analog |= part.state().hasAnalogOutputSignal();
-        }
-        BlockState current = this.level.getBlockState(this.worldPosition);
-        if (!current.is(CompositeBlocks.COMPOSITE)) return;
-        BlockState summary = current.setValue(CompositeBlock.LIGHT, light).setValue(CompositeBlock.SIGNAL, signal)
-                .setValue(CompositeBlock.ANALOG, analog);
-        if (summary != current) this.level.setBlock(this.worldPosition, summary, Block.UPDATE_ALL);
-    }
-
-    private void removeSideEffects(int index) {
-        BlockEntity entity = this.entities.get(index);
-        if (entity == null || this.level == null || this.level.isClientSide()) return;
-        BlockState state = this.parts.get(index).state();
-        try (PartScope ignored = PartScope.open(this.level, this.worldPosition, state, entity)) {
-            entity.preRemoveSideEffects(this.worldPosition, state);
+        if (this.level != null) {
+            BlockState state = getBlockState();
+            this.level.sendBlockUpdated(this.worldPosition, state, state, Block.UPDATE_CLIENTS);
         }
     }
 
@@ -435,31 +197,14 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
             current.setBlockState(state);
             return current;
         }
-        return PartScope.newEntity(this.level, this.worldPosition, state);
+        return newEntity(new BlockPart(state));
     }
 
-    @SuppressWarnings("unchecked")
-    private @Nullable BlockEntityTicker<BlockEntity> ticker(BlockState state, @Nullable BlockEntity entity) {
-        if (this.level == null || entity == null || entity.isRemoved() || !(state.getBlock() instanceof EntityBlock block)) {
-            return null;
-        }
-        return block.getTicker(this.level, state, (BlockEntityType<BlockEntity>) entity.getType());
-    }
-
-    /** A hit on the cell as the part's block would see it: moved back by the part's transform. */
-    private BlockHitResult partHit(int index, BlockHitResult hit) {
-        Matrix4f inverse = this.parts.get(index).matrix().invert();
-        Vec3 origin = Vec3.atLowerCornerOf(this.worldPosition);
-        Vector3f local = inverse.transformPosition(hit.getLocation().subtract(origin).toVector3f());
-        Direction face = Direction.rotate(inverse, hit.getDirection());
-        return new BlockHitResult(new Vec3(local).add(origin), face, this.worldPosition, hit.isInside());
-    }
-
-    private int partOf(Block block) {
-        for (int i = 0; i < this.parts.size(); i++) {
-            if (this.parts.get(i).state().is(block)) return i;
-        }
-        return -1;
+    private @Nullable BlockEntity newEntity(CompositePart part) {
+        if (!(part instanceof BlockPart block) || !(block.state().getBlock() instanceof EntityBlock entityBlock)) return null;
+        BlockEntity entity = entityBlock.newBlockEntity(this.worldPosition, block.state());
+        if (entity != null && this.level != null) entity.setLevel(this.level);
+        return entity;
     }
 
     /** The first index holding this very part and not yet taken, or {@code -1}. */
@@ -478,16 +223,12 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         this.entities.clear();
         this.entities.addAll(entities);
 
-        List<List<PlacedGeometry>> partGeometry = new ArrayList<>();
         List<PlacedGeometry> geometry = new ArrayList<>();
         VoxelShape collision = Shapes.empty();
         for (CompositePart part : this.parts) {
-            List<PlacedGeometry> placed = part.geometry();
-            partGeometry.add(placed);
-            geometry.addAll(placed);
+            geometry.addAll(part.geometry());
             collision = Shapes.or(collision, part.collision());
         }
-        this.partGeometry = Collections.unmodifiableList(partGeometry);
         this.geometry = List.copyOf(geometry);
         this.outline = PlacedGeometry.toShape(this.geometry, ShapeGeometry.DEFAULT_RESOLUTION);
         this.collision = collision.optimize();
@@ -495,7 +236,10 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
 
     /** A part's fields, as {@link CompositePart#CODEC} writes them. */
     private static void store(ValueOutput output, CompositePart part) {
-        output.store("state", BlockState.CODEC, part.state());
+        switch (part) {
+            case BlockPart block -> output.store("state", BlockState.CODEC, block.state());
+            case ItemPart item -> output.store("item", ItemStack.CODEC, item.stack());
+        }
         if (!part.transform().equals(TransformationComponent.DEFAULT)) {
             output.store("transform", TransformationComponent.CODEC, part.transform());
         }

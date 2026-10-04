@@ -1,6 +1,6 @@
 package fr.lacaleche.composite.client;
 
-import fr.lacaleche.composite.CompositePart;
+import fr.lacaleche.composite.BlockPart;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.Sheets;
@@ -23,8 +23,9 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * The model of a composite cell: each part's own block model, emitted into the chunk mesh through
- * the part's transform. Parts' block entities are drawn by {@link CompositeBlockEntityRenderer}.
+ * The model of a composite cell: each block part's own block model, emitted into the chunk mesh
+ * through the part's transform. Block entities and item parts are drawn by
+ * {@link CompositeBlockEntityRenderer}.
  */
 public final class CompositeBlockModel implements BlockStateModel {
 
@@ -40,7 +41,7 @@ public final class CompositeBlockModel implements BlockStateModel {
     public void emitQuads(QuadEmitter emitter, BlockAndTintGetter blockView, BlockPos pos, BlockState state,
                           RandomSource random, Predicate<@Nullable Direction> cullTest) {
         BlockModelShaper models = Minecraft.getInstance().getBlockRenderer().getBlockModelShaper();
-        for (CompositePart part : parts(blockView, pos)) {
+        for (BlockPart part : parts(blockView, pos)) {
             // A block drawn only by its block-entity renderer has no model to emit.
             if (part.state().getRenderShape() != RenderShape.MODEL) continue;
             BlockStateModel model = models.getBlockModel(part.state());
@@ -54,7 +55,7 @@ public final class CompositeBlockModel implements BlockStateModel {
 
     @Override
     public TextureAtlasSprite particleSprite(BlockAndTintGetter blockView, BlockPos pos, BlockState state) {
-        List<CompositePart> parts = parts(blockView, pos);
+        List<BlockPart> parts = parts(blockView, pos);
         if (parts.isEmpty()) return this.fallbackParticle;
         return Minecraft.getInstance().getBlockRenderer().getBlockModelShaper().getParticleIcon(parts.getFirst().state());
     }
@@ -69,11 +70,11 @@ public final class CompositeBlockModel implements BlockStateModel {
         return this.fallbackParticle;
     }
 
-    private static List<CompositePart> parts(BlockAndTintGetter blockView, BlockPos pos) {
+    private static List<BlockPart> parts(BlockAndTintGetter blockView, BlockPos pos) {
         if (!(blockView.getBlockEntityRenderData(pos) instanceof List<?> entries)) return List.of();
         return entries.stream()
-                .filter(CompositePart.class::isInstance)
-                .map(CompositePart.class::cast)
+                .filter(BlockPart.class::isInstance)
+                .map(BlockPart.class::cast)
                 .toList();
     }
 

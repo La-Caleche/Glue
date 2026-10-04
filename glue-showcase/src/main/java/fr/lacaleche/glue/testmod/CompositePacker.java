@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.testmod;
 
 import com.mojang.serialization.DataResult;
+import fr.lacaleche.composite.BlockPart;
 import fr.lacaleche.composite.CompositeBlockEntity;
 import fr.lacaleche.composite.CompositeBlocks;
 import fr.lacaleche.composite.CompositeCells;
@@ -71,7 +72,7 @@ final class CompositePacker {
             Vector3f centre = new Vector3f(pos.getX() - box.minX() + 0.5f, pos.getY() - box.minY() + 0.5f,
                     pos.getZ() - box.minZ() + 0.5f).sub(halfSize).mul(scale);
             Vector3f translation = rotation.transform(centre).add(offset);
-            parts.add(new CompositePart(state, new TransformationComponent(translation, new Quaternionf(rotation),
+            parts.add(new BlockPart(state, new TransformationComponent(translation, new Quaternionf(rotation),
                     new Vector3f(scale), new Quaternionf())));
             BlockEntity entity = level.getBlockEntity(pos);
             data.add(entity == null ? null : entity.saveWithoutMetadata(level.registryAccess()));

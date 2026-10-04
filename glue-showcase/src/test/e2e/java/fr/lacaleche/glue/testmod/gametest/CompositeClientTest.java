@@ -1,11 +1,12 @@
 package fr.lacaleche.glue.testmod.gametest;
 
 import com.mojang.serialization.DataResult;
-import fr.lacaleche.composite.CompositeBlock;
+import fr.lacaleche.composite.BlockPart;
 import fr.lacaleche.composite.CompositeBlockEntity;
 import fr.lacaleche.composite.CompositeBlocks;
 import fr.lacaleche.composite.CompositeCells;
 import fr.lacaleche.composite.CompositePart;
+import fr.lacaleche.composite.ItemPart;
 import fr.lacaleche.glue.data.components.TransformationComponent;
 import fr.lacaleche.glue.shaper.ShapeGeometry;
 import fr.lacaleche.glue.testmod.blocks.demo.TestAdditiveSpriteBlockEntity;
@@ -20,19 +21,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.inventory.ChestMenu;
-import net.minecraft.world.inventory.CraftingMenu;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.AbstractFurnaceBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.RedstoneLampBlock;
-import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
@@ -81,18 +78,22 @@ public final class CompositeClientTest extends WorldClientTest {
     /** A furnace at half size, turned, in the north-east quarter. */
     private static final CompositePart FURNACE = part(Blocks.FURNACE.defaultBlockState(),
             new Vector3f(0.25f, -0.25f, -0.25f), -20, 0.45f);
-    /** A floor lever in the south-east quarter. */
-    private static final CompositePart LEVER = part(Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR),
+    /** A pulled floor lever in the south-east quarter. */
+    private static final CompositePart LEVER = part(Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR)
+                    .setValue(LeverBlock.POWERED, true),
             new Vector3f(0.25f, 0, 0.25f), 0, 0.5f);
-    /** The additive sprite, ticked on the client, in the south-west quarter. */
+    /** The additive sprite, which its block entity draws, in the south-west quarter. */
     private static final CompositePart SPRITE = part(TestBlocks.TEST_ADDITIVE_SPRITE_BLOCK.defaultBlockState(),
             new Vector3f(-0.25f, -0.25f, 0.25f), 0, 0.45f);
-    /** A redstone lamp, turned, which lights when its cell is powered. */
-    private static final CompositePart LAMP = part(Blocks.REDSTONE_LAMP.defaultBlockState(),
+    /** A lit redstone lamp, turned, which lights nothing. */
+    private static final CompositePart LAMP = part(Blocks.REDSTONE_LAMP.defaultBlockState().setValue(RedstoneLampBlock.LIT, true),
             new Vector3f(0, -0.25f, 0), 45, 0.5f);
-    /** A crafting table above the sprite: a menu without a block entity. */
-    private static final CompositePart TABLE = part(Blocks.CRAFTING_TABLE.defaultBlockState(),
-            new Vector3f(-0.25f, 0.25f, 0.25f), 15, 0.45f);
+    /** A sword at half size above the furnace, as an item frame draws it before halving it. */
+    private static final ItemPart SWORD = item(Items.DIAMOND_SWORD, new Vector3f(0.25f, 0.25f, -0.25f), 0, 0.5f);
+    /** A log item above the sprite: its block at half size, so a quarter of a block once halved. */
+    private static final ItemPart LOG = item(Items.OAK_LOG, new Vector3f(-0.25f, 0.25f, 0.25f), 30, 0.5f);
+
+    private static final List<CompositePart> DRAWN = List.of(CHEST, FURNACE, LEVER, SPRITE, LAMP, SWORD, LOG);
 
     @Override
     protected void test() {
@@ -102,7 +103,7 @@ public final class CompositeClientTest extends WorldClientTest {
 
         this.world.getServer().runOnServer(server -> {
             ServerLevel level = server.overworld();
-            for (CompositePart part : CELL) requireSuccess("adding " + part.state(), CompositeCells.add(level, cell, part));
+            for (CompositePart part : CELL) requireSuccess("adding " + part, CompositeCells.add(level, cell, part));
             check("server", level, cell);
 
             requireError("a part reaching two blocks past the cell", CompositeCells.add(level, cell,
@@ -111,7 +112,7 @@ public final class CompositeClientTest extends WorldClientTest {
                     Collections.nCopies(CompositeCells.MAX_PARTS + 1, CORNER)));
             require(sameParts(CompositeCells.parts(level, cell), CELL), "refused parts changed the cell");
 
-            requireSuccess("a plain block", CompositeCells.set(level, plain, List.of(new CompositePart(Blocks.STONE.defaultBlockState()))));
+            requireSuccess("a plain block", CompositeCells.set(level, plain, List.of(new BlockPart(Blocks.STONE.defaultBlockState()))));
             require(level.getBlockState(plain).is(Blocks.STONE), "one untransformed part is " + level.getBlockState(plain));
             requireSuccess("a part on a plain block", CompositeCells.add(level, plain, CORNER));
             require(level.getBlockState(plain).is(CompositeBlocks.COMPOSITE), "two parts are " + level.getBlockState(plain));
@@ -129,6 +130,10 @@ public final class CompositeClientTest extends WorldClientTest {
             Tag encoded = CompositePart.CODEC.encodeStart(NbtOps.INSTANCE, TURNED).getOrThrow();
             require(sameParts(List.of(CompositePart.CODEC.parse(NbtOps.INSTANCE, encoded).getOrThrow()), List.of(TURNED)),
                     "a part does not survive its codec: " + encoded);
+            Tag encodedItem = CompositePart.CODEC.encodeStart(level.registryAccess().createSerializationContext(NbtOps.INSTANCE), SWORD)
+                    .getOrThrow();
+            require(sameParts(List.of(CompositePart.CODEC.parse(level.registryAccess().createSerializationContext(NbtOps.INSTANCE),
+                    encodedItem).getOrThrow()), List.of(SWORD)), "an item part does not survive its codec: " + encodedItem);
             CompoundTag missing = ((CompoundTag) encoded).copy();
             missing.getCompoundOrEmpty("state").putString("Name", "glue-test:no_such_block");
             require(CompositePart.CODEC.parse(NbtOps.INSTANCE, missing).isError(), "a part of a missing block decodes");
@@ -149,90 +154,7 @@ public final class CompositeClientTest extends WorldClientTest {
         screenshot("composite-cell");
 
         blockEntities(cell.west(3));
-        redstone(cell.north(8));
         pack(cell.east(5));
-    }
-
-    /**
-     * Redstone runs through cells as through plain blocks: a lever part powers the dust beside its
-     * cell, dust runs through a wire part into dust on the other side, and a repeater part powers the
-     * lamp it faces, each turning off again with its source.
-     */
-    private void redstone(BlockPos base) {
-        BlockPos lever = base;
-        BlockPos through = base.south(3);
-        BlockPos repeater = base.south(6);
-        BlockState floorLever = Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR);
-        BlockState dust = Blocks.REDSTONE_WIRE.defaultBlockState();
-        BlockState lamp = Blocks.REDSTONE_LAMP.defaultBlockState();
-        CompositePart small = part(floorLever, new Vector3f(0, 0, 0.25f), 10, 0.5f);
-        CompositePart wire = part(dust, new Vector3f(0.001f, 0, 0), 0, 1);
-        CompositePart facingWest = part(Blocks.REPEATER.defaultBlockState().setValue(RepeaterBlock.FACING, Direction.EAST),
-                new Vector3f(0.001f, 0, 0), 0, 1);
-        this.world.getServer().runOnServer(server -> {
-            ServerLevel level = server.overworld();
-            for (int x = -1; x < 6; x++) {
-                for (int z = 0; z < 7; z++) level.setBlock(base.offset(x, -1, z), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
-            }
-
-            requireSuccess("a lever part", CompositeCells.set(level, lever, List.of(small)));
-            level.setBlock(lever.east(), dust, Block.UPDATE_ALL);
-            level.setBlock(lever.east(2), dust, Block.UPDATE_ALL);
-            level.setBlock(lever.east(3), lamp, Block.UPDATE_ALL);
-            requireSuccess("pulling the lever part", CompositeCells.set(level, lever,
-                    List.of(new CompositePart(floorLever.setValue(LeverBlock.POWERED, true), small.transform()))));
-            require(power(level, lever.east()) == 15 && power(level, lever.east(2)) == 14 && lit(level, lever.east(3)),
-                    "the lever part powers dust to " + power(level, lever.east()) + " and " + power(level, lever.east(2)));
-
-            level.setBlock(through, floorLever, Block.UPDATE_ALL);
-            level.setBlock(through.east(), dust, Block.UPDATE_ALL);
-            requireSuccess("a wire part", CompositeCells.set(level, through.east(2), List.of(wire)));
-            level.setBlock(through.east(3), dust, Block.UPDATE_ALL);
-            level.setBlock(through.east(4), lamp, Block.UPDATE_ALL);
-            level.setBlock(through, floorLever.setValue(LeverBlock.POWERED, true), Block.UPDATE_ALL);
-            int partPower = CompositeCells.parts(level, through.east(2)).getFirst().state().getValue(RedStoneWireBlock.POWER);
-            require(partPower == 14 && power(level, through.east(3)) == 13 && lit(level, through.east(4)),
-                    "dust through the wire part runs at " + partPower + " then " + power(level, through.east(3)));
-
-            level.setBlock(repeater.west(), lamp, Block.UPDATE_ALL);
-            requireSuccess("a repeater part", CompositeCells.set(level, repeater, List.of(facingWest)));
-            level.setBlock(repeater.east(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
-        });
-        this.context.waitTicks(10);
-        this.world.getServer().runOnServer(server -> {
-            ServerLevel level = server.overworld();
-            require(CompositeCells.parts(level, repeater).getFirst().state().getValue(RepeaterBlock.POWERED) && lit(level, repeater.west()),
-                    "the powered repeater part does not light the lamp it faces");
-
-            requireSuccess("pushing the lever part back", CompositeCells.set(level, lever, List.of(small)));
-            require(power(level, lever.east()) == 0 && power(level, lever.east(2)) == 0,
-                    "dust stays powered by the pushed lever part: " + power(level, lever.east()));
-            level.setBlock(through, floorLever, Block.UPDATE_ALL);
-            int partPower = CompositeCells.parts(level, through.east(2)).getFirst().state().getValue(RedStoneWireBlock.POWER);
-            require(partPower == 0 && power(level, through.east(3)) == 0,
-                    "dust through the wire part stays at " + partPower + " and " + power(level, through.east(3)));
-            level.setBlock(repeater.east(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-        });
-        this.context.waitTicks(10);
-        this.world.getServer().runOnServer(server -> {
-            ServerLevel level = server.overworld();
-            require(!lit(level, lever.east(3)) && !lit(level, through.east(4)) && !lit(level, repeater.west()),
-                    "a lamp stays lit once its source is off");
-            for (int x = -1; x < 6; x++) {
-                for (int z = 0; z < 7; z++) {
-                    level.setBlock(base.offset(x, 0, z), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-                    level.setBlock(base.offset(x, -1, z), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-                }
-            }
-        });
-    }
-
-    private static int power(ServerLevel level, BlockPos pos) {
-        return level.getBlockState(pos).getValue(RedStoneWireBlock.POWER);
-    }
-
-    private static boolean lit(ServerLevel level, BlockPos pos) {
-        return level.getBlockState(pos).getValue(RedstoneLampBlock.LIT);
     }
 
     /**
@@ -255,7 +177,7 @@ public final class CompositeClientTest extends WorldClientTest {
             server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "composite pack copy " + cuboid);
             List<CompositePart> parts = CompositeCells.parts(level, target);
             require(parts.size() == 4, "the packed cell holds " + parts);
-            require(parts.getFirst().state().is(Blocks.STONE) && parts.getFirst().matrix().equals(
+            require(parts.getFirst() instanceof BlockPart stone && stone.state().is(Blocks.STONE) && stone.matrix().equals(
                     ShapeGeometry.aboutCentre(new Matrix4f().translation(-0.25f, -0.25f, -0.25f).scale(0.5f)), 1e-6f),
                     "the stone is not in the packed cell's lower north-west corner: " + parts.getFirst().matrix());
             require(diamond(((CompositeBlockEntity) level.getBlockEntity(target)).entity(2)), "the packed chest lost its items");
@@ -277,8 +199,6 @@ public final class CompositeClientTest extends WorldClientTest {
             ServerLevel level = server.overworld();
             String cuboid = coordinates(from) + " " + coordinates(to) + " " + coordinates(target);
             List<CompositePart> parts = CompositeCells.parts(level, target);
-            // Replacing a cell spills its chest part like any chest; this one's copy is emptied first.
-            ((ChestBlockEntity) ((CompositeBlockEntity) level.getBlockEntity(target)).entity(2)).clearContent();
 
             server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),
                     "composite pack move " + cuboid + " 2 0 0 90 0.25");
@@ -298,8 +218,9 @@ public final class CompositeClientTest extends WorldClientTest {
     }
 
     /**
-     * Parts keep their block entities: saved, carried between a plain block and a cell, ticked with
-     * their own block's state standing at the cell, handed interactions, and drawn by their renderers.
+     * Parts are only drawn. Block parts keep their block entities' data, saved, carried between a
+     * plain block and a cell, sent to the client and drawn by their renderers, and item parts are
+     * drawn as items; but a part never ticks, is used, or reacts to or acts on its neighbours.
      */
     private void blockEntities(BlockPos pos) {
         BlockPos plain = pos.west(2);
@@ -312,95 +233,61 @@ public final class CompositeClientTest extends WorldClientTest {
             require(diamond(chestCell.entity(0)), "the chest's items did not move into its part: " + chestCell.entity(0));
             requireSuccess("removing the corner", CompositeCells.remove(level, plain, 1));
             require(diamond(level.getBlockEntity(plain)), "the chest part's items did not move back into the chest");
-            require(level.getEntitiesOfClass(ItemEntity.class, new AABB(plain).inflate(2)).isEmpty(), "moving the chest dropped items");
-            level.setBlock(plain, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
-            level.getEntitiesOfClass(ItemEntity.class, new AABB(plain).inflate(2)).forEach(Entity::discard);
+            requireSuccess("a part on the chest again", CompositeCells.add(level, plain, CORNER));
+            requireSuccess("clearing the chest cell", CompositeCells.set(level, plain, List.of()));
+            require(level.getEntitiesOfClass(ItemEntity.class, new AABB(plain).inflate(2)).isEmpty(), "a chest part dropped its items");
 
-            requireSuccess("block entity parts", CompositeCells.set(level, pos, List.of(CHEST, FURNACE, LEVER, SPRITE, TABLE)));
+            requireSuccess("drawn parts", CompositeCells.set(level, pos, DRAWN));
             CompositeBlockEntity cell = (CompositeBlockEntity) level.getBlockEntity(pos);
             ((ChestBlockEntity) cell.entity(0)).setItem(0, new ItemStack(Items.DIAMOND));
             AbstractFurnaceBlockEntity furnace = (AbstractFurnaceBlockEntity) cell.entity(1);
             furnace.setItem(0, new ItemStack(Items.RAW_IRON, 8));
             furnace.setItem(1, new ItemStack(Items.COAL, 8));
-            require(cell.entity(2) == null, "a lever part has a block entity");
+            require(cell.entity(2) == null && cell.entity(5) == null, "a lever or an item part has a block entity");
 
             CompositeBlockEntity loaded = (CompositeBlockEntity) BlockEntity.loadStatic(pos, cell.getBlockState(),
                     cell.saveWithFullMetadata(level.registryAccess()), level.registryAccess());
-            require(loaded != null && diamond(loaded.entity(0)), "a part's block entity does not survive saving");
+            require(loaded != null && diamond(loaded.entity(0)) && sameParts(loaded.parts(), DRAWN),
+                    "the parts do not survive saving: " + (loaded == null ? null : loaded.parts()));
 
             ServerPlayer player = server.getPlayerList().getPlayers().getFirst();
-            Vec3 eye = new Vec3(pos.getX() + 0.75, pos.getY() + 2.2, pos.getZ() + 0.25);
+            Vec3 eye = new Vec3(pos.getX() + 0.75, pos.getY() + 2.2, pos.getZ() + 0.75);
             Vec3 lever = new Vec3(pos.getX() + 0.75, pos.getY() + 0.05, pos.getZ() + 0.75);
             aim(player, level, eye, lever);
-            BlockHitResult hit = new BlockHitResult(lever, Direction.UP, pos, false);
-            InteractionResult used = level.getBlockState(pos).useWithoutItem(level, player, hit);
-            require(used.consumesAction(), "pulling the lever part gave " + used);
-            require(cell.parts().get(2).state().getValue(LeverBlock.POWERED), "the lever part was not pulled: " + cell.parts().get(2));
-            require(level.getBlockState(pos).is(CompositeBlocks.COMPOSITE), "pulling the lever part replaced the cell");
-            BlockState summary = level.getBlockState(pos);
-            require(summary.getValue(CompositeBlock.SIGNAL) && summary.getValue(CompositeBlock.ANALOG),
-                    "the cell does not sum up its lever, chest and furnace: " + summary);
-            require(level.getSignal(pos, Direction.NORTH) == 15, "the pulled lever part sends " + level.getSignal(pos, Direction.NORTH));
-            require(summary.getAnalogOutputSignal(level, pos) > 0, "the filled chest and furnace parts give no comparator output");
-
-            BlockPos lamp = pos.north(2);
-            requireSuccess("a lamp part", CompositeCells.set(level, lamp, List.of(LAMP)));
-            require(!level.getBlockState(lamp).getValue(CompositeBlock.SIGNAL), "a lamp part makes its cell a signal source");
-            level.setBlock(lamp.below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
-            require(CompositeCells.parts(level, lamp).getFirst().state().getValue(RedstoneLampBlock.LIT), "the powered lamp part is not lit");
-            require(level.getBlockState(lamp).getValue(CompositeBlock.LIGHT) == 15, "the lit lamp's cell emits "
-                    + level.getBlockState(lamp).getValue(CompositeBlock.LIGHT));
-
-            aim(player, level, new Vec3(pos.getX() + 0.25, pos.getY() + 2.2, pos.getZ() + 0.25),
-                    new Vec3(pos.getX() + 0.25, pos.getY(), pos.getZ() + 0.25));
-            used = level.getBlockState(pos).useWithoutItem(level, player, new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false));
-            require(player.containerMenu instanceof ChestMenu, "using the chest part opened " + player.containerMenu + ": " + used);
+            InteractionResult used = level.getBlockState(pos).useWithoutItem(level, player,
+                    new BlockHitResult(lever, Direction.UP, pos, false));
+            require(!used.consumesAction() && player.containerMenu == player.inventoryMenu,
+                    "using a cell did something: " + used + ", " + player.containerMenu);
+            require(level.getSignal(pos, Direction.NORTH) == 0, "the powered lever part sends " + level.getSignal(pos, Direction.NORTH));
+            // Neighbours change, and the lit lamp part, unpowered, stays lit all the same.
+            level.setBlock(pos.north(), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
         });
-        this.context.waitTicks(10);
-        this.context.runOnClient(client -> {
-            ChestBlockEntity chest = (ChestBlockEntity) ((CompositeBlockEntity) client.level.getBlockEntity(pos)).entity(0);
-            require(chest.getOpenNess(0) > 0, "the chest part's lid did not open on the client");
-        });
+        this.context.waitTicks(20);
         this.world.getServer().runOnServer(server -> {
             ServerLevel level = server.overworld();
-            ServerPlayer player = server.getPlayerList().getPlayers().getFirst();
-            require(player.containerMenu instanceof ChestMenu, "the chest part's menu closed");
-            player.closeContainer();
-
-            aim(player, level, new Vec3(pos.getX() + 0.25, pos.getY() + 2.2, pos.getZ() + 0.75),
-                    new Vec3(pos.getX() + 0.25, pos.getY(), pos.getZ() + 0.75));
-            InteractionResult used = level.getBlockState(pos).useWithoutItem(level, player,
-                    new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false));
-            require(player.containerMenu instanceof CraftingMenu, "using the crafting table part opened " + player.containerMenu + ": " + used);
-        });
-        this.context.waitTicks(10);
-        this.world.getServer().runOnServer(server -> {
-            ServerPlayer player = server.getPlayerList().getPlayers().getFirst();
-            require(player.containerMenu instanceof CraftingMenu, "the crafting table part's menu closed");
-            player.closeContainer();
+            level.setBlock(pos.north(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            require(sameParts(CompositeCells.parts(level, pos), DRAWN), "the parts changed on their own: " + CompositeCells.parts(level, pos));
+            require(level.getBrightness(LightLayer.BLOCK, pos) == 0, "the lit lamp part emits " + level.getBrightness(LightLayer.BLOCK, pos));
         });
 
-        BlockPos lamp = pos.north(2);
-        waitUntil("the lamp part lights its cell on the client", client -> client.level.getBrightness(LightLayer.BLOCK, lamp) == 15);
-        this.world.getServer().runOnServer(server -> {
-            server.overworld().setBlock(lamp.below(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-            CompositeCells.set(server.overworld(), lamp, List.of());
+        waitUntil("the drawn parts reach the client", client -> client.level.getBlockEntity(pos) instanceof CompositeBlockEntity cell
+                && sameParts(cell.parts(), DRAWN) && cell.entity(0) instanceof ChestBlockEntity
+                && cell.entity(3) instanceof TestAdditiveSpriteBlockEntity);
+        this.context.runOnClient(client -> {
+            CompositeBlockEntity cell = (CompositeBlockEntity) client.level.getBlockEntity(pos);
+            require(((ChestBlockEntity) cell.entity(0)).getOpenNess(0) == 0, "the chest part's lid moved");
+            requireSame("the flat item's outline", Shapes.box(0.5, 0.5, 0.25 - 1 / 64.0, 1, 1, 0.25 + 1 / 64.0), SWORD.outline());
+            require(Math.abs(LOG.bounds().getYsize() - 0.25) < 1e-5, "the block item's outline is " + LOG.bounds());
         });
-
-        waitUntil("the furnace part lights on the client", client -> client.level.getBlockEntity(pos) instanceof CompositeBlockEntity cell
-                && cell.parts().size() == 5 && cell.parts().get(1).state().getValue(AbstractFurnaceBlock.LIT)
-                && cell.entity(0) instanceof ChestBlockEntity && cell.entity(3) instanceof TestAdditiveSpriteBlockEntity);
-        this.world.getServer().runOnServer(server -> require(server.overworld().getBlockState(pos).is(CompositeBlocks.COMPOSITE),
-                "the furnace replaced the cell as it lit"));
 
         double x = pos.getX() + 0.5;
         double y = pos.getY() + 0.9;
         double z = pos.getZ() + 2.2;
         this.world.getServer().runOnServer(server -> server.getPlayerList().getPlayers().getFirst()
                 .teleportTo(server.overworld(), x, y, z, Set.of(), 180, 35, false));
-        waitUntil("the camera faces the block entity cell", client -> client.player.position().distanceToSqr(x, y, z) < 0.01);
+        waitUntil("the camera faces the drawn cell", client -> client.player.position().distanceToSqr(x, y, z) < 0.01);
         this.context.waitTicks(20);
-        screenshot("composite-block-entities");
+        screenshot("composite-drawn");
         this.world.getServer().runOnServer(server -> CompositeCells.set(server.overworld(), pos, List.of()));
     }
 
@@ -435,20 +322,31 @@ public final class CompositeClientTest extends WorldClientTest {
                 side + " turned planks are not voxelized: " + TURNED.outline().toAabbs());
     }
 
-    private static CompositePart part(BlockState state, Vector3f translation,
-                                      float yaw, float scale) {
-        return new CompositePart(state, new TransformationComponent(translation,
-                new Quaternionf().rotationY((float) Math.toRadians(-yaw)), new Vector3f(scale), new Quaternionf()));
+    private static BlockPart part(BlockState state, Vector3f translation, float yaw, float scale) {
+        return new BlockPart(state, transform(translation, yaw, scale));
+    }
+
+    private static ItemPart item(Item item, Vector3f translation, float yaw, float scale) {
+        return new ItemPart(new ItemStack(item), transform(translation, yaw, scale));
+    }
+
+    private static TransformationComponent transform(Vector3f translation, float yaw, float scale) {
+        return new TransformationComponent(translation, new Quaternionf().rotationY((float) Math.toRadians(-yaw)),
+                new Vector3f(scale), new Quaternionf());
     }
 
     /**
-     * The same blocks placed the same way. Records would compare float bits, and NBT turns a zero
-     * quaternion component's negative sign positive.
+     * The same blocks and items placed the same way. Records would compare float bits, and NBT turns
+     * a zero quaternion component's negative sign positive.
      */
     private static boolean sameParts(List<CompositePart> actual, List<CompositePart> expected) {
         if (actual.size() != expected.size()) return false;
         for (int i = 0; i < actual.size(); i++) {
-            if (actual.get(i).state() != expected.get(i).state()) return false;
+            boolean same = switch (actual.get(i)) {
+                case BlockPart block -> expected.get(i) instanceof BlockPart other && block.state() == other.state();
+                case ItemPart item -> expected.get(i) instanceof ItemPart other && ItemStack.matches(item.stack(), other.stack());
+            };
+            if (!same) return false;
             if (!actual.get(i).matrix().equals(expected.get(i).matrix(), 1e-6f)) return false;
         }
         return true;
