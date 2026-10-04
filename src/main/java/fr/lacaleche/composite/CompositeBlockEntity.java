@@ -17,6 +17,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -24,6 +25,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -52,7 +54,9 @@ import java.util.function.Function;
  * the interactions aimed at its part. Its code runs in a {@link PartScope}, so that it reads and
  * sets its own block at the cell's position: a part whose block sets itself to air leaves the cell.
  * Scheduled ticks and block events addressed to a part's block at the cell's position reach the
- * first part of that block, and a part's menu stays open while the cell holds the part.</p>
+ * first part of that block, and a part's menu stays open while the cell holds the part. The cell
+ * sends the strongest signal and comparator output of its parts, and emits the light of the
+ * brightest.</p>
  */
 public class CompositeBlockEntity extends BlockEntity implements RenderDataBlockEntity {
 
@@ -205,6 +209,46 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
     }
 
     /**
+     * The strongest signal a part sends towards {@code direction}, turned into the part's own
+     * orientation; the direct signal when {@code direct}.
+     */
+    int signal(BlockGetter level, Direction direction, boolean direct) {
+        int signal = 0;
+        for (int i = 0; i < this.parts.size(); i++) {
+            BlockState state = this.parts.get(i).state();
+            if (!state.isSignalSource()) continue;
+            Direction local = Direction.rotate(this.parts.get(i).matrix().invert(), direction);
+            int partSignal = this.level == null || level != this.level
+                    ? partSignal(state, level, local, direct)
+                    : runPart(i, scope -> partSignal(scope.state(), level, local, direct));
+            signal = Math.max(signal, partSignal);
+        }
+        return signal;
+    }
+
+    /** The strongest comparator output of the parts. */
+    int analogSignal() {
+        int signal = 0;
+        for (int i = 0; i < this.parts.size(); i++) {
+            if (!this.parts.get(i).state().hasAnalogOutputSignal()) continue;
+            signal = Math.max(signal, runPart(i, scope -> scope.state().getAnalogOutputSignal(this.level, this.worldPosition)));
+        }
+        return signal;
+    }
+
+    /** Tells each part a neighbour changed, as the level tells a plain block. */
+    void neighborChanged(Block block, @Nullable Orientation orientation, boolean movedByPiston) {
+        for (int i = 0; i < this.parts.size(); i++) {
+            int count = this.parts.size();
+            runPart(i, scope -> {
+                scope.state().handleNeighborChanged(this.level, this.worldPosition, block, orientation, movedByPiston);
+                return null;
+            });
+            if (this.parts.size() < count) i--;
+        }
+    }
+
+    /**
      * The index of the part a player aims at within reach, or {@code -1}: the part whose geometry
      * their view enters first.
      */
@@ -324,12 +368,38 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         }
     }
 
+    private int partSignal(BlockState state, BlockGetter level, Direction direction, boolean direct) {
+        return direct ? state.getDirectSignal(level, this.worldPosition, direction) : state.getSignal(level, this.worldPosition, direction);
+    }
+
     private void changed(int flags) {
+        summarize();
         setChanged();
         if (this.level != null) {
             BlockState state = getBlockState();
             this.level.sendBlockUpdated(this.worldPosition, state, state, flags);
         }
+    }
+
+    /**
+     * Sets the cell's state to sum up its parts, keeping this block entity; the level then relights
+     * the cell and updates its neighbours. Server side.
+     */
+    private void summarize() {
+        if (this.level == null || this.level.isClientSide() || this.isRemoved()) return;
+        int light = 0;
+        boolean signal = false;
+        boolean analog = false;
+        for (CompositePart part : this.parts) {
+            light = Math.max(light, part.state().getLightEmission());
+            signal |= part.state().isSignalSource();
+            analog |= part.state().hasAnalogOutputSignal();
+        }
+        BlockState current = this.level.getBlockState(this.worldPosition);
+        if (!current.is(CompositeBlocks.COMPOSITE)) return;
+        BlockState summary = current.setValue(CompositeBlock.LIGHT, light).setValue(CompositeBlock.SIGNAL, signal)
+                .setValue(CompositeBlock.ANALOG, analog);
+        if (summary != current) this.level.setBlock(this.worldPosition, summary, Block.UPDATE_ALL);
     }
 
     private void removeSideEffects(int index) {

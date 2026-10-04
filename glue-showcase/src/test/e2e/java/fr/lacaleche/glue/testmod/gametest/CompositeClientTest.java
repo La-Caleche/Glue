@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.testmod.gametest;
 
 import com.mojang.serialization.DataResult;
+import fr.lacaleche.composite.CompositeBlock;
 import fr.lacaleche.composite.CompositeBlockEntity;
 import fr.lacaleche.composite.CompositeBlocks;
 import fr.lacaleche.composite.CompositeCells;
@@ -26,7 +27,9 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.LeverBlock;
+import net.minecraft.world.level.block.RedstoneLampBlock;
 import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
@@ -80,6 +83,9 @@ public final class CompositeClientTest extends WorldClientTest {
     /** The additive sprite, ticked on the client, in the south-west quarter. */
     private static final CompositePart SPRITE = part(TestBlocks.TEST_ADDITIVE_SPRITE_BLOCK.defaultBlockState(),
             new Vector3f(-0.25f, -0.25f, 0.25f), 0, 0.45f);
+    /** A redstone lamp, turned, which lights when its cell is powered. */
+    private static final CompositePart LAMP = part(Blocks.REDSTONE_LAMP.defaultBlockState(),
+            new Vector3f(0, -0.25f, 0), 45, 0.5f);
     /** A crafting table above the sprite: a menu without a block entity. */
     private static final CompositePart TABLE = part(Blocks.CRAFTING_TABLE.defaultBlockState(),
             new Vector3f(-0.25f, 0.25f, 0.25f), 15, 0.45f);
@@ -181,6 +187,19 @@ public final class CompositeClientTest extends WorldClientTest {
             require(used.consumesAction(), "pulling the lever part gave " + used);
             require(cell.parts().get(2).state().getValue(LeverBlock.POWERED), "the lever part was not pulled: " + cell.parts().get(2));
             require(level.getBlockState(pos).is(CompositeBlocks.COMPOSITE), "pulling the lever part replaced the cell");
+            BlockState summary = level.getBlockState(pos);
+            require(summary.getValue(CompositeBlock.SIGNAL) && summary.getValue(CompositeBlock.ANALOG),
+                    "the cell does not sum up its lever, chest and furnace: " + summary);
+            require(level.getSignal(pos, Direction.NORTH) == 15, "the pulled lever part sends " + level.getSignal(pos, Direction.NORTH));
+            require(summary.getAnalogOutputSignal(level, pos) > 0, "the filled chest and furnace parts give no comparator output");
+
+            BlockPos lamp = pos.north(2);
+            requireSuccess("a lamp part", CompositeCells.set(level, lamp, List.of(LAMP)));
+            require(!level.getBlockState(lamp).getValue(CompositeBlock.SIGNAL), "a lamp part makes its cell a signal source");
+            level.setBlock(lamp.below(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+            require(CompositeCells.parts(level, lamp).getFirst().state().getValue(RedstoneLampBlock.LIT), "the powered lamp part is not lit");
+            require(level.getBlockState(lamp).getValue(CompositeBlock.LIGHT) == 15, "the lit lamp's cell emits "
+                    + level.getBlockState(lamp).getValue(CompositeBlock.LIGHT));
 
             aim(player, level, new Vec3(pos.getX() + 0.25, pos.getY() + 2.2, pos.getZ() + 0.25),
                     new Vec3(pos.getX() + 0.25, pos.getY(), pos.getZ() + 0.25));
@@ -209,6 +228,13 @@ public final class CompositeClientTest extends WorldClientTest {
             ServerPlayer player = server.getPlayerList().getPlayers().getFirst();
             require(player.containerMenu instanceof CraftingMenu, "the crafting table part's menu closed");
             player.closeContainer();
+        });
+
+        BlockPos lamp = pos.north(2);
+        waitUntil("the lamp part lights its cell on the client", client -> client.level.getBrightness(LightLayer.BLOCK, lamp) == 15);
+        this.world.getServer().runOnServer(server -> {
+            server.overworld().setBlock(lamp.below(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            CompositeCells.set(server.overworld(), lamp, List.of());
         });
 
         waitUntil("the furnace part lights on the client", client -> client.level.getBlockEntity(pos) instanceof CompositeBlockEntity cell
