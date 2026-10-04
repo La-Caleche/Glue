@@ -42,7 +42,7 @@ public final class CompositeBlockModel implements BlockStateModel {
         for (CompositePart part : parts(blockView, pos)) {
             BlockStateModel model = models.getBlockModel(part.state());
             boolean identity = part.isIdentity();
-            emitter.pushTransform(new CompositePartTransform(part, identity));
+            emitter.pushTransform(new CompositePartTransform(part, identity, blockView, pos));
             // A transformed part no longer lines up with its neighbours, so none of its faces is culled.
             model.emitQuads(emitter, blockView, pos, part.state(), random, identity ? cullTest : face -> false);
             emitter.popTransform();
