@@ -3,6 +3,7 @@ package fr.lacaleche.glue.shaper;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
+import fr.lacaleche.glue.block.Rotation16;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.CachedOutput;
@@ -26,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.IntStream;
 
 /**
  * Generates block shapes from block models, for {@link BlockShapes}.
@@ -200,9 +200,9 @@ public abstract class BlockShapeProvider implements DataProvider {
 
         /**
          * Turns each state by {@code property} in steps of 22.5 degrees, in the same direction as a
-         * blockstate {@code y} rotation, on top of its blockstate rotation: for blocks whose
-         * renderer, not their blockstate, applies a 16-step rotation such as
-         * {@code BlockStateProperties.ROTATION_16}.
+         * blockstate {@code y} rotation, on top of its blockstate rotation: for blocks whose model is
+         * turned by such a property outside the blockstate file, as {@link Rotation16} blocks are by
+         * {@code GlueBlockModels.rotation16} on the client.
          *
          * @throws IllegalArgumentException if the block lacks the property or it is not 0 to 15
          */
@@ -210,10 +210,7 @@ public abstract class BlockShapeProvider implements DataProvider {
             if (!this.block.getStateDefinition().getProperties().contains(property)) {
                 throw new IllegalArgumentException(this.block + " has no property " + property.getName());
             }
-            if (!property.getPossibleValues().equals(IntStream.rangeClosed(0, 15).boxed().toList())) {
-                throw new IllegalArgumentException("Property " + property.getName() + " does not range from 0 to 15");
-            }
-            this.rotation16 = property;
+            this.rotation16 = Rotation16.check(property);
             return this;
         }
 
@@ -234,7 +231,7 @@ public abstract class BlockShapeProvider implements DataProvider {
         }
 
         private float turn(BlockState state) {
-            return this.rotation16 == null ? 0f : 22.5f * state.getValue(this.rotation16);
+            return this.rotation16 == null ? 0f : Rotation16.degrees(state.getValue(this.rotation16));
         }
 
         private static int checkResolution(int resolution) {

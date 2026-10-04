@@ -9,6 +9,7 @@ import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.BlockRenderer;
 import fr.lacaleche.glue.client.render.composite.CompositeBlockModel;
+import fr.lacaleche.glue.client.render.model.GlueBlockModels;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.client.shader.internal.DeferredDrawQueue;
@@ -51,6 +52,7 @@ public class GlueClient implements ClientModInitializer {
 
         DeferredDrawQueue.INSTANCE.register();
 
+        GlueBlockModels.register();
         ModelLoadingPlugin.register(context -> context.registerBlockStateResolver(GlueBlocks.COMPOSITE, resolver -> {
             CompositeBlockModel.Unbaked model = new CompositeBlockModel.Unbaked();
             for (BlockState state : resolver.block().getStateDefinition().getPossibleStates()) resolver.setModel(state, model);
