@@ -50,7 +50,8 @@ public final class BlockShapes {
     static final String DIRECTORY = "glue/shapes";
 
     private static final Logger LOGGER = LoggerFactory.getLogger("glue/shapes");
-    private static final Table NONE = new Table(Map.of(), Map.of(), Map.of());
+    private static final Table NONE = new Table(Map.of(), Map.of(), Map.of(), Map.of(),
+            BlockShapeProvider.Rule.DEFAULT_COLLISION_RESOLUTION);
     private static final Map<Block, Table> TABLES = new ConcurrentHashMap<>();
 
     private BlockShapes() {
@@ -72,6 +73,22 @@ public final class BlockShapes {
      */
     public static @Nullable List<PlacedGeometry> geometry(BlockState state) {
         return table(state.getBlock()).geometries.get(state);
+    }
+
+    /**
+     * The models a state's generated collision is made of, each where the state places it, or
+     * {@code null} when its block has no generated geometry. The list is immutable.
+     */
+    public static @Nullable List<PlacedGeometry> collisionGeometry(BlockState state) {
+        return table(state.getBlock()).collisionGeometries.get(state);
+    }
+
+    /**
+     * Voxels per block the generated collision was made at where a rotation leaves its models
+     * unaligned; the default for a block without generated shapes.
+     */
+    public static int collisionResolution(BlockState state) {
+        return table(state.getBlock()).collisionResolution;
     }
 
     /** A state's key in a shapes file: its properties as {@code name=value}, comma-separated. */
@@ -114,6 +131,7 @@ public final class BlockShapes {
         Map<BlockState, VoxelShape> outlines = new IdentityHashMap<>();
         Map<BlockState, VoxelShape> collisions = new IdentityHashMap<>();
         Map<BlockState, List<PlacedGeometry>> geometries = new IdentityHashMap<>();
+        Map<BlockState, List<PlacedGeometry>> collisionGeometries = new IdentityHashMap<>();
         int missing = 0;
         for (BlockState state : block.getStateDefinition().getPossibleStates()) {
             BlockShapesFile.StateShapes entry = shapesFile.states().get(stateKey(state));
@@ -124,12 +142,14 @@ public final class BlockShapes {
             outlines.put(state, shape(shapes, entry.outline(), file));
             collisions.put(state, shape(shapes, entry.collision().orElse(entry.outline()), file));
             if (!entry.models().isEmpty()) geometries.put(state, placed(models, entry.models(), file));
+            List<BlockShapesFile.PlacedModel> collisionModels = entry.collisionModels().isEmpty() ? entry.models() : entry.collisionModels();
+            if (!collisionModels.isEmpty()) collisionGeometries.put(state, placed(models, collisionModels, file));
         }
         if (missing > 0) {
             LOGGER.warn("{} of {} states of {} have no generated shape in {}; regenerate the shapes",
                     missing, block.getStateDefinition().getPossibleStates().size(), id, file);
         }
-        return new Table(outlines, collisions, geometries);
+        return new Table(outlines, collisions, geometries, collisionGeometries, shapesFile.collisionResolution());
     }
 
     private static List<PlacedGeometry> placed(List<ShapeGeometry> models, List<BlockShapesFile.PlacedModel> entries, Path file) {
@@ -157,7 +177,8 @@ public final class BlockShapes {
     }
 
     private record Table(Map<BlockState, VoxelShape> outlines, Map<BlockState, VoxelShape> collisions,
-                         Map<BlockState, List<PlacedGeometry>> geometries) {
+                         Map<BlockState, List<PlacedGeometry>> geometries,
+                         Map<BlockState, List<PlacedGeometry>> collisionGeometries, int collisionResolution) {
     }
 
     /** Every shapes file in the loaded mods, found once on first use. */

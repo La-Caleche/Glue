@@ -19,10 +19,11 @@ import java.util.stream.Collectors;
 
 /**
  * The generated shapes of one block: distinct shapes as boxes in pixels, the geometry of the models
- * the block draws, and per state, keyed by {@link BlockShapes#stateKey}, its shapes and where its
- * models stand.
+ * the block draws or collides as, the resolution its collision was voxelized at, and per state,
+ * keyed by {@link BlockShapes#stateKey}, its shapes and where its models stand.
  */
-record BlockShapesFile(List<List<AABB>> shapes, List<List<GeometryBox>> geometries, Map<String, StateShapes> states) {
+record BlockShapesFile(List<List<AABB>> shapes, List<List<GeometryBox>> geometries, int collisionResolution,
+                       Map<String, StateShapes> states) {
 
     /** A box as {@code "minX minY minZ maxX maxY maxZ"} in pixels, one line per box in the file. */
     private static final Codec<AABB> PIXEL_BOX = Codec.STRING.comapFlatMap(BlockShapesFile::parseBox, BlockShapesFile::formatBox);
@@ -36,6 +37,8 @@ record BlockShapesFile(List<List<AABB>> shapes, List<List<GeometryBox>> geometri
     static final Codec<BlockShapesFile> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             PIXEL_BOX.listOf().listOf().fieldOf("shapes").forGetter(BlockShapesFile::shapes),
             ELEMENT.listOf().listOf().optionalFieldOf("geometries", List.of()).forGetter(BlockShapesFile::geometries),
+            Codec.INT.optionalFieldOf("collision_resolution", BlockShapeProvider.Rule.DEFAULT_COLLISION_RESOLUTION)
+                    .forGetter(BlockShapesFile::collisionResolution),
             Codec.unboundedMap(Codec.STRING, StateShapes.CODEC).fieldOf("states").forGetter(BlockShapesFile::states)
     ).apply(instance, BlockShapesFile::new));
 
@@ -101,13 +104,15 @@ record BlockShapesFile(List<List<AABB>> shapes, List<List<GeometryBox>> geometri
      * @param outline   index of the state's outline shape
      * @param collision index of its collision shape, absent when it is the outline
      * @param models    the models the state draws and where
+     * @param collisionModels the models its collision is made of and where, empty when it is the drawn models
      */
-    record StateShapes(int outline, Optional<Integer> collision, List<PlacedModel> models) {
+    record StateShapes(int outline, Optional<Integer> collision, List<PlacedModel> models, List<PlacedModel> collisionModels) {
 
         static final Codec<StateShapes> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 Codec.INT.fieldOf("outline").forGetter(StateShapes::outline),
                 Codec.INT.optionalFieldOf("collision").forGetter(StateShapes::collision),
-                PlacedModel.CODEC.listOf().optionalFieldOf("models", List.of()).forGetter(StateShapes::models)
+                PlacedModel.CODEC.listOf().optionalFieldOf("models", List.of()).forGetter(StateShapes::models),
+                PlacedModel.CODEC.listOf().optionalFieldOf("collision_models", List.of()).forGetter(StateShapes::collisionModels)
         ).apply(instance, StateShapes::new));
     }
 

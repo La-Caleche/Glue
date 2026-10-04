@@ -209,9 +209,12 @@ class BlockShapeGenerationTest {
                 .rotated(new GeometryBox.Rotation(new Vec3(0.5, 0, 0.5), Direction.Axis.Y, 22.5f, true));
         BlockShapesFile file = new BlockShapesFile(
                 List.of(List.of(new AABB(0.125, 0, 0, 0.875, 0.25, 1)), List.of(new AABB(-0.03125, 0, 0, 1, 0.5, 1.5))),
-                List.of(List.of(GeometryBox.pixels(2, 0, 0, 14, 4, 16), turned)),
-                Map.of("facing=north", new BlockShapesFile.StateShapes(0, Optional.of(1), List.of(new BlockShapesFile.PlacedModel(0, 0, 0, 0))),
-                        "facing=south", new BlockShapesFile.StateShapes(0, Optional.empty(), List.of(new BlockShapesFile.PlacedModel(0, 0, 180, 22.5f)))));
+                List.of(List.of(GeometryBox.pixels(2, 0, 0, 14, 4, 16), turned), List.of(GeometryBox.pixels(0, 0, 0, 16, 8, 16))),
+                16,
+                Map.of("facing=north", new BlockShapesFile.StateShapes(0, Optional.of(1), List.of(new BlockShapesFile.PlacedModel(0, 0, 0, 0)),
+                                List.of(new BlockShapesFile.PlacedModel(1, 0, 0, 0))),
+                        "facing=south", new BlockShapesFile.StateShapes(0, Optional.empty(), List.of(new BlockShapesFile.PlacedModel(0, 0, 180, 22.5f)),
+                                List.of())));
 
         JsonObject json = BlockShapesFile.CODEC.encodeStart(JsonOps.INSTANCE, file).getOrThrow().getAsJsonObject();
         BlockShapesFile decoded = BlockShapesFile.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();

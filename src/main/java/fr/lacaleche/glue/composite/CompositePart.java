@@ -66,10 +66,21 @@ public record CompositePart(BlockState state, TransformationComponent transform)
         return PlacedGeometry.toShape(geometry(), ShapeGeometry.DEFAULT_RESOLUTION);
     }
 
-    /** The part's collision once transformed, voxelized where it leaves the axes. */
+    /**
+     * The part's collision once transformed, voxelized where it leaves the axes: from its block's
+     * generated collision models at their resolution when the block collides as generated, from its
+     * collision shape otherwise.
+     */
     public VoxelShape collision() {
         VoxelShape collision = this.state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, CollisionContext.empty());
-        return ShapeGeometry.of(collision).toShape(matrix(), BlockShapeProvider.Rule.DEFAULT_COLLISION_RESOLUTION);
+        List<PlacedGeometry> generated = BlockShapes.collisionGeometry(this.state);
+        // The generated shape is cached, so the same instance means the block did not override it.
+        if (generated == null || collision != BlockShapes.collision(this.state)) {
+            return ShapeGeometry.of(collision).toShape(matrix(), BlockShapeProvider.Rule.DEFAULT_COLLISION_RESOLUTION);
+        }
+        Matrix4f matrix = matrix();
+        return PlacedGeometry.toShape(generated.stream().map(geometry -> geometry.placed(matrix)).toList(),
+                BlockShapes.collisionResolution(this.state));
     }
 
     /** The bounds of the part's geometry, or {@code null} when it has none. */

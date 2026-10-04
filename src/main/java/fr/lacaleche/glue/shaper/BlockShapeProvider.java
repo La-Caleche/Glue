@@ -128,16 +128,27 @@ public abstract class BlockShapeProvider implements DataProvider {
             Optional<Integer> collision = collisionIndex == outline ? Optional.empty() : Optional.of(collisionIndex);
 
             List<BlockShapesFile.PlacedModel> models = new ArrayList<>();
+            List<BlockShapesFile.PlacedModel> collisionModels = new ArrayList<>();
             for (BlockstateResolver.Placement placement : placements) {
-                int geometry = geometryIndices.computeIfAbsent(placement.model(), model -> {
-                    geometries.add(source.geometry(model).boxes());
-                    return geometries.size() - 1;
-                });
-                models.add(new BlockShapesFile.PlacedModel(geometry, placement.x().ordinal() * 90, placement.y().ordinal() * 90, turn));
+                models.add(placed(placement, placement.model(), turn, source, geometries, geometryIndices));
+                if (rule.collisionModel != null) {
+                    collisionModels.add(placed(placement, rule.collisionModel, turn, source, geometries, geometryIndices));
+                }
             }
-            states.put(BlockShapes.stateKey(state), new BlockShapesFile.StateShapes(outline, collision, models));
+            states.put(BlockShapes.stateKey(state), new BlockShapesFile.StateShapes(outline, collision, models, collisionModels));
         }
-        return new BlockShapesFile(shapes, geometries, states);
+        return new BlockShapesFile(shapes, geometries, rule.collisionResolution, states);
+    }
+
+    /** {@code model} where {@code placement} stands, its geometry written once per file. */
+    private static BlockShapesFile.PlacedModel placed(BlockstateResolver.Placement placement, ResourceLocation model, float turn,
+                                                      ModelSource source, List<List<GeometryBox>> geometries,
+                                                      Map<ResourceLocation, Integer> geometryIndices) {
+        int geometry = geometryIndices.computeIfAbsent(model, unused -> {
+            geometries.add(source.geometry(model).boxes());
+            return geometries.size() - 1;
+        });
+        return new BlockShapesFile.PlacedModel(geometry, placement.x().ordinal() * 90, placement.y().ordinal() * 90, turn);
     }
 
     /**

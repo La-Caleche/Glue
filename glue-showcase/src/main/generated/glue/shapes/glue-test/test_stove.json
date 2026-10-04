@@ -70,6 +70,30 @@
       "0 2 4 16 18 4"
     ],
     [
+      "2 12.75 -0.75 14 14 0",
+      "3 14 -0.75 13 15 0",
+      "2 5.25 -0.75 4 12.75 0",
+      "2 2.25 -0.75 14 5.25 0",
+      "12 5.25 -0.75 14 12.75 0",
+      "4.25 18 4.35 11.75 21 11.85",
+      "5 21 5.1 11 29 11.1",
+      "4.25 29 4.35 11.75 32 11.85",
+      "0.25 0 1.5 2.25 1 3.5",
+      "0.25 1 1.5 3.25 2 4.5",
+      "13.75 0 1.5 15.75 1 3.5",
+      "12.75 1 1.5 15.75 2 4.5",
+      "0.25 0 13 2.25 1 15",
+      "0.25 1 12 3.25 2 15",
+      "13.75 0 13 15.75 1 15",
+      "12.75 1 12 15.75 2 15",
+      "0 2 -0.75 16 2.25 16.75",
+      "16 2 0 16.5 2.25 16",
+      "-0.5 2 0 0 2.25 16",
+      "-0.5 17.775 0 16.5 18.025 16",
+      "0 17.775 -0.75 16 18.025 16.75",
+      "0 2.25 0 16 18.4 16"
+    ],
+    [
       "1.25 11.3 -0.75 1.75 13.25 0",
       "2 12.75 -0.75 14 14 0",
       "3 14 -0.75 13 15 0",
@@ -699,9 +723,15 @@
   "states": {
     "facing=east,lit=false": {
       "collision": 7,
-      "models": [
+      "collision_models": [
         {
           "geometry": 1,
+          "y": 90
+        }
+      ],
+      "models": [
+        {
+          "geometry": 2,
           "y": 90
         }
       ],
@@ -709,6 +739,12 @@
     },
     "facing=east,lit=true": {
       "collision": 7,
+      "collision_models": [
+        {
+          "geometry": 1,
+          "y": 90
+        }
+      ],
       "models": [
         {
           "geometry": 0,
@@ -719,15 +755,25 @@
     },
     "facing=north,lit=false": {
       "collision": 1,
-      "models": [
+      "collision_models": [
         {
           "geometry": 1
+        }
+      ],
+      "models": [
+        {
+          "geometry": 2
         }
       ],
       "outline": 0
     },
     "facing=north,lit=true": {
       "collision": 1,
+      "collision_models": [
+        {
+          "geometry": 1
+        }
+      ],
       "models": [
         {
           "geometry": 0
@@ -737,9 +783,15 @@
     },
     "facing=south,lit=false": {
       "collision": 3,
-      "models": [
+      "collision_models": [
         {
           "geometry": 1,
+          "y": 180
+        }
+      ],
+      "models": [
+        {
+          "geometry": 2,
           "y": 180
         }
       ],
@@ -747,6 +799,12 @@
     },
     "facing=south,lit=true": {
       "collision": 3,
+      "collision_models": [
+        {
+          "geometry": 1,
+          "y": 180
+        }
+      ],
       "models": [
         {
           "geometry": 0,
@@ -757,9 +815,15 @@
     },
     "facing=west,lit=false": {
       "collision": 5,
-      "models": [
+      "collision_models": [
         {
           "geometry": 1,
+          "y": 270
+        }
+      ],
+      "models": [
+        {
+          "geometry": 2,
           "y": 270
         }
       ],
@@ -767,6 +831,12 @@
     },
     "facing=west,lit=true": {
       "collision": 5,
+      "collision_models": [
+        {
+          "geometry": 1,
+          "y": 270
+        }
+      ],
       "models": [
         {
           "geometry": 0,
