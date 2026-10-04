@@ -52,7 +52,7 @@ over the full 20-block ray.
 | `PostShaderRegistry` / `TimedEffectRegistry` | `registries/TestShaders.java` |
 | `GlueBlock` + data-driven outline | `blocks/demo/TestOutlineBlock.java` (+ `glue/outlines/example.json`) |
 | `GlueVoxelShape` | `blocks/demo/TestOutlineBlock.java` |
-| `VoxelShaper` (directional shapes) | `blocks/demo/TestShapeBlock.java` |
+| `BlockShapeProvider` (shapes generated from models) | `datagen/ShowcaseBlockShapes.java`, `blocks/demo/TestShapeBlock.java`, `blocks/demo/TestChairBlock.java`, `blocks/demo/TestStoveBlock.java` |
 | `IHaveBigOutline` (oversized selection box) | `TestOutlineBlock`, `TestShaderBlock`, `TestSpinningBlock` |
 | `GlueTransformStack` (fluent transforms) | `render/block/entity/TestOutlineBlockEntityRenderer.java` (basic), `TestSpinningBlockEntityRenderer.java` (advanced `then()`) |
 | `GluePipeline` + `ShadedBufferSource` (entity shader capture) | `TestShaderBlockEntityRenderer.java`, `TestAdditiveSpriteBlockEntityRenderer.java` |
@@ -117,6 +117,7 @@ Select one or more discovered tests by short name, class name, or wildcard:
 |---|---|
 | `inventory` | Real inventory input, client/server synchronization, resize and stale handles. |
 | `scenes` | Orbit/FPS/gizmo previews opened as `/showcase scene` opens them, their controls, undo/redo and target disposal. |
+| `shapes` | Every state of `test_shape` gets its generated outline and collision, on the server and the client; the Occamod chair's sixteen turns and the stove's separate collision follow their models. |
 | `viewport-sky` | Full-window and inset sky views, day/night and Nether; Iris optional. |
 | `native-dialogs` | Human-assisted: cancel the open/save/folder OS dialogs. |
 
@@ -146,9 +147,14 @@ use the full binary class name from `listClientTests` to disambiguate a short na
 | `test_spinning` | animated orbit rendering via transform stack | `TickingBlockEntity` |
 | `test_shader`  | cycle an item through every `GluePipeline` (right-click) | `TestShaderBlockEntity` (stateful) |
 | `test_additive_sprite` | additive-blended sprite via `ShadedBufferSource` | `TestAdditiveSpriteBlockEntity` |
-| `test_shape`   | `VoxelShaper` directional shapes (right-click cycles) | — (no entity) |
+| `test_shape`   | outline and collision generated from its four models, per facing (right-click cycles) | — (no entity) |
+| `test_chair`   | Occamod's chair, placed in sixteen directions, its outline voxelized between quarter turns | `TickingBlockEntity` |
+| `test_stove`   | Occamod's stove, outline from its drawn model and collision from a simpler one (right-click lights it) | — (no entity) |
 
-Blocks that only need an animation clock share **`TickingBlockEntity`**; two keep a dedicated
+`test_shape`, `test_chair` and `test_stove` declare no shape in Java. `.\gradlew.bat :glue-showcase:runDatagen` regenerates
+`src/main/generated/glue/shapes/` from their blockstates and models; run it after changing either.
+
+Blocks that only need an animation clock, or a renderer as the chair does, share **`TickingBlockEntity`**; two keep a dedicated
 entity — `test_shader` for its cycling index, `test_additive_sprite` for its sprite animation.
 
 Every demo block has a matching blockstate, item definition, self-drop loot table, translation, and

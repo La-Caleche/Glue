@@ -5,6 +5,8 @@
   "block.glue-test.test_shader": "Bloc de test de shader",
   "block.glue-test.test_additive_sprite": "Bloc à sprite additif",
   "block.glue-test.test_shape": "Bloc de test de forme",
+  "block.glue-test.test_chair": "Chaise de test (Occamod)",
+  "block.glue-test.test_stove": "Poêle de test (Occamod)",
   "item.glue-test.test_component": "Outil de préréglages de transformation",
   "item.glue-test.test_component.selected": "Préréglage de transformation : %s",
   "item.glue-test.test_component.preset.0": "Identité",

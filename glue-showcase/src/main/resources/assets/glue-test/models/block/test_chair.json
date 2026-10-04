@@ -1,0 +1,9 @@
+{
+  "parent": "glue-test:block/template_chair",
+  "textures": {
+    "bottom": "glue-test:block/chairs/chair_bottom",
+    "particle": "glue-test:block/chairs/chair_base",
+    "texture": "glue-test:block/chairs/chair_base",
+    "top": "glue-test:block/chairs/chair_top"
+  }
+}

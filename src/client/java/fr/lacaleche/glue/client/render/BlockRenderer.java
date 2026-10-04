@@ -7,6 +7,7 @@ import fr.lacaleche.glue.client.registries.GlueClientRegistries;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.outline.GlueOutlineRenderer;
 import fr.lacaleche.glue.math.Color;
+import fr.lacaleche.glue.shaper.PlacedGeometry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -15,18 +16,29 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+
+import java.util.List;
 
 public class BlockRenderer {
 
+    /**
+     * One box around a geometry block's model, so breaking it bursts like a vanilla block of that
+     * size rather than once per box of its voxel shape.
+     */
     public static VoxelShape getBreakParticleShape(BlockState blockState, ClientLevel world, BlockGetter blockView,
                                                    BlockPos blockPos) {
-        if (!(blockState.getBlock() instanceof GlueBlock))
+        if (!(blockState.getBlock() instanceof GlueBlock glueBlock))
             return null;
+        List<PlacedGeometry> geometry = glueBlock.getGeometry(blockState, blockView, blockPos);
+        AABB bounds = geometry == null ? null : PlacedGeometry.bounds(geometry);
+        if (bounds != null) return Shapes.create(bounds);
         return blockState.getBlock().getBlockSupportShape(blockState, blockView, blockPos);
     }
 
@@ -42,6 +54,7 @@ public class BlockRenderer {
         if (!world.getWorldBorder().isWithinBounds(pos) || !(blockstate.getBlock() instanceof GlueBlock glueBlock))
             return false;
 
+        final List<PlacedGeometry> geometry = glueBlock.getGeometry(blockstate, world, pos);
         final VoxelShape shape = blockstate.getShape(world, pos, CollisionContext.of(client.player));
 
         // ReloadableRegistry handles both JSON and Java entries — single lookup
@@ -54,7 +67,13 @@ public class BlockRenderer {
         matrices.pushPose();
         try {
             matrices.translate(pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z);
-            renderer.render(client, world, shape, matrices, buffers, pos, camera, Color.BLACK);
+            if (geometry != null) renderer.render(client, world, geometry, matrices, buffers, pos, camera, Color.BLACK);
+            else renderer.render(client, world, shape, matrices, buffers, pos, camera, Color.BLACK);
+            // Hitboxes (F3+B) also show what the targeted block collides with.
+            if (client.getEntityRenderDispatcher().shouldRenderHitBoxes()) {
+                renderer.renderCollisionBox(client, world, blockstate.getCollisionShape(world, pos, CollisionContext.of(client.player)),
+                        matrices, buffers, Color.RED);
+            }
         } finally {
             matrices.popPose();
         }

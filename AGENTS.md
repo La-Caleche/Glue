@@ -21,8 +21,9 @@ and do not reproduce them in new APIs.
 
 Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
 provides typed registries, rendering and shader infrastructure, native dialogs, and Fabric client
-GameTest helpers. Lumos, the colored-lighting mod, lives in its own repository and depends on Glue;
-Porthole, the web-interface library, lives in its own repository and does not. The build uses Gradle Kotlin DSL,
+GameTest helpers. Lumos, the colored-lighting mod, and Tessera, the composite-cell mod, live in
+their own repositories and depend on Glue; Porthole, the web-interface library, lives in its own
+repository and does not. The build uses Gradle Kotlin DSL,
 Fabric Loom, and the in-house `fr.lacaleche.caldle` plugin.
 
 - Maven group: `fr.lacaleche.glue`

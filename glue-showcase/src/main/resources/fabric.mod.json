@@ -10,6 +10,9 @@
         ],
         "client": [
             "fr.lacaleche.glue.testmod.TestmodClient"
+        ],
+        "fabric-datagen": [
+            "fr.lacaleche.glue.testmod.datagen.ShowcaseDataGenerator"
         ]
     },
     "depends": {

@@ -8,6 +8,7 @@ import fr.lacaleche.glue.client.events.ParticleManagerEvents;
 import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.BlockRenderer;
+import fr.lacaleche.glue.client.render.model.GlueBlockModels;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.client.shader.internal.DeferredDrawQueue;
@@ -46,6 +47,8 @@ public class GlueClient implements ClientModInitializer {
         ParticleManagerEvents.BLOCK_BREAK.register(BlockRenderer::getBreakParticleShape);
 
         DeferredDrawQueue.INSTANCE.register();
+
+        GlueBlockModels.register();
 
         WorldRenderEvents.START.register(ctx -> RenderCompat.resetFrameCache());
         RaycastUtils.register();

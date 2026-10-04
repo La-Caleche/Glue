@@ -25,6 +25,8 @@ public class TestItemGroups {
                         entries.accept(TestItems.TEST_SHADER_BLOCK);
                         entries.accept(TestItems.TEST_ADDITIVE_SPRITE_BLOCK);
                         entries.accept(TestItems.TEST_SHAPE_BLOCK);
+                        entries.accept(TestItems.TEST_CHAIR_BLOCK);
+                        entries.accept(TestItems.TEST_STOVE_BLOCK);
                     })
     );
 
