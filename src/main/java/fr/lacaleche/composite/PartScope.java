@@ -1,7 +1,10 @@
 package fr.lacaleche.composite;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseRailBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -77,8 +80,34 @@ public final class PartScope implements AutoCloseable {
     }
 
     /**
-     * Sets the part's state as {@code setBlock} sets a block's: the block entity follows a state of
-     * the same block, and a new block gets a new block entity, or none.
+     * Places a state in the part as a chunk places one in a block, for {@code setBlock}: the old
+     * block entity reacts to its block's removal, the old state affects its neighbours as it goes,
+     * and the new one is placed, each as {@code flags} allow. {@code setBlock} then updates the
+     * neighbours and their shapes as for any block.
+     *
+     * @return the state the part had, or {@code null} when it already had this one
+     */
+    public @Nullable BlockState place(BlockState state, int flags) {
+        BlockState old = this.state;
+        if (state == old) return null;
+        boolean changesBlock = !old.is(state.getBlock());
+        boolean movedByPiston = (flags & Block.UPDATE_MOVE_BY_PISTON) != 0;
+        if (changesBlock && this.entity != null && !this.level.isClientSide()
+                && (flags & Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS) == 0) {
+            this.entity.preRemoveSideEffects(this.pos, old);
+        }
+        setState(state);
+        if ((changesBlock || state.getBlock() instanceof BaseRailBlock) && this.level instanceof ServerLevel server
+                && ((flags & Block.UPDATE_NEIGHBORS) != 0 || movedByPiston)) {
+            old.affectNeighborsAfterRemoval(server, this.pos, movedByPiston);
+        }
+        if (!this.level.isClientSide() && (flags & Block.UPDATE_SKIP_ON_PLACE) == 0) state.onPlace(this.level, this.pos, old, movedByPiston);
+        return old;
+    }
+
+    /**
+     * Sets the part's state alone: the block entity follows a state of the same block, and a new
+     * block gets a new block entity, or none.
      */
     @SuppressWarnings("deprecation") // Vanilla's chunks keep a block entity through a state of its block the same way.
     public void setState(BlockState state) {

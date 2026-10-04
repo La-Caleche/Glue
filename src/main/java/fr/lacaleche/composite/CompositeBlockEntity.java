@@ -1,5 +1,6 @@
 package fr.lacaleche.composite;
 
+import fr.lacaleche.composite.mixin.RedStoneWireBlockAccessor;
 import fr.lacaleche.glue.data.components.TransformationComponent;
 import fr.lacaleche.glue.shaper.GeometryHit;
 import fr.lacaleche.glue.shaper.PlacedGeometry;
@@ -21,6 +22,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -216,6 +218,13 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         int signal = 0;
         for (int i = 0; i < this.parts.size(); i++) {
             BlockState state = this.parts.get(i).state();
+            if (state.getBlock() instanceof RedStoneWireBlockAccessor wire && !wire.composite$shouldSignal()) {
+                // A wire computing its power reads neighbouring wires' power, one less, from their
+                // states, and is no signal source meanwhile; the cell's state is not a wire, so its
+                // wire parts answer as a signal.
+                if (direction.getAxis().isHorizontal()) signal = Math.max(signal, state.getValue(RedStoneWireBlock.POWER) - 1);
+                continue;
+            }
             if (!state.isSignalSource()) continue;
             Direction local = Direction.rotate(this.parts.get(i).matrix().invert(), direction);
             int partSignal = this.level == null || level != this.level
@@ -372,12 +381,19 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         return direct ? state.getDirectSignal(level, this.worldPosition, direction) : state.getSignal(level, this.worldPosition, direction);
     }
 
+    /**
+     * Sums up the new parts in the cell's state, saves and sends them, and tells the neighbours, whose
+     * signals and comparator readings may have changed with them.
+     */
     private void changed(int flags) {
         summarize();
         setChanged();
-        if (this.level != null) {
-            BlockState state = getBlockState();
-            this.level.sendBlockUpdated(this.worldPosition, state, state, flags);
+        if (this.level == null) return;
+        BlockState state = getBlockState();
+        this.level.sendBlockUpdated(this.worldPosition, state, state, flags);
+        if (!this.level.isClientSide() && !this.isRemoved()) {
+            this.level.updateNeighborsAt(this.worldPosition, state.getBlock());
+            this.level.updateNeighbourForOutputSignal(this.worldPosition, state.getBlock());
         }
     }
 

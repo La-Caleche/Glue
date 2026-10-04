@@ -9,6 +9,7 @@
     "AbstractContainerMenuMixin",
     "ContainerMixin",
     "LevelMixin",
+    "RedStoneWireBlockAccessor",
     "ServerLevelMixin"
   ]
 }

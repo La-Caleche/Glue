@@ -30,7 +30,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.LeverBlock;
+import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.RedstoneLampBlock;
+import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
@@ -147,7 +149,90 @@ public final class CompositeClientTest extends WorldClientTest {
         screenshot("composite-cell");
 
         blockEntities(cell.west(3));
+        redstone(cell.north(8));
         pack(cell.east(5));
+    }
+
+    /**
+     * Redstone runs through cells as through plain blocks: a lever part powers the dust beside its
+     * cell, dust runs through a wire part into dust on the other side, and a repeater part powers the
+     * lamp it faces, each turning off again with its source.
+     */
+    private void redstone(BlockPos base) {
+        BlockPos lever = base;
+        BlockPos through = base.south(3);
+        BlockPos repeater = base.south(6);
+        BlockState floorLever = Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR);
+        BlockState dust = Blocks.REDSTONE_WIRE.defaultBlockState();
+        BlockState lamp = Blocks.REDSTONE_LAMP.defaultBlockState();
+        CompositePart small = part(floorLever, new Vector3f(0, 0, 0.25f), 10, 0.5f);
+        CompositePart wire = part(dust, new Vector3f(0.001f, 0, 0), 0, 1);
+        CompositePart facingWest = part(Blocks.REPEATER.defaultBlockState().setValue(RepeaterBlock.FACING, Direction.EAST),
+                new Vector3f(0.001f, 0, 0), 0, 1);
+        this.world.getServer().runOnServer(server -> {
+            ServerLevel level = server.overworld();
+            for (int x = -1; x < 6; x++) {
+                for (int z = 0; z < 7; z++) level.setBlock(base.offset(x, -1, z), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+            }
+
+            requireSuccess("a lever part", CompositeCells.set(level, lever, List.of(small)));
+            level.setBlock(lever.east(), dust, Block.UPDATE_ALL);
+            level.setBlock(lever.east(2), dust, Block.UPDATE_ALL);
+            level.setBlock(lever.east(3), lamp, Block.UPDATE_ALL);
+            requireSuccess("pulling the lever part", CompositeCells.set(level, lever,
+                    List.of(new CompositePart(floorLever.setValue(LeverBlock.POWERED, true), small.transform()))));
+            require(power(level, lever.east()) == 15 && power(level, lever.east(2)) == 14 && lit(level, lever.east(3)),
+                    "the lever part powers dust to " + power(level, lever.east()) + " and " + power(level, lever.east(2)));
+
+            level.setBlock(through, floorLever, Block.UPDATE_ALL);
+            level.setBlock(through.east(), dust, Block.UPDATE_ALL);
+            requireSuccess("a wire part", CompositeCells.set(level, through.east(2), List.of(wire)));
+            level.setBlock(through.east(3), dust, Block.UPDATE_ALL);
+            level.setBlock(through.east(4), lamp, Block.UPDATE_ALL);
+            level.setBlock(through, floorLever.setValue(LeverBlock.POWERED, true), Block.UPDATE_ALL);
+            int partPower = CompositeCells.parts(level, through.east(2)).getFirst().state().getValue(RedStoneWireBlock.POWER);
+            require(partPower == 14 && power(level, through.east(3)) == 13 && lit(level, through.east(4)),
+                    "dust through the wire part runs at " + partPower + " then " + power(level, through.east(3)));
+
+            level.setBlock(repeater.west(), lamp, Block.UPDATE_ALL);
+            requireSuccess("a repeater part", CompositeCells.set(level, repeater, List.of(facingWest)));
+            level.setBlock(repeater.east(), Blocks.REDSTONE_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+        });
+        this.context.waitTicks(10);
+        this.world.getServer().runOnServer(server -> {
+            ServerLevel level = server.overworld();
+            require(CompositeCells.parts(level, repeater).getFirst().state().getValue(RepeaterBlock.POWERED) && lit(level, repeater.west()),
+                    "the powered repeater part does not light the lamp it faces");
+
+            requireSuccess("pushing the lever part back", CompositeCells.set(level, lever, List.of(small)));
+            require(power(level, lever.east()) == 0 && power(level, lever.east(2)) == 0,
+                    "dust stays powered by the pushed lever part: " + power(level, lever.east()));
+            level.setBlock(through, floorLever, Block.UPDATE_ALL);
+            int partPower = CompositeCells.parts(level, through.east(2)).getFirst().state().getValue(RedStoneWireBlock.POWER);
+            require(partPower == 0 && power(level, through.east(3)) == 0,
+                    "dust through the wire part stays at " + partPower + " and " + power(level, through.east(3)));
+            level.setBlock(repeater.east(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        });
+        this.context.waitTicks(10);
+        this.world.getServer().runOnServer(server -> {
+            ServerLevel level = server.overworld();
+            require(!lit(level, lever.east(3)) && !lit(level, through.east(4)) && !lit(level, repeater.west()),
+                    "a lamp stays lit once its source is off");
+            for (int x = -1; x < 6; x++) {
+                for (int z = 0; z < 7; z++) {
+                    level.setBlock(base.offset(x, 0, z), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+                    level.setBlock(base.offset(x, -1, z), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+                }
+            }
+        });
+    }
+
+    private static int power(ServerLevel level, BlockPos pos) {
+        return level.getBlockState(pos).getValue(RedStoneWireBlock.POWER);
+    }
+
+    private static boolean lit(ServerLevel level, BlockPos pos) {
+        return level.getBlockState(pos).getValue(RedstoneLampBlock.LIT);
     }
 
     /**
