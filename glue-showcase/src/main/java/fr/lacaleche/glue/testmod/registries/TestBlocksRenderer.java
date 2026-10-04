@@ -1,9 +1,10 @@
 package fr.lacaleche.glue.testmod.registries;
 
+import fr.lacaleche.glue.client.render.model.GlueBlockModels;
 import fr.lacaleche.glue.registries.BlocksRendererRegistry;
 import fr.lacaleche.glue.testmod.TestmodClient;
+import fr.lacaleche.glue.testmod.blocks.demo.TestChairBlock;
 import fr.lacaleche.glue.testmod.render.block.entity.TestAdditiveSpriteBlockEntityRenderer;
-import fr.lacaleche.glue.testmod.render.block.entity.TestChairBlockEntityRenderer;
 import fr.lacaleche.glue.testmod.render.block.entity.TestOutlineBlockEntityRenderer;
 import fr.lacaleche.glue.testmod.render.block.entity.TestShaderBlockEntityRenderer;
 import fr.lacaleche.glue.testmod.render.block.entity.TestSpinningBlockEntityRenderer;
@@ -28,12 +29,12 @@ public class TestBlocksRenderer {
         BlockEntityRenderers.register(TestBlockEntities.SPINNING_BLOCK_ENTITY, TestSpinningBlockEntityRenderer::new);
         BlockEntityRenderers.register(TestBlockEntities.SHADER_BLOCK_ENTITY, TestShaderBlockEntityRenderer::new);
         BlockEntityRenderers.register(TestBlockEntities.ADDITIVE_SPRITE_BLOCK_ENTITY, TestAdditiveSpriteBlockEntityRenderer::new);
-        BlockEntityRenderers.register(TestBlockEntities.CHAIR_BLOCK_ENTITY, TestChairBlockEntityRenderer::new);
 
         ColorProviderRegistry.BLOCK.register((state, level, pos, tintIndex) -> Blocks.OAK_PLANKS.defaultMapColor().col,
                 TestBlocks.TEST_CHAIR_BLOCK);
+        GlueBlockModels.rotation16(TestBlocks.TEST_CHAIR_BLOCK, TestChairBlock.ROTATION);
 
-        REGISTRY.registerCutout(TestBlocks.TEST_OUTLINE_BLOCK, TestBlocks.TEST_SPINNING_BLOCK, TestBlocks.TEST_SHADER_BLOCK, TestBlocks.TEST_ADDITIVE_SPRITE_BLOCK, TestBlocks.TEST_SHAPE_BLOCK, TestBlocks.TEST_STOVE_BLOCK);
+        REGISTRY.registerCutout(TestBlocks.TEST_OUTLINE_BLOCK, TestBlocks.TEST_SPINNING_BLOCK, TestBlocks.TEST_SHADER_BLOCK, TestBlocks.TEST_ADDITIVE_SPRITE_BLOCK, TestBlocks.TEST_SHAPE_BLOCK, TestBlocks.TEST_STOVE_BLOCK, TestBlocks.TEST_CHAIR_BLOCK);
     }
 
 }

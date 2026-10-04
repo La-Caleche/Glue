@@ -2,6 +2,7 @@ package fr.lacaleche.glue.testmod.gametest;
 
 import fr.lacaleche.glue.block.GeometryRaycast;
 import fr.lacaleche.glue.block.GlueBlock;
+import fr.lacaleche.glue.client.render.model.TransformedBlockModel;
 import fr.lacaleche.glue.shaper.PlacedGeometry;
 import fr.lacaleche.glue.shaper.VoxelShaper;
 import fr.lacaleche.glue.testmod.blocks.demo.TestChairBlock;
@@ -81,6 +82,11 @@ public final class ShapesClientTest extends WorldClientTest {
             for (Placed block : placed) check("client", client.level, block);
             checkChair("client", client.level, chairRow);
             checkStove("client", client.level, stoveRow);
+            for (BlockState chair : chairs) {
+                boolean turned = client.getBlockRenderer().getBlockModel(chair) instanceof TransformedBlockModel;
+                require(turned == (chair.getValue(TestChairBlock.ROTATION) != 0),
+                        chair + (turned ? " is" : " is not") + " drawn through a turned model");
+            }
         });
 
         double x = chairRow.getX() + 15.5;

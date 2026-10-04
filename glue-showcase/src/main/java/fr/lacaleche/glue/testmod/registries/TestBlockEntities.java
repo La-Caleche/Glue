@@ -31,9 +31,6 @@ public class TestBlockEntities {
             REGISTRY.register("test_additive_sprite_block", TestAdditiveSpriteBlockEntity::new,
                     TestBlocks.TEST_ADDITIVE_SPRITE_BLOCK);
 
-    public static final BlockEntityType<TickingBlockEntity> CHAIR_BLOCK_ENTITY =
-            REGISTRY.register("test_chair_block", TickingBlockEntity::new, TestBlocks.TEST_CHAIR_BLOCK);
-
     public static void registerBlockEntities() {
         Testmod.LOGGER.info("Registering block entities");
     }
