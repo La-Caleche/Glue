@@ -60,8 +60,8 @@ public final class CompositeClientTest extends WorldClientTest {
             check("server", level, cell);
 
             requireError("a chest", CompositeCells.add(level, cell, new CompositePart(Blocks.CHEST.defaultBlockState())));
-            requireError("a part leaving the cell", CompositeCells.add(level, cell,
-                    part(Blocks.STONE.defaultBlockState(), new Vector3f(0.5f, 0, 0), 0, 1)));
+            requireError("a part reaching two blocks past the cell", CompositeCells.add(level, cell,
+                    part(Blocks.STONE.defaultBlockState(), new Vector3f(1.5f, 0, 0), 0, 1)));
             requireError("a 33rd part", CompositeCells.set(level, plain,
                     Collections.nCopies(CompositeCells.MAX_PARTS + 1, CORNER)));
             require(sameParts(CompositeCells.parts(level, cell), CELL), "refused parts changed the cell");
@@ -73,6 +73,12 @@ public final class CompositeClientTest extends WorldClientTest {
             requireSuccess("removing the corner", CompositeCells.remove(level, plain, 1));
             require(level.getBlockState(plain).is(Blocks.STONE), "the remaining part is " + level.getBlockState(plain));
             requireSuccess("clearing", CompositeCells.set(level, plain, List.of()));
+
+            requireSuccess("a part reaching half a block past the cell", CompositeCells.set(level, plain,
+                    List.of(part(Blocks.STONE.defaultBlockState(), new Vector3f(0.5f, 0, 0), 0, 1))));
+            double reach = level.getBlockState(plain).getShape(level, plain, CollisionContext.empty()).bounds().maxX;
+            require(Math.abs(reach - 1.5) < 1e-6, "the reaching part's outline ends at " + reach);
+            requireSuccess("clearing the reaching part", CompositeCells.set(level, plain, List.of()));
             require(level.getBlockState(plain).isAir(), "an empty cell is " + level.getBlockState(plain));
 
             Tag encoded = CompositePart.CODEC.encodeStart(NbtOps.INSTANCE, TURNED).getOrThrow();

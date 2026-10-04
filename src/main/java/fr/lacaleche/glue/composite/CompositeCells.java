@@ -25,7 +25,14 @@ public final class CompositeCells {
 
     public static final int MAX_PARTS = 32;
 
-    /** How far a part may leave its cell, so that float rounding does not reject a full-size part. */
+    /**
+     * How far, in blocks, a part may reach past its cell: as far as vanilla looks for collision
+     * shapes larger than their block, and as Glue's pick looks for blocks reaching into the cells
+     * it crosses.
+     */
+    public static final double MAX_REACH = 1;
+
+    /** Slack on {@link #MAX_REACH}, so that float rounding does not reject a part that touches it. */
     private static final double BOUNDS_TOLERANCE = 1e-4;
 
     private CompositeCells() {
@@ -47,7 +54,7 @@ public final class CompositeCells {
      * untransformed part, a cell otherwise.
      *
      * @return the parts now at the position, or why they were refused: too many, a part that has a
-     * block entity or is itself a cell, or a part that leaves the cell
+     * block entity or is itself a cell, or a part reaching more than {@link #MAX_REACH} past the cell
      * @throws IllegalStateException on the client, where cells are not edited
      */
     public static DataResult<List<CompositePart>> set(Level level, BlockPos pos, List<CompositePart> parts) {
@@ -100,15 +107,17 @@ public final class CompositeCells {
             return DataResult.error(() -> state.getBlock().getName().getString() + " has a block entity and cannot be a part");
         }
         AABB bounds = part.bounds();
-        if (bounds != null && !insideCell(bounds)) {
-            return DataResult.error(() -> state.getBlock().getName().getString() + " leaves its cell: " + bounds);
+        if (bounds != null && !withinReach(bounds)) {
+            return DataResult.error(() -> state.getBlock().getName().getString() + " reaches more than "
+                    + MAX_REACH + " block past its cell: " + bounds);
         }
         return DataResult.success(part);
     }
 
-    private static boolean insideCell(AABB bounds) {
-        return bounds.minX >= -BOUNDS_TOLERANCE && bounds.minY >= -BOUNDS_TOLERANCE && bounds.minZ >= -BOUNDS_TOLERANCE
-                && bounds.maxX <= 1 + BOUNDS_TOLERANCE && bounds.maxY <= 1 + BOUNDS_TOLERANCE
-                && bounds.maxZ <= 1 + BOUNDS_TOLERANCE;
+    private static boolean withinReach(AABB bounds) {
+        double min = -MAX_REACH - BOUNDS_TOLERANCE;
+        double max = 1 + MAX_REACH + BOUNDS_TOLERANCE;
+        return bounds.minX >= min && bounds.minY >= min && bounds.minZ >= min
+                && bounds.maxX <= max && bounds.maxY <= max && bounds.maxZ <= max;
     }
 }
