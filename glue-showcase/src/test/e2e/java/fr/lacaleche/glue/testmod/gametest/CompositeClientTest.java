@@ -7,6 +7,7 @@ import fr.lacaleche.composite.CompositeBlocks;
 import fr.lacaleche.composite.CompositeCells;
 import fr.lacaleche.composite.CompositePart;
 import fr.lacaleche.glue.data.components.TransformationComponent;
+import fr.lacaleche.glue.shaper.ShapeGeometry;
 import fr.lacaleche.glue.testmod.blocks.demo.TestAdditiveSpriteBlockEntity;
 import fr.lacaleche.glue.testmod.registries.TestBlocks;
 import net.minecraft.core.BlockPos;
@@ -41,6 +42,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -145,6 +147,69 @@ public final class CompositeClientTest extends WorldClientTest {
         screenshot("composite-cell");
 
         blockEntities(cell.west(3));
+        pack(cell.east(5));
+    }
+
+    /**
+     * {@code /composite pack} turns a cuboid into one cell, each block where it stood relative to the
+     * others: copied at the scale that fits one block, then moved, turned and shrunk, with the chest's
+     * items following it and nothing dropped.
+     */
+    private void pack(BlockPos from) {
+        BlockPos to = from.offset(1, 1, 1);
+        BlockPos target = from.above(3);
+        this.world.getServer().runOnServer(server -> {
+            ServerLevel level = server.overworld();
+            level.setBlock(from, Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+            level.setBlock(from.east(), Blocks.OAK_PLANKS.defaultBlockState(), Block.UPDATE_ALL);
+            level.setBlock(from.offset(0, 1, 1), Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
+            ((ChestBlockEntity) level.getBlockEntity(from.offset(0, 1, 1))).setItem(0, new ItemStack(Items.DIAMOND));
+            level.setBlock(from.offset(1, 1, 1), Blocks.GLASS.defaultBlockState(), Block.UPDATE_ALL);
+            String cuboid = coordinates(from) + " " + coordinates(to) + " " + coordinates(target);
+
+            server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "composite pack copy " + cuboid);
+            List<CompositePart> parts = CompositeCells.parts(level, target);
+            require(parts.size() == 4, "the packed cell holds " + parts);
+            require(parts.getFirst().state().is(Blocks.STONE) && parts.getFirst().matrix().equals(
+                    ShapeGeometry.aboutCentre(new Matrix4f().translation(-0.25f, -0.25f, -0.25f).scale(0.5f)), 1e-6f),
+                    "the stone is not in the packed cell's lower north-west corner: " + parts.getFirst().matrix());
+            require(diamond(((CompositeBlockEntity) level.getBlockEntity(target)).entity(2)), "the packed chest lost its items");
+            require(level.getBlockState(from).is(Blocks.STONE) && diamond(level.getBlockEntity(from.offset(0, 1, 1))),
+                    "copying changed the cuboid");
+        });
+
+        double x = target.getX() + 0.5;
+        double y = target.getY() + 0.2;
+        double z = target.getZ() + 2.0;
+        this.world.getServer().runOnServer(server -> server.getPlayerList().getPlayers().getFirst()
+                .teleportTo(server.overworld(), x, y, z, Set.of(), 180, 25, false));
+        waitUntil("the camera faces the packed cell", client -> client.player.position().distanceToSqr(x, y, z) < 0.01
+                && client.level.getBlockEntity(target) instanceof CompositeBlockEntity cell && cell.parts().size() == 4);
+        this.context.waitTicks(20);
+        screenshot("composite-packed");
+
+        this.world.getServer().runOnServer(server -> {
+            ServerLevel level = server.overworld();
+            String cuboid = coordinates(from) + " " + coordinates(to) + " " + coordinates(target);
+            List<CompositePart> parts = CompositeCells.parts(level, target);
+            // Replacing a cell spills its chest part like any chest; this one's copy is emptied first.
+            ((ChestBlockEntity) ((CompositeBlockEntity) level.getBlockEntity(target)).entity(2)).clearContent();
+
+            server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),
+                    "composite pack move " + cuboid + " 2 0 0 90 0.25");
+            require(diamond(((CompositeBlockEntity) level.getBlockEntity(target)).entity(2)), "the moved chest lost its items");
+            Vec3 stone = new Vec3(parts.getFirst().matrix().transformPosition(new Vector3f(0.5f)));
+            Vec3 movedStone = new Vec3(CompositeCells.parts(level, target).getFirst().matrix().transformPosition(new Vector3f(0.5f)));
+            require(movedStone.distanceTo(new Vec3(0.75, 0.375, 0.375)) < 1e-5,
+                    "the moved stone's centre is at " + movedStone + ", from " + stone);
+            require(BlockPos.betweenClosedStream(from, to).allMatch(pos -> level.getBlockState(pos).isAir()), "moving left blocks behind");
+            require(level.getEntitiesOfClass(ItemEntity.class, new AABB(from).inflate(3)).isEmpty(), "moving dropped items");
+            CompositeCells.set(level, target, List.of());
+        });
+    }
+
+    private static String coordinates(BlockPos pos) {
+        return pos.getX() + " " + pos.getY() + " " + pos.getZ();
     }
 
     /**

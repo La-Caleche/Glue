@@ -27,7 +27,11 @@ import java.util.List;
  *   <li>{@code /composite add <pos> <block> [<x> <y> <z> [<yaw> [<scale>]]]} adds a part, offset in
  *   pixels, turned clockwise seen from above in degrees, and scaled about the cell centre;</li>
  *   <li>{@code /composite remove <pos> <index>} removes one part;</li>
- *   <li>{@code /composite clear <pos>} empties the cell.</li>
+ *   <li>{@code /composite clear <pos>} empties the cell;</li>
+ *   <li>{@code /composite pack copy|move <from> <to> <cell> [<x> <y> <z> [<yaw> [<scale>]]]} packs
+ *   the blocks of a cuboid into the cell, each where it stood relative to the others, the group
+ *   offset in pixels, turned and scaled about its centre; without a scale it fits in one block.
+ *   {@code move} removes the blocks from the cuboid.</li>
  * </ul>
  */
 final class CompositeCommands {
@@ -48,7 +52,10 @@ final class CompositeCommands {
                                                 IntegerArgumentType.getInteger(context, "index")))))))
                         .then(Commands.literal("clear").then(Commands.argument("pos", BlockPosArgument.blockPos())
                                 .executes(context -> report(context, CompositeCells.set(
-                                        context.getSource().getLevel(), pos(context), List.of())))))));
+                                        context.getSource().getLevel(), pos(context), List.of())))))
+                        .then(Commands.literal("pack")
+                                .then(pack(Commands.literal("copy"), false))
+                                .then(pack(Commands.literal("move"), true)))));
     }
 
     private static ArgumentBuilder<CommandSourceStack, ?> add(ArgumentBuilder<CommandSourceStack, ?> block) {
@@ -67,6 +74,47 @@ final class CompositeCommands {
                                                                 offset(context, "y"), offset(context, "z"),
                                                                 FloatArgumentType.getFloat(context, "yaw"),
                                                                 FloatArgumentType.getFloat(context, "scale"))))))));
+    }
+
+    private static ArgumentBuilder<CommandSourceStack, ?> pack(ArgumentBuilder<CommandSourceStack, ?> mode, boolean move) {
+        return mode.then(Commands.argument("from", BlockPosArgument.blockPos())
+                .then(Commands.argument("to", BlockPosArgument.blockPos())
+                        .then(Commands.argument("cell", BlockPosArgument.blockPos())
+                                .executes(context -> pack(context, move, new Vector3f(), 0, fitScale(context)))
+                                .then(Commands.argument("x", FloatArgumentType.floatArg(-16, 16))
+                                        .then(Commands.argument("y", FloatArgumentType.floatArg(-16, 16))
+                                                .then(Commands.argument("z", FloatArgumentType.floatArg(-16, 16))
+                                                        .executes(context -> pack(context, move, offset(context), 0, fitScale(context)))
+                                                        .then(Commands.argument("yaw", FloatArgumentType.floatArg(-360, 360))
+                                                                .executes(context -> pack(context, move, offset(context),
+                                                                        FloatArgumentType.getFloat(context, "yaw"), fitScale(context)))
+                                                                .then(Commands.argument("scale", FloatArgumentType.floatArg(1 / 64f, 1))
+                                                                        .executes(context -> pack(context, move, offset(context),
+                                                                                FloatArgumentType.getFloat(context, "yaw"),
+                                                                                FloatArgumentType.getFloat(context, "scale")))))))))));
+    }
+
+    private static int pack(CommandContext<CommandSourceStack> context, boolean move, Vector3f offset, float yaw, float scale) {
+        CommandSourceStack source = context.getSource();
+        BlockPos cell = BlockPosArgument.getBlockPos(context, "cell");
+        DataResult<Integer> result = CompositePacker.pack(source.getLevel(), BlockPosArgument.getBlockPos(context, "from"),
+                BlockPosArgument.getBlockPos(context, "to"), cell, offset, yaw, scale, move);
+        return result.mapOrElse(count -> {
+            source.sendSuccess(() -> Component.literal("Packed " + count + " blocks into " + cell.toShortString()
+                    + " at scale " + scale), false);
+            return count;
+        }, error -> {
+            source.sendFailure(Component.literal(error.message()));
+            return 0;
+        });
+    }
+
+    private static float fitScale(CommandContext<CommandSourceStack> context) {
+        return CompositePacker.fitScale(BlockPosArgument.getBlockPos(context, "from"), BlockPosArgument.getBlockPos(context, "to"));
+    }
+
+    private static Vector3f offset(CommandContext<CommandSourceStack> context) {
+        return new Vector3f(offset(context, "x"), offset(context, "y"), offset(context, "z"));
     }
 
     private static int add(CommandContext<CommandSourceStack> context, float x, float y, float z, float yaw, float scale) {
