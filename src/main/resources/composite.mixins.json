@@ -6,6 +6,9 @@
     "defaultRequire": 1
   },
   "mixins": [
-    "LevelMixin"
+    "AbstractContainerMenuMixin",
+    "ContainerMixin",
+    "LevelMixin",
+    "ServerLevelMixin"
   ]
 }

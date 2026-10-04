@@ -50,7 +50,9 @@ import java.util.function.Function;
  *
  * <p>A part's block entity is saved and sent with the cell, ticked by the cell's ticker, and given
  * the interactions aimed at its part. Its code runs in a {@link PartScope}, so that it reads and
- * sets its own block at the cell's position: a part whose block sets itself to air leaves the cell.</p>
+ * sets its own block at the cell's position: a part whose block sets itself to air leaves the cell.
+ * Scheduled ticks and block events addressed to a part's block at the cell's position reach the
+ * first part of that block, and a part's menu stays open while the cell holds the part.</p>
  */
 public class CompositeBlockEntity extends BlockEntity implements RenderDataBlockEntity {
 
@@ -179,6 +181,27 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
 
     public VoxelShape collision() {
         return this.collision;
+    }
+
+    /** Whether a part's block entity is this very one. */
+    public boolean holds(BlockEntity entity) {
+        return containsInstance(this.entities, entity);
+    }
+
+    /** Whether a part is of this block. */
+    public boolean holdsPartOf(Block block) {
+        return partOf(block) >= 0;
+    }
+
+    /**
+     * Runs code addressed to a block at the cell's position, such as a scheduled tick or a block
+     * event, for the first part of that block, in its scope.
+     *
+     * @return the action's result, or empty when no part is of that block
+     */
+    public <T> Optional<T> runPartOf(Block block, Function<PartScope, T> action) {
+        int index = partOf(block);
+        return index < 0 ? Optional.empty() : Optional.of(runPart(index, action));
     }
 
     /**
@@ -344,6 +367,13 @@ public class CompositeBlockEntity extends BlockEntity implements RenderDataBlock
         Vector3f local = inverse.transformPosition(hit.getLocation().subtract(origin).toVector3f());
         Direction face = Direction.rotate(inverse, hit.getDirection());
         return new BlockHitResult(new Vec3(local).add(origin), face, this.worldPosition, hit.isInside());
+    }
+
+    private int partOf(Block block) {
+        for (int i = 0; i < this.parts.size(); i++) {
+            if (this.parts.get(i).state().is(block)) return i;
+        }
+        return -1;
     }
 
     /** The first index holding this very part and not yet taken, or {@code -1}. */

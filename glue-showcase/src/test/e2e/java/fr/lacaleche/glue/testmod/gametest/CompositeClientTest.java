@@ -18,6 +18,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.BlockGetter;
@@ -78,6 +80,9 @@ public final class CompositeClientTest extends WorldClientTest {
     /** The additive sprite, ticked on the client, in the south-west quarter. */
     private static final CompositePart SPRITE = part(TestBlocks.TEST_ADDITIVE_SPRITE_BLOCK.defaultBlockState(),
             new Vector3f(-0.25f, -0.25f, 0.25f), 0, 0.45f);
+    /** A crafting table above the sprite: a menu without a block entity. */
+    private static final CompositePart TABLE = part(Blocks.CRAFTING_TABLE.defaultBlockState(),
+            new Vector3f(-0.25f, 0.25f, 0.25f), 15, 0.45f);
 
     @Override
     protected void test() {
@@ -155,7 +160,7 @@ public final class CompositeClientTest extends WorldClientTest {
             level.setBlock(plain, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
             level.getEntitiesOfClass(ItemEntity.class, new AABB(plain).inflate(2)).forEach(Entity::discard);
 
-            requireSuccess("block entity parts", CompositeCells.set(level, pos, List.of(CHEST, FURNACE, LEVER, SPRITE)));
+            requireSuccess("block entity parts", CompositeCells.set(level, pos, List.of(CHEST, FURNACE, LEVER, SPRITE, TABLE)));
             CompositeBlockEntity cell = (CompositeBlockEntity) level.getBlockEntity(pos);
             ((ChestBlockEntity) cell.entity(0)).setItem(0, new ItemStack(Items.DIAMOND));
             AbstractFurnaceBlockEntity furnace = (AbstractFurnaceBlockEntity) cell.entity(1);
@@ -176,10 +181,38 @@ public final class CompositeClientTest extends WorldClientTest {
             require(used.consumesAction(), "pulling the lever part gave " + used);
             require(cell.parts().get(2).state().getValue(LeverBlock.POWERED), "the lever part was not pulled: " + cell.parts().get(2));
             require(level.getBlockState(pos).is(CompositeBlocks.COMPOSITE), "pulling the lever part replaced the cell");
+
+            aim(player, level, new Vec3(pos.getX() + 0.25, pos.getY() + 2.2, pos.getZ() + 0.25),
+                    new Vec3(pos.getX() + 0.25, pos.getY(), pos.getZ() + 0.25));
+            used = level.getBlockState(pos).useWithoutItem(level, player, new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false));
+            require(player.containerMenu instanceof ChestMenu, "using the chest part opened " + player.containerMenu + ": " + used);
+        });
+        this.context.waitTicks(10);
+        this.context.runOnClient(client -> {
+            ChestBlockEntity chest = (ChestBlockEntity) ((CompositeBlockEntity) client.level.getBlockEntity(pos)).entity(0);
+            require(chest.getOpenNess(0) > 0, "the chest part's lid did not open on the client");
+        });
+        this.world.getServer().runOnServer(server -> {
+            ServerLevel level = server.overworld();
+            ServerPlayer player = server.getPlayerList().getPlayers().getFirst();
+            require(player.containerMenu instanceof ChestMenu, "the chest part's menu closed");
+            player.closeContainer();
+
+            aim(player, level, new Vec3(pos.getX() + 0.25, pos.getY() + 2.2, pos.getZ() + 0.75),
+                    new Vec3(pos.getX() + 0.25, pos.getY(), pos.getZ() + 0.75));
+            InteractionResult used = level.getBlockState(pos).useWithoutItem(level, player,
+                    new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false));
+            require(player.containerMenu instanceof CraftingMenu, "using the crafting table part opened " + player.containerMenu + ": " + used);
+        });
+        this.context.waitTicks(10);
+        this.world.getServer().runOnServer(server -> {
+            ServerPlayer player = server.getPlayerList().getPlayers().getFirst();
+            require(player.containerMenu instanceof CraftingMenu, "the crafting table part's menu closed");
+            player.closeContainer();
         });
 
         waitUntil("the furnace part lights on the client", client -> client.level.getBlockEntity(pos) instanceof CompositeBlockEntity cell
-                && cell.parts().size() == 4 && cell.parts().get(1).state().getValue(AbstractFurnaceBlock.LIT)
+                && cell.parts().size() == 5 && cell.parts().get(1).state().getValue(AbstractFurnaceBlock.LIT)
                 && cell.entity(0) instanceof ChestBlockEntity && cell.entity(3) instanceof TestAdditiveSpriteBlockEntity);
         this.world.getServer().runOnServer(server -> require(server.overworld().getBlockState(pos).is(CompositeBlocks.COMPOSITE),
                 "the furnace replaced the cell as it lit"));
