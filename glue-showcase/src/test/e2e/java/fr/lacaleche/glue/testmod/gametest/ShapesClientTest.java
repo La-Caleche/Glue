@@ -159,8 +159,8 @@ public final class ShapesClientTest extends WorldClientTest {
     /**
      * Quarter turns of the chair are its unturned shape rotated exactly, the way blockstate y turns a
      * model; the steps between them are voxelized, differ from both and stay within the circle the
-     * chair turns in, a pixel past the cell at 22.5°. Its collision is its outline at quarter turns
-     * and a coarser shape between them, and picks hit its geometry.
+     * chair turns in, a pixel past the cell at 22.5°. It collides at its outline's resolution, so its
+     * collision is its outline at every turn, and picks hit its geometry.
      */
     private static void checkChair(String side, BlockGetter level, BlockPos row) {
         List<VoxelShape> outlines = new ArrayList<>();
@@ -171,10 +171,7 @@ public final class ShapesClientTest extends WorldClientTest {
             VoxelShape outline = state.getShape(level, pos, CollisionContext.empty());
             require(!outline.isEmpty(), side + " outline of " + state + " is empty");
             VoxelShape collision = state.getCollisionShape(level, pos, CollisionContext.empty());
-            if (rotation % 4 == 0) requireSame(side + " collision of " + state, outline, collision);
-            else require(collision.toAabbs().size() < outline.toAabbs().size(),
-                    side + " collision of " + state + " has " + collision.toAabbs().size() + " boxes, the outline "
-                            + outline.toAabbs().size());
+            requireSame(side + " collision of " + state, outline, collision);
             checkPicks(side, level, pos, state, outline, rotation % 4 != 0);
             outlines.add(outline);
         }

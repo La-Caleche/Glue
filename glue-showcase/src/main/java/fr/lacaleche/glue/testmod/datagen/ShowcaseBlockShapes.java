@@ -16,7 +16,7 @@ public class ShowcaseBlockShapes extends BlockShapeProvider {
     @Override
     protected void generate() {
         block(TestBlocks.TEST_SHAPE_BLOCK);
-        block(TestBlocks.TEST_CHAIR_BLOCK).rotation16(TestChairBlock.ROTATION);
+        block(TestBlocks.TEST_CHAIR_BLOCK).rotation16(TestChairBlock.ROTATION).collisionResolution(16);
         block(TestBlocks.TEST_STOVE_BLOCK).collision(Testmod.id("block/template_stove_shape"));
     }
 }
