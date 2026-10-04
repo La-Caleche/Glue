@@ -18,6 +18,11 @@
         {
             "config": "glue.client.mixins.json",
             "environment": "client"
+        },
+        "composite.mixins.json",
+        {
+            "config": "composite.client.mixins.json",
+            "environment": "client"
         }
     ],
     "accessWidener": "glue.accesswidener",

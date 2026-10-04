@@ -2,6 +2,14 @@ package fr.lacaleche.composite;
 
 import com.mojang.serialization.MapCodec;
 import fr.lacaleche.glue.block.GlueBlock;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.phys.BlockHitResult;
 import fr.lacaleche.glue.shaper.PlacedGeometry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
@@ -17,7 +25,8 @@ import java.util.List;
 
 /**
  * The block of a composite cell. Its shapes come from its {@link CompositeBlockEntity}, so they vary
- * per position rather than per state; its model draws the parts into the chunk mesh.
+ * per position rather than per state; its model draws the parts into the chunk mesh. It ticks the
+ * parts' block entities and hands each interaction to the part it aims at.
  */
 public class CompositeBlock extends BaseEntityBlock implements GlueBlock {
 
@@ -35,6 +44,33 @@ public class CompositeBlock extends BaseEntityBlock implements GlueBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new CompositeBlockEntity(CompositeBlocks.COMPOSITE_ENTITY, pos, state);
+    }
+
+    /** Ticks the parts' block entities, on whichever side their blocks tick. */
+    @Override
+    public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        return createTickerHelper(type, CompositeBlocks.COMPOSITE_ENTITY, (tickLevel, pos, tickState, cell) -> cell.tick());
+    }
+
+    /** Hands the interaction to the part the player aims at, as if its block stood alone here. */
+    @Override
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+                                          InteractionHand hand, BlockHitResult hit) {
+        if (!(level.getBlockEntity(pos) instanceof CompositeBlockEntity cell)) return InteractionResult.TRY_WITH_EMPTY_HAND;
+        return cell.useItemOn(stack, player, hand, hit);
+    }
+
+    /** See {@link #useItemOn}. */
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+        if (!(level.getBlockEntity(pos) instanceof CompositeBlockEntity cell)) return InteractionResult.PASS;
+        return cell.useWithoutItem(player, hit);
+    }
+
+    /** Hands the attack to the part the player aims at. */
+    @Override
+    protected void attack(BlockState state, Level level, BlockPos pos, Player player) {
+        if (level.getBlockEntity(pos) instanceof CompositeBlockEntity cell) cell.attack(player);
     }
 
     @Override

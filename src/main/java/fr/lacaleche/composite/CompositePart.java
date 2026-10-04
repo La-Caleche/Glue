@@ -22,8 +22,9 @@ import java.util.List;
  * One block drawn inside a composite cell: its state, and the transform that moves, turns and scales
  * it about the cell centre, in block units.
  *
- * <p>A part is decorative. Its block keeps its model and shape, but no block entity, ticking or
- * interaction of its own.</p>
+ * <p>A part's block keeps its model, shape and block entity. Its cell ticks that block entity, and
+ * hands it the interactions aimed at the part, with the part standing alone at the cell's position
+ * (see {@link PartScope}).</p>
  */
 public record CompositePart(BlockState state, TransformationComponent transform) {
 

@@ -15,6 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
@@ -23,7 +24,7 @@ import java.util.function.Predicate;
 
 /**
  * The model of a composite cell: each part's own block model, emitted into the chunk mesh through
- * the part's transform. A cell has no block-entity renderer and costs nothing per frame.
+ * the part's transform. Parts' block entities are drawn by {@link CompositeBlockEntityRenderer}.
  */
 public final class CompositeBlockModel implements BlockStateModel {
 
@@ -40,6 +41,8 @@ public final class CompositeBlockModel implements BlockStateModel {
                           RandomSource random, Predicate<@Nullable Direction> cullTest) {
         BlockModelShaper models = Minecraft.getInstance().getBlockRenderer().getBlockModelShaper();
         for (CompositePart part : parts(blockView, pos)) {
+            // A block drawn only by its block-entity renderer has no model to emit.
+            if (part.state().getRenderShape() != RenderShape.MODEL) continue;
             BlockStateModel model = models.getBlockModel(part.state());
             boolean identity = part.isIdentity();
             emitter.pushTransform(new CompositePartTransform(part, identity, blockView, pos));

@@ -2,11 +2,15 @@ package fr.lacaleche.composite;
 
 import com.mojang.serialization.DataResult;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
@@ -52,8 +56,12 @@ public final class CompositeCells {
      * Replaces what stands at a position with these parts: air for none, the plain block for one
      * untransformed part, a cell otherwise.
      *
-     * @return the parts now at the position, or why they were refused: too many, a part that has a
-     * block entity or is itself a cell, or a part reaching more than {@link #MAX_REACH} past the cell
+     * <p>The block standing at the position keeps its block entity's data as the first untransformed
+     * part of its state, and a cell's part kept as the plain block keeps its own. Block entities of
+     * parts that go react as to their block's removal: a container drops its items.</p>
+     *
+     * @return the parts now at the position, or why they were refused: too many, a part that is
+     * itself a cell, or a part reaching more than {@link #MAX_REACH} past the cell
      * @throws IllegalStateException on the client, where cells are not edited
      */
     public static DataResult<List<CompositePart>> set(Level level, BlockPos pos, List<CompositePart> parts) {
@@ -71,14 +79,24 @@ public final class CompositeCells {
             return DataResult.success(List.of());
         }
         if (parts.size() == 1 && parts.getFirst().isIdentity()) {
-            level.setBlock(pos, parts.getFirst().state(), Block.UPDATE_ALL);
+            toPlainBlock(level, pos, parts.getFirst());
             return DataResult.success(List.copyOf(parts));
         }
-        if (!level.getBlockState(pos).is(CompositeBlocks.COMPOSITE)) level.setBlock(pos, CompositeBlocks.COMPOSITE.defaultBlockState(), Block.UPDATE_ALL);
+
+        BlockState current = level.getBlockState(pos);
+        BlockEntity plainEntity = current.is(CompositeBlocks.COMPOSITE) ? null : level.getBlockEntity(pos);
+        int adopting = plainEntity == null ? -1 : untransformedPart(parts, current);
+        CompoundTag adopted = adopting < 0 ? null : plainEntity.saveWithoutMetadata(level.registryAccess());
+        if (!current.is(CompositeBlocks.COMPOSITE)) {
+            int flags = adopted == null ? Block.UPDATE_ALL : Block.UPDATE_ALL | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
+            level.setBlock(pos, CompositeBlocks.COMPOSITE.defaultBlockState(), flags);
+        }
         if (!(level.getBlockEntity(pos) instanceof CompositeBlockEntity cell)) {
             return DataResult.error(() -> "No composite cell could be placed at " + pos.toShortString());
         }
         cell.setParts(parts);
+        BlockEntity adopter = adopted == null ? null : cell.entity(adopting);
+        if (adopter != null) load(level, adopter, adopted);
         return DataResult.success(cell.parts());
     }
 
@@ -99,12 +117,40 @@ public final class CompositeCells {
         return set(level, pos, parts);
     }
 
+    /**
+     * Stands one untransformed part as its plain block. A part kept from a cell keeps its block
+     * entity's data; the cell's other parts are removed as {@link CompositeBlockEntity#setParts} removes them.
+     */
+    private static void toPlainBlock(Level level, BlockPos pos, CompositePart part) {
+        CompoundTag kept = null;
+        if (level.getBlockEntity(pos) instanceof CompositeBlockEntity cell && cell.parts().stream().anyMatch(candidate -> candidate == part)) {
+            cell.setParts(List.of(part));
+            BlockEntity entity = cell.entity(0);
+            if (entity != null) kept = entity.saveWithoutMetadata(level.registryAccess());
+        }
+        level.setBlock(pos, part.state(), kept == null ? Block.UPDATE_ALL : Block.UPDATE_ALL | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS);
+        BlockEntity entity = kept == null ? null : level.getBlockEntity(pos);
+        if (entity != null) load(level, entity, kept);
+    }
+
+    /** The index of the first untransformed part of a state, which the block of that state becomes, or {@code -1}. */
+    private static int untransformedPart(List<CompositePart> parts, BlockState state) {
+        for (int i = 0; i < parts.size(); i++) {
+            if (parts.get(i).state() == state && parts.get(i).isIdentity()) return i;
+        }
+        return -1;
+    }
+
+    private static void load(Level level, BlockEntity entity, CompoundTag data) {
+        try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(entity.problemPath(), Composite.LOGGER)) {
+            entity.loadWithComponents(TagValueInput.create(reporter, level.registryAccess(), data));
+        }
+        entity.setChanged();
+    }
+
     private static DataResult<CompositePart> check(CompositePart part) {
         BlockState state = part.state();
         if (state.is(CompositeBlocks.COMPOSITE)) return DataResult.error(() -> "A cell cannot hold another cell");
-        if (state.hasBlockEntity()) {
-            return DataResult.error(() -> state.getBlock().getName().getString() + " has a block entity and cannot be a part");
-        }
         AABB bounds = part.bounds();
         if (bounds != null && !withinReach(bounds)) {
             return DataResult.error(() -> state.getBlock().getName().getString() + " reaches more than "

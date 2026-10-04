@@ -1,0 +1,11 @@
+{
+  "package": "fr.lacaleche.composite.client.mixin",
+  "required": true,
+  "compatibilityLevel": "JAVA_21",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "client": [
+    "ClientLevelMixin"
+  ]
+}
