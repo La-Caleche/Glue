@@ -31,8 +31,6 @@ Post-effect and scene examples use client commands:
 - `/showcase effects chromatic`, `shattered`, or `impact` triggers a Java-built timed effect.
 - `/showcase effects chromatic-registry`, `vortex`, or `pulse` exercises registry-driven effects.
 - `/showcase raycast` toggles raycast debugging.
-- `/composite add <pos> <block> [<x> <y> <z> [<yaw> [<scale>]]]`, `/composite remove <pos> <index>` and
-  `/composite clear <pos>` build a composite cell (operator only; offsets in pixels, yaw clockwise seen from above).
 - `/showcase scene orbit`, `fps`, or `gizmo` opens a scene preview after joining a world.
 
 Press **R** by default to toggle the raycast debug HUD independently. It compares vanilla, oversized-outline,
@@ -54,7 +52,6 @@ over the full 20-block ray.
 | `PostShaderRegistry` / `TimedEffectRegistry` | `registries/TestShaders.java` |
 | `GlueBlock` + data-driven outline | `blocks/demo/TestOutlineBlock.java` (+ `glue/outlines/example.json`) |
 | `GlueVoxelShape` | `blocks/demo/TestOutlineBlock.java` |
-| `CompositeCells` (several transformed blocks in one cell) | `CompositeCommands.java` |
 | `BlockShapeProvider` (shapes generated from models) | `datagen/ShowcaseBlockShapes.java`, `blocks/demo/TestShapeBlock.java`, `blocks/demo/TestChairBlock.java`, `blocks/demo/TestStoveBlock.java` |
 | `IHaveBigOutline` (oversized selection box) | `TestOutlineBlock`, `TestShaderBlock`, `TestSpinningBlock` |
 | `GlueTransformStack` (fluent transforms) | `render/block/entity/TestOutlineBlockEntityRenderer.java` (basic), `TestSpinningBlockEntityRenderer.java` (advanced `then()`) |
@@ -120,7 +117,6 @@ Select one or more discovered tests by short name, class name, or wildcard:
 |---|---|
 | `inventory` | Real inventory input, client/server synchronization, resize and stale handles. |
 | `scenes` | Orbit/FPS/gizmo previews opened as `/showcase scene` opens them, their controls, undo/redo and target disposal. |
-| `composite` | A composite cell of four transformed parts reaches the client with its shapes and mesh; refused parts, reverting to a plain block or air, and the part codec. |
 | `shapes` | Every state of `test_shape` gets its generated outline and collision, on the server and the client; the Occamod chair's sixteen turns and the stove's separate collision follow their models. |
 | `viewport-sky` | Full-window and inset sky views, day/night and Nether; Iris optional. |
 | `native-dialogs` | Human-assisted: cancel the open/save/folder OS dialogs. |

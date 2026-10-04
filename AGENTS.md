@@ -21,8 +21,9 @@ and do not reproduce them in new APIs.
 
 Glue is a modular Fabric library for Minecraft 1.21.8 using Java 21 and official Mojang mappings. It
 provides typed registries, rendering and shader infrastructure, native dialogs, and Fabric client
-GameTest helpers. Lumos, the colored-lighting mod, lives in its own repository and depends on Glue;
-Porthole, the web-interface library, lives in its own repository and does not. The build uses Gradle Kotlin DSL,
+GameTest helpers. Lumos, the colored-lighting mod, and Tessera, the composite-cell mod, live in
+their own repositories and depend on Glue; Porthole, the web-interface library, lives in its own
+repository and does not. The build uses Gradle Kotlin DSL,
 Fabric Loom, and the in-house `fr.lacaleche.caldle` plugin.
 
 - Maven group: `fr.lacaleche.glue`
@@ -42,10 +43,6 @@ Glue is a library. Public behavior and supported APIs are what `glue-docs` docum
 | root (`glue`) | `glue` | both | none | `src/main`: shared registries, packets/codecs, math, shapes, and history. `src/client`: pipelines, post effects, materials, outlines, scenes, render events, compatibility, native dialogs, and key bindings. |
 | `glue-gametest` | `glue-gametest` | client, development | none | Fabric client GameTest helpers: UI input, assertions, async waits and Iris. |
 | `glue-showcase` | `glue-showcase` | both, development | `glue` (`glue-gametest` only in tests) | Run configurations, demos, and Fabric scenarios under `src/test/e2e`; not published by release CI. |
-
-Composite cells live in `fr.lacaleche.composite` (and `.client`) with their own entrypoints, as a
-separate mod would, until they move to one. They use only Glue's public API; Glue's own packages
-must not depend on them, and generic logic they need belongs in Glue.
 
 Keep environment boundaries explicit. Loom's split source sets enforce them: `src/main` cannot see
 client classes, so shared models belong there and rendering and UI implementations in `src/client`.

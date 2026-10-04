@@ -2,11 +2,9 @@
 
 Status, 3 October 2026: the core (`shaper/ShapeGeometry`, `GeometryBox`, `ShapeVoxelizer`) and
 phase 1 (`BlockShapeProvider`, `BlockShapes`, `mixin/BlockBehaviourMixin`, the showcase's
-`test_shape` and `shapes` client test) are implemented. Phase 2's first step is too: `composite/`
-(`CompositePart`, `CompositeBlock`, `CompositeBlockEntity`, `CompositeCells`) and the client's
-`render/composite/`, a cell built by code or the showcase's `/composite`, meshed with Sodium too and
-checked by the `composite` client test. Per-part picking, editing, survival rules and part light are
-not.
+`test_shape` and `shapes` client test) are implemented. Phase 2, composite cells, now lives in
+Tessera, its own mod on Glue's public API, where its parts are only drawn: blocks, block entities
+and items, without behaviour. Per-part picking, editing and survival rules are not implemented.
 
 Two features that share one core:
 
