@@ -1,7 +1,6 @@
-package fr.lacaleche.glue.composite;
+package fr.lacaleche.composite;
 
 import com.mojang.serialization.DataResult;
-import fr.lacaleche.glue.internal.GlueBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -16,7 +15,7 @@ import java.util.List;
 /**
  * Composite cells: several blocks sharing one position, each moved, turned and scaled on its own.
  *
- * <p>A cell is the {@code glue:composite} block ({@link GlueBlocks#COMPOSITE}) holding an ordered list of {@link CompositePart}s.
+ * <p>A cell is the {@code glue:composite} block ({@link CompositeBlocks#COMPOSITE}) holding an ordered list of {@link CompositePart}s.
  * A cell left with one untransformed part becomes that plain block, and a cell left with none
  * becomes air, so cells exist only where they are needed. Edits run on the server, which sends the
  * result to the clients.</p>
@@ -75,7 +74,7 @@ public final class CompositeCells {
             level.setBlock(pos, parts.getFirst().state(), Block.UPDATE_ALL);
             return DataResult.success(List.copyOf(parts));
         }
-        if (!level.getBlockState(pos).is(GlueBlocks.COMPOSITE)) level.setBlock(pos, GlueBlocks.COMPOSITE.defaultBlockState(), Block.UPDATE_ALL);
+        if (!level.getBlockState(pos).is(CompositeBlocks.COMPOSITE)) level.setBlock(pos, CompositeBlocks.COMPOSITE.defaultBlockState(), Block.UPDATE_ALL);
         if (!(level.getBlockEntity(pos) instanceof CompositeBlockEntity cell)) {
             return DataResult.error(() -> "No composite cell could be placed at " + pos.toShortString());
         }
@@ -102,7 +101,7 @@ public final class CompositeCells {
 
     private static DataResult<CompositePart> check(CompositePart part) {
         BlockState state = part.state();
-        if (state.is(GlueBlocks.COMPOSITE)) return DataResult.error(() -> "A cell cannot hold another cell");
+        if (state.is(CompositeBlocks.COMPOSITE)) return DataResult.error(() -> "A cell cannot hold another cell");
         if (state.hasBlockEntity()) {
             return DataResult.error(() -> state.getBlock().getName().getString() + " has a block entity and cannot be a part");
         }

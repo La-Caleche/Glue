@@ -1,7 +1,7 @@
-package fr.lacaleche.glue.client.render.composite;
+package fr.lacaleche.composite.client;
 
+import fr.lacaleche.composite.CompositePart;
 import fr.lacaleche.glue.client.render.model.MatrixQuadTransform;
-import fr.lacaleche.glue.composite.CompositePart;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;

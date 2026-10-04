@@ -1,6 +1,6 @@
-package fr.lacaleche.glue.client.render.composite;
+package fr.lacaleche.composite.client;
 
-import fr.lacaleche.glue.composite.CompositePart;
+import fr.lacaleche.composite.CompositePart;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.Sheets;

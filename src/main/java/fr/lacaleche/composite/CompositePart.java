@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.composite;
+package fr.lacaleche.composite;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;

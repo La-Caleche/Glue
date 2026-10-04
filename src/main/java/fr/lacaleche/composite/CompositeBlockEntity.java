@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.composite;
+package fr.lacaleche.composite;
 
 import fr.lacaleche.glue.shaper.PlacedGeometry;
 import fr.lacaleche.glue.shaper.ShapeGeometry;

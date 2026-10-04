@@ -43,6 +43,10 @@ Glue is a library. Public behavior and supported APIs are what `glue-docs` docum
 | `glue-gametest` | `glue-gametest` | client, development | none | Fabric client GameTest helpers: UI input, assertions, async waits and Iris. |
 | `glue-showcase` | `glue-showcase` | both, development | `glue` (`glue-gametest` only in tests) | Run configurations, demos, and Fabric scenarios under `src/test/e2e`; not published by release CI. |
 
+Composite cells live in `fr.lacaleche.composite` (and `.client`) with their own entrypoints, as a
+separate mod would, until they move to one. They use only Glue's public API; Glue's own packages
+must not depend on them, and generic logic they need belongs in Glue.
+
 Keep environment boundaries explicit. Loom's split source sets enforce them: `src/main` cannot see
 client classes, so shared models belong there and rendering and UI implementations in `src/client`.
 Client mixins are declared in `glue.client.mixins.json`, which loads only on the client. Unit tests
