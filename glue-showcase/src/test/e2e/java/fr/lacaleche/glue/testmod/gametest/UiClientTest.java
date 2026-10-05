@@ -1,6 +1,7 @@
 package fr.lacaleche.glue.testmod.gametest;
 
 import fr.lacaleche.glue.client.debug.internal.Framebuffers;
+import fr.lacaleche.glue.client.debug.internal.RaycastPage;
 import fr.lacaleche.glue.client.ui.UiButton;
 import fr.lacaleche.glue.client.ui.UiRowList;
 import fr.lacaleche.glue.client.ui.UiScreen;
@@ -8,7 +9,8 @@ import fr.lacaleche.glue.client.ui.UiSlider;
 import fr.lacaleche.glue.client.ui.UiToggle;
 import fr.lacaleche.glue.gametest.ClientTest;
 import fr.lacaleche.glue.gametest.ClientTestSpec;
-import fr.lacaleche.glue.testmod.TestmodClient;
+import fr.lacaleche.glue.testmod.registries.TestShaders;
+import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import fr.lacaleche.glue.testmod.ui.ShowcaseDeveloperPage;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -25,13 +27,15 @@ import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
 /**
  * The developer menu: F8 on the title screen with its world pages disabled, then in a world switching
  * pages, a toggle and a slider driven through real input, the framebuffer viewer listing a registered
- * texture, Show on HUD, and the texture locations released when the menu closes.
+ * texture, the raycast overlay switched from its page, Show on HUD, and the texture locations released
+ * when the menu closes.
  */
 @SuppressWarnings("PMD.TestClassWithoutTestCases")
 @ClientTestSpec("ui")
@@ -67,6 +71,8 @@ public final class UiClientTest implements FabricClientGameTest {
         this.context.waitTicks(2);
         this.game.expect("world pages disabled", client -> require(menu(client).children().size() == 2
                 && Framebuffers.INSTANCE.buffers().isEmpty(), "A page that needs a world was built on the title screen"));
+        this.game.expect("glue listed first", client -> require(tabs(client).getFirst().getMessage().getString()
+                .equals(text("glue.developer_menu.framebuffers.title")), "Glue's pages must head the menu"));
         this.context.takeScreenshot("ui-menu-title-screen");
         this.context.getInput().pressKey(GLFW.GLFW_KEY_F8);
         this.context.waitForScreen(TitleScreen.class);
@@ -101,11 +107,21 @@ public final class UiClientTest implements FabricClientGameTest {
         this.selectPage("Showcase");
         this.game.expect("hidden page released", client -> require(Framebuffers.INSTANCE.buffers().isEmpty()
                 && textureViews(client) == 0, "Leaving the Framebuffers page must free its copies and locations"));
-        boolean raycast = this.context.computeOnClient(client -> TestmodClient.getInstance().isRaycastDebugEnabled());
+        boolean blur = this.context.computeOnClient(client -> blurred());
         this.click(this.control(UiToggle.class, widget -> true));
-        this.game.expect("toggle clicked", client -> require(TestmodClient.getInstance().isRaycastDebugEnabled() != raycast,
-                "Clicking the Raycast toggle must switch the overlay"));
+        this.game.expect("toggle clicked", client -> require(blurred() != blur,
+                "Clicking the Blur toggle must switch the effect"));
         this.click(this.control(UiToggle.class, widget -> true));
+
+        this.selectPage("glue.developer_menu.raycast.title");
+        this.click(this.control(UiToggle.class, widget -> true));
+        this.game.expect("raycast overlay on", client -> require(RaycastPage.OVERLAY.enabled,
+                "The Raycast page's toggle must switch Glue's overlay on"));
+        this.game.waitForWorldFrames(3);
+        this.context.takeScreenshot("ui-raycast");
+        this.click(this.control(UiToggle.class, widget -> true));
+        this.game.expect("raycast overlay off", client -> require(!RaycastPage.OVERLAY.enabled,
+                "The Raycast page's toggle must switch Glue's overlay off"));
 
         this.selectPage("glue.developer_menu.framebuffers.title");
         this.click(this.control(UiButton.class,
@@ -125,10 +141,7 @@ public final class UiClientTest implements FabricClientGameTest {
     }
 
     private void selectPage(String title) {
-        AbstractButton tab = this.context.computeOnClient(client -> menu(client).children().stream()
-                .filter(UiRowList.class::isInstance).map(UiRowList.class::cast).findFirst().orElseThrow()
-                .children().stream().flatMap(entry -> entry.children().stream())
-                .filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+        AbstractButton tab = this.context.computeOnClient(client -> tabs(client).stream()
                 .filter(button -> button.getMessage().getString().equals(text(title)))
                 .findFirst().orElseThrow(() -> new AssertionError("No page tab named " + text(title))));
         this.click(tab);
@@ -153,11 +166,24 @@ public final class UiClientTest implements FabricClientGameTest {
                 .findFirst().orElseThrow(() -> new AssertionError("No " + type.getSimpleName() + " on the page")));
     }
 
+    /** The sidebar's page tabs, in order. */
+    private static List<AbstractButton> tabs(Minecraft client) {
+        return menu(client).children().stream()
+                .filter(UiRowList.class::isInstance).map(UiRowList.class::cast).findFirst().orElseThrow()
+                .children().stream().flatMap(entry -> entry.children().stream())
+                .filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+                .toList();
+    }
+
     private static Screen menu(Minecraft client) {
         if (client.screen instanceof UiScreen screen && screen.getTitle().getString().equals(text(MENU_TITLE))) {
             return screen;
         }
         return null;
+    }
+
+    private static boolean blurred() {
+        return TestPostShaderHandler.INSTANCE.isToggled(TestShaders.BLUR);
     }
 
     private static String text(String key) {

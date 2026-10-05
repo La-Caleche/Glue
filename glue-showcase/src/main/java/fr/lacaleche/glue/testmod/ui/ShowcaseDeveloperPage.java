@@ -6,6 +6,8 @@ import fr.lacaleche.glue.client.debug.FboDebugHud;
 import fr.lacaleche.glue.client.ui.UiPage;
 import fr.lacaleche.glue.client.ui.UiPageBuilder;
 import fr.lacaleche.glue.testmod.TestmodClient;
+import fr.lacaleche.glue.testmod.registries.TestShaders;
+import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.BlockHitResult;
@@ -32,11 +34,11 @@ public final class ShowcaseDeveloperPage implements UiPage {
 
     @Override
     public void build(UiPageBuilder builder) {
-        TestmodClient client = TestmodClient.getInstance();
-        builder.section(Component.literal("Overlays"));
-        builder.toggle(Component.literal("Raycast"), Component.literal("Draws what the pointer's ray crosses "
-                + "and hits."), client::isRaycastDebugEnabled, value -> {
-                    if (value != client.isRaycastDebugEnabled()) client.toggleRaycastDebug();
+        TestPostShaderHandler effects = TestPostShaderHandler.INSTANCE;
+        builder.section(Component.literal("Effects"));
+        builder.toggle(Component.literal("Blur"), Component.literal("The showcase's switched post effect."),
+                () -> effects.isToggled(TestShaders.BLUR), value -> {
+                    if (value != effects.isToggled(TestShaders.BLUR)) effects.toggleByHandle(TestShaders.BLUR);
                 });
         builder.section(Component.literal("Pointer"));
         builder.label(Component.literal("Block"), Component.literal("The block under the crosshair."),

@@ -2,6 +2,7 @@ package fr.lacaleche.glue.testmod.ui;
 
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.textures.GpuTexture;
+import fr.lacaleche.glue.client.debug.DeveloperMenu;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.ui.UiPage;
 import fr.lacaleche.glue.client.ui.UiPageBuilder;
@@ -9,7 +10,6 @@ import fr.lacaleche.glue.client.ui.UiScreen;
 import fr.lacaleche.glue.client.ui.UiTextureView;
 import fr.lacaleche.glue.math.Color;
 import fr.lacaleche.glue.testmod.Testmod;
-import fr.lacaleche.glue.testmod.TestmodClient;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import fr.lacaleche.glue.testmod.scene.SceneDemos;
@@ -147,13 +147,11 @@ public final class ShowcaseMenu {
 
         @Override
         public void build(UiPageBuilder builder) {
-            TestmodClient client = TestmodClient.getInstance();
-            builder.section(Component.literal("Overlays"));
-            builder.toggle(Component.literal("Raycast"), Component.literal("Draws what the pointer's ray crosses "
-                    + "and hits. R switches it while playing."), client::isRaycastDebugEnabled,
-                    value -> {
-                        if (value != client.isRaycastDebugEnabled()) client.toggleRaycastDebug();
-                    });
+            builder.section(Component.literal("Glue's developer menu"));
+            builder.button(Component.literal("Developer menu"), Component.literal("Glue's own tools, also on F8: "
+                    + "its Raycast page shows how the pick crosses composite cells and switches an overlay of it, "
+                    + "and its Framebuffers page shows the render targets."), Component.literal("Open"),
+                    DeveloperMenu::open);
         }
     }
 

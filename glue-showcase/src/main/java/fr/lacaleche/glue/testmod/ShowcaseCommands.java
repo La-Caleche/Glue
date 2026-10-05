@@ -25,7 +25,6 @@ final class ShowcaseCommands {
                             Minecraft.getInstance().schedule(ShowcaseMenu::open);
                             return 1;
                         })
-                        .then(action("raycast", () -> TestmodClient.getInstance().toggleRaycastDebug()))
                         .then(literal("scene")
                                 .then(scene("orbit", SceneDemos::openOrbit))
                                 .then(scene("fps", SceneDemos::openFps))

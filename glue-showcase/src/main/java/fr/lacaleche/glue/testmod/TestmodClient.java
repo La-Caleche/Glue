@@ -1,7 +1,5 @@
 package fr.lacaleche.glue.testmod;
 
-import fr.lacaleche.glue.client.debug.DebugManager;
-import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
 import fr.lacaleche.glue.testmod.registries.TestBlocksRenderer;
 import fr.lacaleche.glue.testmod.registries.TestKeybinds;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
@@ -24,7 +22,6 @@ public class TestmodClient implements ClientModInitializer {
     public static final String MOD_ID = Testmod.MOD_ID;
     public static final Logger LOGGER = Testmod.LOGGER;
     private static TestmodClient instance;
-    private RaycastDebugRenderer raycastDebugRenderer;
 
     public static TestmodClient getInstance() {
         return instance;
@@ -38,9 +35,6 @@ public class TestmodClient implements ClientModInitializer {
     public void onInitializeClient() {
         instance = this;
 
-        this.raycastDebugRenderer = new RaycastDebugRenderer();
-        DebugManager.getInstance().register(this.raycastDebugRenderer);
-
         TestKeybinds.register();
         TestBlocksRenderer.registerBlocksRenderer();
         TestShaders.registerShaders();
@@ -50,18 +44,5 @@ public class TestmodClient implements ClientModInitializer {
         ShowcaseDeveloperPage.register();
 
         AdditiveSpriteRenderer.init();
-    }
-
-    public boolean isRaycastDebugEnabled() {
-        return this.raycastDebugRenderer != null && this.raycastDebugRenderer.enabled;
-    }
-
-    public void toggleRaycastDebug() {
-        if (this.raycastDebugRenderer != null) {
-            this.raycastDebugRenderer.enabled = !this.raycastDebugRenderer.enabled;
-            if (!this.raycastDebugRenderer.enabled) {
-                this.raycastDebugRenderer.clear();
-            }
-        }
     }
 }

@@ -52,7 +52,7 @@ class ShowcaseContentResourcesTest {
     void keybindingAndComponentTranslationsArePackaged() throws IOException {
         for (String locale : List.of("en_us", "fr_fr")) {
             JsonObject translations = resourceJson("assets/glue-test/lang/" + locale + ".json");
-            assertTrue(translations.has("key.glue-test.toggle_raycast_debug"));
+            assertTrue(translations.has("key.glue-test.open_showcase_menu"));
             assertTrue(translations.has("item.glue-test.test_component.tooltip.use"));
             for (int preset = 0; preset < 5; preset++) {
                 assertTrue(translations.has("item.glue-test.test_component.preset." + preset));

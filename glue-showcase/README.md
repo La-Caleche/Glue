@@ -26,18 +26,18 @@ is installed during normal play: use the showcase commands, F2, or an explicit t
 ## Controls
 
 `/showcase` alone opens the showcase menu, a `UiScreen` built with Glue's UI kit. Its Demos pages
-open the scene previews, play the post effects and switch the raycast overlay; its UI kit pages show
+open the scene previews and play the post effects; its UI kit pages show
 every kit widget and a borrowed texture. The same demos also have client commands:
 
 - `/showcase effects blur` or `grayscale` toggles a steady post effect.
 - `/showcase effects chromatic`, `shattered`, or `impact` triggers a Java-built timed effect.
 - `/showcase effects chromatic-registry`, `vortex`, or `pulse` exercises registry-driven effects.
-- `/showcase raycast` toggles raycast debugging.
 - `/showcase scene orbit`, `fps`, or `gizmo` opens a scene preview after joining a world.
 
-Press **R** by default to toggle the raycast debug HUD independently. It compares vanilla, oversized-outline,
-and final block hits, labels every candidate shape in the world, and reports linear hit distances
-over the full 20-block ray.
+Press **R** by default to open the same menu while playing. Raycast debugging moved to Glue: press
+**F8** for the developer menu and open its Raycast page. It compares vanilla, cell and final block
+hits, lists the blocks reaching past their cells, and switches an overlay that marks them in the
+world over the full 20-block ray. The showcase also adds its own page and a texture to that menu.
 
 ## Feature → file index
 
