@@ -41,8 +41,8 @@ public final class UiTextureView extends AbstractWidget {
         Font font = Minecraft.getInstance().font;
         int imageBottom = this.getBottom() - font.lineHeight - 2;
         graphics.fill(this.getX(), this.getY(), this.getRight(), imageBottom, style.control());
-        graphics.drawString(font, font.plainSubstrByWidth(this.getMessage().getString(), this.getWidth()),
-                this.getX(), imageBottom + 2, style.muted());
+        renderScrollingString(graphics, font, this.getMessage(), this.getX(), imageBottom + 2, this.getRight(),
+                this.getBottom() + 1, style.muted());
 
         Texture shown = this.source.get();
         if (shown == null || shown.id() <= 0 || shown.width() <= 0 || shown.height() <= 0) return;
