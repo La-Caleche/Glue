@@ -3,6 +3,7 @@ package fr.lacaleche.glue.testmod.gametest;
 import fr.lacaleche.glue.client.debug.internal.Framebuffers;
 import fr.lacaleche.glue.client.debug.internal.RaycastPage;
 import fr.lacaleche.glue.client.ui.UiButton;
+import fr.lacaleche.glue.client.ui.UiNumberField;
 import fr.lacaleche.glue.client.ui.UiPage;
 import fr.lacaleche.glue.client.ui.UiPageBuilder;
 import fr.lacaleche.glue.client.ui.UiPanelScreen;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 /**
@@ -41,7 +43,8 @@ import java.util.function.Predicate;
  * pages, a toggle and a slider driven through real input, the framebuffer viewer listing a registered
  * texture, the raycast overlay switched from its page, Show on HUD, and the texture locations released
  * when the menu closes. Last, a panel screen over the world that keeps running, takes clicks on its rows,
- * hands clicks beside it to its owner and rebuilds its page in place.
+ * hands clicks beside it to its owner and rebuilds its page in place, and its number field, dragged, scrolled and
+ * typed into.
  */
 @SuppressWarnings("PMD.TestClassWithoutTestCases")
 @ClientTestSpec("ui")
@@ -151,6 +154,7 @@ public final class UiClientTest implements FabricClientGameTest {
         AtomicBoolean value = new AtomicBoolean();
         AtomicInteger builds = new AtomicInteger();
         AtomicInteger outside = new AtomicInteger();
+        AtomicReference<Double> number = new AtomicReference<>(0.0);
         UiPage page = new UiPage() {
             @Override
             public Component title() {
@@ -162,6 +166,8 @@ public final class UiClientTest implements FabricClientGameTest {
                 builds.incrementAndGet();
                 builder.toggle(Component.literal("Value"), Component.literal("A toggle in the panel."),
                         value::get, value::set);
+                builder.number(Component.literal("Number"), Component.literal("A number field in the panel."),
+                        Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, 0.5, number::get, number::set);
             }
         };
         this.context.setScreen(() -> new UiPanelScreen(Component.literal("Panel"), page) {
@@ -187,9 +193,39 @@ public final class UiClientTest implements FabricClientGameTest {
         this.context.runOnClient(client -> ((UiPanelScreen) client.screen).refresh());
         this.game.expect("panel refreshed", client -> require(builds.get() == 2
                 && panelControl(client, UiToggle.class) != toggle, "Refreshing the panel must build its page again"));
+        this.numberField(number);
         this.context.takeScreenshot("ui-panel");
         this.context.getInput().pressKey(GLFW.GLFW_KEY_ESCAPE);
         this.context.waitForScreen(null);
+    }
+
+    /** Drags the panel's number field ten steps right, scrolls it a step up, then types a value into it. */
+    private void numberField(AtomicReference<Double> number) {
+        // The refreshed page lays its rows out when it is next drawn.
+        this.context.waitTicks(2);
+        UiNumberField field = this.context.computeOnClient(client -> panelControl(client, UiNumberField.class));
+        double[] centre = this.context.computeOnClient(client -> new double[] {
+                field.getX() + field.getWidth() / 2.0, field.getY() + field.getHeight() / 2.0});
+        this.game.movePointer(centre[0], centre[1]);
+        this.context.getInput().holdMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        // Minecraft drops pointer motion while its window is unfocused, as it is under the test runner.
+        this.context.runOnClient(client -> client.screen.mouseDragged(centre[0] + 20, centre[1],
+                GLFW.GLFW_MOUSE_BUTTON_LEFT, 20, 0));
+        this.context.getInput().releaseMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        this.game.expect("number field dragged", client -> require(number.get() == 5.0 && !field.isEditing(),
+                "Dragging the number field twenty pixels must move it ten half steps"));
+        this.context.runOnClient(client -> client.screen.mouseScrolled(centre[0], centre[1], 0, 1));
+        this.game.expect("number field scrolled", client -> require(number.get() == 5.5,
+                "Scrolling up over the focused number field must move it a step"));
+
+        this.game.movePointer(centre[0], centre[1]);
+        this.context.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        this.game.expect("number field typing", client -> require(field.isEditing(),
+                "Clicking the number field without a drag must start typing"));
+        this.context.getInput().typeChars("-12.25");
+        this.context.getInput().pressKey(GLFW.GLFW_KEY_ENTER);
+        this.game.expect("number field typed", client -> require(number.get() == -12.25 && !field.isEditing(),
+                "Enter must set the typed value"));
     }
 
     private static <T extends AbstractWidget> T panelControl(Minecraft client, Class<T> type) {

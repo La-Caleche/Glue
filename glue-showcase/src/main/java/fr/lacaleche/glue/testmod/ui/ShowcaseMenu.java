@@ -35,6 +35,7 @@ public final class ShowcaseMenu {
     private static Quality quality = Quality.MEDIUM;
     private static double radius = 8;
     private static double opacity = 0.75;
+    private static double height = 64;
     private static String name = "Lantern";
     private static int presses;
 
@@ -175,6 +176,10 @@ public final class ShowcaseMenu {
             builder.slider(Component.literal("Opacity"), Component.literal("From 0 to 1 by 0.05, shown as a percentage."),
                     0, 1, 0.05, () -> opacity, value -> opacity = value)
                     .setFormat(value -> Component.literal(Math.round(value * 100) + "%"));
+            builder.number(Component.literal("Height"), Component.literal("Any number by 0.5: drag it sideways, "
+                    + "scroll it while focused, or click it to type; Shift for a tenth, Control for ten steps."),
+                    Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, 0.5, () -> height, value -> height = value)
+                    .setFormat(value -> Component.literal(value + " m"));
             builder.textField(Component.literal("Name"), Component.literal("Free text."),
                     () -> name, value -> name = value);
 

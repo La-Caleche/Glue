@@ -70,6 +70,15 @@ public final class UiRowList extends ContainerObjectSelectionList<UiRowList.Entr
         graphics.fill(x + 1, y, x + SCROLLBAR_WIDTH - 1, y + this.scrollerHeight(), UiStyle.DEFAULT.muted());
     }
 
+    /** Offers the wheel to the control under the pointer first, such as a focused {@link UiNumberField}. */
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        Entry entry = this.isMouseOver(mouseX, mouseY) ? this.getEntryAtPosition(mouseX, mouseY) : null;
+        if (entry != null && entry.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) return true;
+
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
     /** Adds a row of a label and a control, and returns the control. */
     public <T extends AbstractWidget> T row(Component label, @Nullable Component description, T control) {
         this.addEntry(new Row(Objects.requireNonNull(label, "label"), description, control, this.descriptionTooltips));

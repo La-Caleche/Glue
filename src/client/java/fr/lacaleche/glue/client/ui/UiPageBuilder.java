@@ -86,6 +86,12 @@ public final class UiPageBuilder {
         return this.rows().row(label, description, new UiSlider(label, min, max, step, value, onChange));
     }
 
+    /** A number field; {@code min} and {@code max} may be infinite for an unbounded value. */
+    public UiNumberField number(Component label, @Nullable Component description, double min, double max, double step,
+            DoubleSupplier value, DoubleConsumer onChange) {
+        return this.rows().row(label, description, new UiNumberField(label, min, max, step, value, onChange));
+    }
+
     public UiTextField textField(Component label, @Nullable Component description, Supplier<String> value,
             Consumer<String> onChange) {
         return this.rows().row(label, description, new UiTextField(label, value, onChange));

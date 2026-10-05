@@ -2,7 +2,8 @@
 
 Status, 5 October 2026: steps 1 to 3 are implemented: the kit in `client/ui`, and the developer menu
 with its Framebuffers and Raycast pages in `client/debug`, shipped in Glue 3.3.0; the panel screen
-follows in 3.4.0, additive, for Lumos's light editor. The `glue-docs` pages remain.
+follows in 3.4.0, additive, for Lumos's light editor, and the number field in 3.5.0, for its
+coordinates. The `glue-docs` pages remain.
 
 Glue needs simple native screens for its own tools: a developer menu shipped in the player jar, real
 screens for the framebuffer and raycast debug, and a page Lumos can register for its lights. Today it
@@ -40,8 +41,8 @@ that would make it a second Porthole.
    record of colours and metrics, so a later change is one place.
 5. **Drawing through `GuiGraphics` only:** filled rectangles, outlines, the vanilla font, and
    borrowed textures. No sprites, so a resource pack does not restyle it and it needs no assets.
-6. **A budget.** The kit (style, widgets, screen base) stays within about 1,500 lines. Past that, stop
-   and revisit this note.
+6. **A budget.** The kit (style, widgets, screen base) stays within about 1,800 lines. Past that, stop
+   and revisit this note. It was 1,500 until the number field took the kit past it in 3.5.0.
 7. **Render thread only.** Widgets, pages and suppliers run on the client render thread.
 
 ## Look
@@ -71,6 +72,7 @@ instance; screens read it, and nothing swaps it at runtime.
 | `UiCycle<E>` | `AbstractButton` | One of a list, such as an enum, with a label function; Shift steps back |
 | `UiSlider` | `AbstractWidget` | A `double` within a range and step, with a value formatter; a whole-number step reports whole numbers |
 | `UiTextField` | `EditBox` unbordered, inside a drawn frame | `String` |
+| `UiNumberField` | `AbstractWidget` | A `double` on a step, bounded or not, with a value formatter: dragged sideways without end, stepped with the arrows or the wheel while focused, or typed after a click |
 | `UiColorSwatch` | `AbstractWidget`, inactive | A `Color` shown, not edited |
 | `UiTextureView` | `AbstractWidget`, inactive | A borrowed GL texture, flipped or not, with a caption |
 | `UiRowList` | `ContainerObjectSelectionList` with its background, separators and scrollbar redrawn | Scrolling rows, each a label and one control, and section headers |
@@ -78,6 +80,14 @@ instance; screens read it, and nothing swaps it at runtime.
 `UiSlider` is not an `AbstractSliderButton`: that class stores the value as a 0 to 1 fraction and
 draws vanilla sprites, so the kit would fight both. A section header is a `UiRowList` entry, not a
 widget, so it scrolls with its rows.
+
+`UiNumberField` is for values a range would cramp, such as a world coordinate. A drag hides the
+pointer, as Blender's fields do, so it never stops at the screen's edge, and puts it back where it was
+pressed; a drag moves the value a step every two GUI pixels, Shift a tenth of a step and Control ten.
+The wheel changes the value only while the field is focused, so scrolling a list never edits the rows
+it passes, and `UiRowList` offers the wheel to the row under the pointer before scrolling. A click
+without a drag types a value, which Enter or leaving the field sets; `isEditing()` tells a screen with
+its own keys, such as the developer menu, that keys belong to the field.
 
 `UiTextureView` takes a texture supplier returning the GL id and size, or nothing. It keeps one
 location per view, re-registers it only when the id or size changes, and releases it when its screen
@@ -207,7 +217,7 @@ gobo, shadow frustums) needs a world debug-draw library. That library is separat
   that a registered texture appears, and that closing the menu releases its texture locations. On
   the Raycast page, check its toggle switches Glue's overlay. Last, a panel screen: the world keeps
   ticking behind it, its toggle takes a click, a click beside it reaches `clickedOutside`, and
-  `refresh` builds its page again.
+  `refresh` builds its page again; its number field is dragged, scrolled and typed into.
 - In-game check: GUI scales 1 to 4 and auto, a small window, keyboard-only navigation, and a narrator
   pass.
 

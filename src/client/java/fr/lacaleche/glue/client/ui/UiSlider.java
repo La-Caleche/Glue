@@ -137,7 +137,7 @@ public final class UiSlider extends AbstractWidget {
         return BigDecimal.valueOf(value).setScale(decimals(step), RoundingMode.HALF_UP).toPlainString();
     }
 
-    private static int decimals(double number) {
+    static int decimals(double number) {
         return Math.max(0, BigDecimal.valueOf(number).stripTrailingZeros().scale());
     }
 }

@@ -5,6 +5,7 @@ import fr.lacaleche.glue.client.debug.internal.DeveloperPages;
 import fr.lacaleche.glue.client.debug.internal.Framebuffers;
 import fr.lacaleche.glue.client.debug.internal.FramebuffersPage;
 import fr.lacaleche.glue.client.debug.internal.RaycastPage;
+import fr.lacaleche.glue.client.ui.UiNumberField;
 import fr.lacaleche.glue.client.ui.UiPage;
 import fr.lacaleche.glue.client.ui.UiPageBuilder;
 import fr.lacaleche.glue.client.ui.UiScreen;
@@ -132,7 +133,7 @@ public final class DeveloperMenu {
         }
 
         private static boolean typing(@Nullable GuiEventListener focused) {
-            if (focused instanceof EditBox) return true;
+            if (focused instanceof EditBox || focused instanceof UiNumberField field && field.isEditing()) return true;
 
             return focused instanceof ContainerEventHandler container && typing(container.getFocused());
         }
