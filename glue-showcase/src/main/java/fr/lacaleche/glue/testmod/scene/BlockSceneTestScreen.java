@@ -2,6 +2,10 @@ package fr.lacaleche.glue.testmod.scene;
 
 import fr.lacaleche.glue.client.camera.OrbitCameraController;
 import fr.lacaleche.glue.client.render.scene.BlockSceneRenderer;
+import fr.lacaleche.glue.client.ui.UiButton;
+import fr.lacaleche.glue.client.ui.UiLabel;
+import fr.lacaleche.glue.client.ui.UiRowList;
+import fr.lacaleche.glue.client.ui.UiSlider;
 import fr.lacaleche.glue.client.viewport.AbstractViewportScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -10,11 +14,15 @@ import net.minecraft.network.chat.Component;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.function.DoubleConsumer;
+import java.util.function.DoubleSupplier;
+
 /** Orbit, zoom and pan around nearby blocks; region controls affect only this preview. */
 public final class BlockSceneTestScreen extends AbstractViewportScreen<OrbitCameraController> {
 
     private final Screen parent;
     private final BlockSceneRenderer renderer = new BlockSceneRenderer();
+    private UiRowList panel;
 
     public BlockSceneTestScreen() {
         this(Minecraft.getInstance().screen);
@@ -24,6 +32,40 @@ public final class BlockSceneTestScreen extends AbstractViewportScreen<OrbitCame
         super(Component.literal("Orbit scene"), new OrbitCameraController(new Vector3f()));
         this.parent = parent;
         this.renderer.setCenterPos(SceneTestAnchor.aroundPlayer(Minecraft.getInstance()));
+    }
+
+    @Override
+    protected void init() {
+        this.panel = this.addRenderableWidget(ScenePanel.create(this.width, this.height, rows -> {
+            rows.section(Component.literal("Region"));
+            this.slider(rows, "Width", "Blocks across, on X. + and - change width and depth together.", 1, 16,
+                    this.renderer::getHalfExtentX, value -> this.renderer.setHalfExtentX((int) value))
+                    .setFormat(value -> Component.literal(Integer.toString((int) value * 2 + 1)));
+            this.slider(rows, "Depth", "Blocks across, on Z.", 1, 16,
+                    this.renderer::getHalfExtentZ, value -> this.renderer.setHalfExtentZ((int) value))
+                    .setFormat(value -> Component.literal(Integer.toString((int) value * 2 + 1)));
+            this.slider(rows, "Bottom", "The lowest layer, from the centre. Page Down lowers it.", -32, 0,
+                    this.renderer::getMinY, value -> this.renderer.setMinY((int) value));
+            this.slider(rows, "Top", "The highest layer, from the centre. Page Up raises it.", 0, 32,
+                    this.renderer::getMaxY, value -> this.renderer.setMaxY((int) value));
+            rows.row(Component.literal("Blocks"), null, new UiLabel(Component.literal("Blocks"),
+                    () -> Component.literal(Integer.toString(this.blockCount()))));
+            rows.section(Component.literal("Camera"));
+            rows.row(Component.literal("View"), Component.literal("Back to the default orbit. Home does the same."),
+                    new UiButton(Component.literal("Reset"), this.cameraController::reset));
+        }));
+    }
+
+    private UiSlider slider(UiRowList rows, String label, String description, int min, int max, DoubleSupplier value,
+            DoubleConsumer onChange) {
+        Component name = Component.literal(label);
+        return rows.row(name, Component.literal(description), new UiSlider(name, min, max, 1, value, onChange));
+    }
+
+    private int blockCount() {
+        int dx = this.renderer.getHalfExtentX() * 2 + 1;
+        int dz = this.renderer.getHalfExtentZ() * 2 + 1;
+        return dx * dz * (this.renderer.getMaxY() - this.renderer.getMinY() + 1);
     }
 
     @Override
@@ -64,12 +106,7 @@ public final class BlockSceneTestScreen extends AbstractViewportScreen<OrbitCame
 
     @Override
     protected void renderHud(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.drawString(this.font, "LMB: Orbit | RMB: Pan | Wheel: Zoom | Home: Reset | Esc: Back", 4, 4, 0xFFFFFFFF);
-        int dx = this.renderer.getHalfExtentX() * 2 + 1;
-        int dz = this.renderer.getHalfExtentZ() * 2 + 1;
-        int dy = this.renderer.getMaxY() - this.renderer.getMinY() + 1;
-        graphics.drawString(this.font, "+/-: Region | PgUp/Dn: Height | " + dx + " x " + dy + " x " + dz
-                + " (" + dx * dy * dz + " blocks)", 4, 16, 0xFFAAAAAA);
+        ScenePanel.renderHud(graphics, this.font, this.panel, "LMB: Orbit | RMB: Pan | Wheel: Zoom | Esc: Back");
     }
 
     @Override

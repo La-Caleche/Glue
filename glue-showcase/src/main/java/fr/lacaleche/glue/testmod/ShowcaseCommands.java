@@ -4,13 +4,14 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
 import fr.lacaleche.glue.testmod.scene.SceneDemos;
+import fr.lacaleche.glue.testmod.ui.ShowcaseMenu;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 
-/** Client-thread controls for post effects and scene previews. */
+/** Client-thread controls for post effects and scene previews; {@code /showcase} alone opens the menu. */
 final class ShowcaseCommands {
 
     private ShowcaseCommands() {
@@ -20,6 +21,10 @@ final class ShowcaseCommands {
         TestPostShaderHandler effects = TestPostShaderHandler.INSTANCE;
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) -> dispatcher.register(
                 literal("showcase")
+                        .executes(context -> {
+                            Minecraft.getInstance().schedule(ShowcaseMenu::open);
+                            return 1;
+                        })
                         .then(action("raycast", () -> TestmodClient.getInstance().toggleRaycastDebug()))
                         .then(literal("scene")
                                 .then(scene("orbit", SceneDemos::openOrbit))

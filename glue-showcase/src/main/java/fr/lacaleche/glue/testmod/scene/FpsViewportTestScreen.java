@@ -3,6 +3,8 @@ package fr.lacaleche.glue.testmod.scene;
 import com.mojang.blaze3d.vertex.PoseStack;
 import fr.lacaleche.glue.client.camera.FpsCameraController;
 import fr.lacaleche.glue.client.render.scene.BlockSceneRenderer;
+import fr.lacaleche.glue.client.ui.UiLabel;
+import fr.lacaleche.glue.client.ui.UiRowList;
 import fr.lacaleche.glue.client.viewport.AbstractViewportScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -16,6 +18,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Locale;
+import java.util.function.Supplier;
 
 /** Free-flight camera in an anchored block-and-entity preview; the real player stays in place. */
 public final class FpsViewportTestScreen extends AbstractViewportScreen<FpsCameraController> {
@@ -23,6 +26,7 @@ public final class FpsViewportTestScreen extends AbstractViewportScreen<FpsCamer
     private final Screen parent;
     private final BlockSceneRenderer renderer;
     private float partialTick;
+    private UiRowList panel;
 
     public FpsViewportTestScreen() {
         this(Minecraft.getInstance().screen);
@@ -39,6 +43,24 @@ public final class FpsViewportTestScreen extends AbstractViewportScreen<FpsCamer
             }
         };
         this.renderer.setCenterPos(SceneTestAnchor.aroundPlayer(Minecraft.getInstance()));
+    }
+
+    @Override
+    protected void init() {
+        this.panel = this.addRenderableWidget(ScenePanel.create(this.width, this.height, rows -> {
+            rows.section(Component.literal("Camera"));
+            this.label(rows, "Position", "Where the camera is, from the scene's centre block.", () -> {
+                Vec3 position = this.cameraController.getPosition();
+                return String.format(Locale.ROOT, "%.1f, %.1f, %.1f", position.x, position.y, position.z);
+            });
+            this.label(rows, "Speed", "Blocks per tick. The wheel changes it; Ctrl flies faster.",
+                    () -> String.format(Locale.ROOT, "%.3f", this.cameraController.getMoveSpeed()));
+        }));
+    }
+
+    private void label(UiRowList rows, String label, String description, Supplier<String> value) {
+        Component name = Component.literal(label);
+        rows.row(name, Component.literal(description), new UiLabel(name, () -> Component.literal(value.get())));
     }
 
     @Override
@@ -73,10 +95,7 @@ public final class FpsViewportTestScreen extends AbstractViewportScreen<FpsCamer
         String controls = this.isCapturing()
                 ? "WASD: Fly | Space/Shift: Up/down | Ctrl: Fast | Esc: Release"
                 : "LMB: Capture | RMB: Pan | Wheel: Speed | Esc: Back";
-        graphics.drawString(this.font, controls, 4, 4, 0xFFFFFFFF);
-        Vec3 position = this.cameraController.getPosition();
-        graphics.drawString(this.font, String.format(Locale.ROOT, "Scene: %.1f, %.1f, %.1f | Speed: %.3f",
-                position.x, position.y, position.z, this.cameraController.getMoveSpeed()), 4, 16, 0xFFAAAAAA);
+        ScenePanel.renderHud(graphics, this.font, this.panel, controls);
     }
 
     @Override

@@ -5,6 +5,11 @@ import fr.lacaleche.glue.client.render.gizmo.GlfwGizmoController;
 import fr.lacaleche.glue.client.render.gizmo.GizmoOperation;
 import fr.lacaleche.glue.client.render.gizmo.GizmoSpace;
 import fr.lacaleche.glue.client.render.scene.BlockSceneRenderer;
+import fr.lacaleche.glue.client.ui.UiButton;
+import fr.lacaleche.glue.client.ui.UiCycle;
+import fr.lacaleche.glue.client.ui.UiLabel;
+import fr.lacaleche.glue.client.ui.UiRowList;
+import fr.lacaleche.glue.client.ui.UiToggle;
 import fr.lacaleche.glue.client.viewport.AbstractViewportScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -15,6 +20,9 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.List;
+import java.util.Locale;
+
 /** Block picking, translate/rotate/scale gizmos, snap and undo/redo in an isolated scene preview. */
 public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraController> {
 
@@ -22,6 +30,7 @@ public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraCon
     private final SceneTestPreviewRenderer renderer;
     private final SceneTestController controller;
     private final GlfwGizmoController gizmo = new GlfwGizmoController();
+    private UiRowList panel;
 
     public GizmoTestScreen() {
         this(Minecraft.getInstance().screen);
@@ -36,6 +45,50 @@ public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraCon
         this.controller = new SceneTestController(center, this.gizmo);
         this.renderer = new SceneTestPreviewRenderer(this.controller);
         this.renderer.setCenterPos(center);
+    }
+
+    @Override
+    protected void init() {
+        this.panel = this.addRenderableWidget(ScenePanel.create(this.width, this.height, rows -> {
+            rows.section(Component.literal("Gizmo"));
+            Component operation = Component.literal("Operation");
+            rows.row(operation, Component.literal("What dragging the gizmo does. T, R and S pick one."),
+                    new UiCycle<>(operation, List.of(GizmoOperation.values()), GizmoTestScreen::title,
+                            this.gizmo::getCurrentOperation, this.gizmo::setOperation));
+            Component space = Component.literal("Space");
+            rows.row(space, Component.literal("Axes along the block or along the world. Tab switches."),
+                    new UiCycle<>(space, List.of(GizmoSpace.values()), GizmoTestScreen::title,
+                            this.gizmo::getCurrentMode, this.gizmo::setMode));
+            Component snap = Component.literal("Snap");
+            rows.row(snap, Component.literal("Moves by whole steps. G switches it."),
+                    new UiToggle(snap, this.gizmo::isUsingSnap, this.gizmo::setUseSnap));
+
+            rows.section(Component.literal("Selection"));
+            Component block = Component.literal("Block");
+            rows.row(block, Component.literal("A left click in the preview picks a block."), new UiLabel(block,
+                    () -> this.controller.getSelectedBlockPos() == null ? Component.literal("None")
+                            : Component.literal(this.controller.getSelectedBlockPos().toShortString())));
+            this.button(rows, "Selection", "Drops the selection. Delete does the same.", "Clear",
+                    this.controller::clearSelectedBlock);
+
+            rows.section(Component.literal("History"));
+            this.button(rows, "Undo", "Steps back one drag. Ctrl+Z does the same.", "Undo", this.controller::undo);
+            this.button(rows, "Redo", "Replays an undone drag. Ctrl+Y does the same.", "Redo", this.controller::redo);
+
+            rows.section(Component.literal("Camera"));
+            this.button(rows, "View", "Back to the default orbit. Home does the same.", "Reset",
+                    this.cameraController::reset);
+        }));
+    }
+
+    private void button(UiRowList rows, String label, String description, String text, Runnable action) {
+        rows.row(Component.literal(label), Component.literal(description),
+                new UiButton(Component.literal(text), action));
+    }
+
+    private static Component title(Enum<?> value) {
+        String name = value.name();
+        return Component.literal(name.charAt(0) + name.substring(1).toLowerCase(Locale.ROOT));
     }
 
     @Override
@@ -104,18 +157,7 @@ public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraCon
 
     @Override
     protected void renderHud(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.drawString(this.font, "LMB: Pick/orbit | RMB: Pan | Wheel: Zoom | T/R/S: Operation", 4, 4, 0xFFFFFFFF);
-        graphics.drawString(this.font, "Tab: Space | G: Snap | Ctrl+Z/Y: Undo/redo",
-                4, 16, 0xFFAAAAAA);
-        graphics.drawString(this.font, "Del: Clear | Home: Reset | Esc: Back", 4, 28, 0xFFAAAAAA);
-        graphics.drawString(this.font, this.gizmo.getCurrentOperation() + " | " + this.gizmo.getCurrentMode()
-                + " | Snap: " + (this.gizmo.isUsingSnap() ? "ON" : "OFF")
-                + " | Undo: " + this.controller.getHistoryManager().canUndo()
-                + " | Redo: " + this.controller.getHistoryManager().canRedo(), 4, 40, 0xFFAAAAAA);
-        if (this.controller.getSelectedBlockPos() != null) {
-            graphics.drawString(this.font, "Selected: " + this.controller.getSelectedBlockPos().toShortString(),
-                    4, this.height - 12, 0xFF8CC63F);
-        }
+        ScenePanel.renderHud(graphics, this.font, this.panel, "LMB: Pick/orbit | RMB: Pan | Wheel: Zoom | Esc: Back");
     }
 
     @Override

@@ -4,6 +4,8 @@ import fr.lacaleche.glue.client.camera.OrbitCameraController;
 import fr.lacaleche.glue.client.render.gizmo.GizmoOperation;
 import fr.lacaleche.glue.client.render.gizmo.GizmoSpace;
 import fr.lacaleche.glue.client.render.scene.BlockSceneRenderer;
+import fr.lacaleche.glue.client.ui.UiRowList;
+import fr.lacaleche.glue.client.ui.UiToggle;
 import fr.lacaleche.glue.data.components.TransformationComponent;
 import fr.lacaleche.glue.gametest.ClientTestSpec;
 import fr.lacaleche.glue.testmod.gametest.WorldClientTest;
@@ -113,8 +115,17 @@ public final class SceneClientTest extends WorldClientTest {
         this.context.getInput().pressKey(GLFW.GLFW_KEY_G);
         this.game.expect("space and snap shortcuts", client -> require(screen.getSceneController().getGizmoController().getCurrentMode() != space
                 && screen.getSceneController().getGizmoController().isUsingSnap() != snap, "Space/snap did not toggle"));
-        this.screenshot("scene-gizmo-selected");
         BlockPos selected = this.context.computeOnClient(client -> screen.getSceneController().getSelectedBlockPos());
+        this.context.runOnClient(client -> {
+            UiToggle toggle = control(screen, UiToggle.class);
+            double x = toggle.getX() + toggle.getWidth() / 2.0;
+            double y = toggle.getY() + toggle.getHeight() / 2.0;
+            screen.mouseClicked(x, y, 0);
+            screen.mouseReleased(x, y, 0);
+        });
+        this.game.expect("panel click", client -> require(screen.getSceneController().getGizmoController().isUsingSnap() == snap
+                && selected.equals(screen.getSceneController().getSelectedBlockPos()), "The panel must take the click before the camera"));
+        this.screenshot("scene-gizmo-selected");
         BlockState worldState = this.context.computeOnClient(client -> client.level.getBlockState(selected));
         TransformationComponent before = this.context.computeOnClient(client -> screen.getSceneController().getBlockTransform(selected));
         TransformationComponent after = new TransformationComponent(new Vector3f(before.translation()).add(0, 2, 0),
@@ -144,6 +155,14 @@ public final class SceneClientTest extends WorldClientTest {
     private void close() {
         this.context.getInput().pressKey(GLFW.GLFW_KEY_ESCAPE);
         this.context.waitForScreen(null);
+    }
+
+    private static <T> T control(Screen screen, Class<T> type) {
+        return screen.children().stream()
+                .filter(UiRowList.class::isInstance).map(UiRowList.class::cast)
+                .flatMap(list -> list.children().stream())
+                .flatMap(entry -> entry.children().stream())
+                .filter(type::isInstance).map(type::cast).findFirst().orElseThrow();
     }
 
     private static boolean rendered(Minecraft client, BlockSceneRenderer renderer) {

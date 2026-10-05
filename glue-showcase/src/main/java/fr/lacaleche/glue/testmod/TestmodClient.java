@@ -50,6 +50,10 @@ public class TestmodClient implements ClientModInitializer {
         AdditiveSpriteRenderer.init();
     }
 
+    public boolean isRaycastDebugEnabled() {
+        return this.raycastDebugRenderer != null && this.raycastDebugRenderer.enabled;
+    }
+
     public void toggleRaycastDebug() {
         if (this.raycastDebugRenderer != null) {
             this.raycastDebugRenderer.enabled = !this.raycastDebugRenderer.enabled;
