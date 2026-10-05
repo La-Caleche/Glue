@@ -32,7 +32,7 @@ every kit widget and a borrowed texture. The same demos also have client command
 - `/showcase effects blur` or `grayscale` toggles a steady post effect.
 - `/showcase effects chromatic`, `shattered`, or `impact` triggers a Java-built timed effect.
 - `/showcase effects chromatic-registry`, `vortex`, or `pulse` exercises registry-driven effects.
-- `/showcase scene orbit`, `fps`, or `gizmo` opens a scene preview after joining a world.
+- `/showcase scene orbit`, `fps`, `gizmo` or `world-gizmo` opens a scene demo after joining a world.
 
 Press **R** by default to open the same menu while playing. Raycast debugging moved to Glue: press
 **F8** for the developer menu and open its Raycast page. It compares vanilla, cell and final block
@@ -63,12 +63,13 @@ world over the full 20-block ray. The showcase also adds its own page and a text
 | Post-processing effects (toggle + timed) | `render/TestPostShaderHandler.java` |
 | `BlockSceneRenderer` and `OrbitCameraController` | `scene/BlockSceneTestScreen.java` |
 | `FpsCameraController`, mouse capture and entity previews | `scene/FpsViewportTestScreen.java` |
-| Block picking, `GlfwGizmoController` and undo/redo | `scene/GizmoTestScreen.java`, `SceneTestController.java`, `UpdateBlockCommand.java` |
+| Block picking, a `Gizmo` in a preview and undo/redo | `scene/GizmoTestScreen.java`, `SceneTestController.java`, `UpdateBlockCommand.java` |
+| A `Gizmo` in the world beside a `UiPanelScreen` | `scene/WorldGizmoDemo.java` |
 
 ## Scene demos
 
 Join a world, then open them from the Scenes page of `/showcase`, or run `/showcase scene orbit`,
-`/showcase scene fps` or `/showcase scene gizmo`. They use `AbstractViewportScreen` directly, with
+`/showcase scene fps`, `/showcase scene gizmo` or `/showcase scene world-gizmo`. The first three use `AbstractViewportScreen` directly, with
 native rendering and input, and each has a panel of UI kit rows at the top right (`ScenePanel`) for
 what its shortcuts also do. Each samples nearby
 terrain into an owned render target; moving the preview camera or transforming a preview block does
@@ -79,6 +80,7 @@ not change the world or the real player. Escape returns to the screen that was o
 | Orbit | Left drag rotates, right drag pans, wheel zooms. The panel sizes the region and resets the camera; `+`/`-` changes the horizontal region, Page Up/Down extends its height, Home resets camera rotation and zoom. |
 | FPS | The panel shows the camera's position and speed. Left click captures the pointer; WASD moves, Space/Shift goes up/down, Ctrl accelerates, wheel changes speed. Escape first releases capture; another Escape returns. Right drag pans while uncaptured. |
 | Gizmo | Click selects a block, drag elsewhere orbits, right drag pans, wheel zooms. The panel picks the operation, space and snap, clears the selection, undoes and redoes; `T`/`R`/`S` selects translate/rotate/scale, Tab switches local/world, `G` toggles snap, Ctrl+Z undoes, Ctrl+Y or Ctrl+Shift+Z redoes, Delete clears selection. |
+| World gizmo | A box four blocks ahead, with the gizmo drawn in the world, dimmed where blocks hide it. Drag a handle to move, rotate or scale the box; Ctrl inverts snapping while dragging, and a right click or Escape puts it back. The panel picks the operation, space and snap, shows the position and the committed drags, and resets the box. |
 
 `SceneTestAnchor` locates terrain even when the player is flying. The gizmo's saved transforms and
 history are preview-only. Picking uses translated unit cubes, as in the original demo; rotation and
@@ -120,7 +122,7 @@ Select one or more discovered tests by short name, class name, or wildcard:
 | Selection | Coverage / prerequisites |
 |---|---|
 | `inventory` | Real inventory input, client/server synchronization, resize and stale handles. |
-| `scenes` | Orbit/FPS/gizmo previews opened as `/showcase scene` opens them, their controls, undo/redo and target disposal. |
+| `scenes` | Orbit/FPS/gizmo previews opened as `/showcase scene` opens them, their controls, undo/redo and target disposal, and a gizmo dragged in a preview and in the world. |
 | `shapes` | Every state of `test_shape` gets its generated outline and collision, on the server and the client; the Occamod chair's sixteen turns and the stove's separate collision follow their models. |
 | `viewport-sky` | Full-window and inset sky views, day/night and Nether; Iris optional. |
 | `native-dialogs` | Human-assisted: cancel the open/save/folder OS dialogs. |

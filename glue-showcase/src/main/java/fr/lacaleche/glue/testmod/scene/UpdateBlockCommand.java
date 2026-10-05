@@ -15,11 +15,11 @@ public record UpdateBlockCommand(SceneTestController controller, BlockPos blockP
 
     @Override
     public void execute() {
-        this.controller.setGizmo(this.blockPos, this.newTransform);
+        this.controller.setTransform(this.blockPos, this.newTransform);
     }
 
     @Override
     public void undo() {
-        this.controller.setGizmo(this.blockPos, this.oldTransform);
+        this.controller.setTransform(this.blockPos, this.oldTransform);
     }
 }

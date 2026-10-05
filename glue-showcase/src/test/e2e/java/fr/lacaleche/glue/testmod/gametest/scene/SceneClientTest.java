@@ -1,9 +1,15 @@
 package fr.lacaleche.glue.testmod.gametest.scene;
 
 import fr.lacaleche.glue.client.camera.OrbitCameraController;
+import fr.lacaleche.glue.client.render.gizmo.Gizmo;
+import fr.lacaleche.glue.client.render.gizmo.GizmoHandle;
+import fr.lacaleche.glue.client.render.gizmo.GizmoPose;
 import fr.lacaleche.glue.client.render.gizmo.GizmoOperation;
 import fr.lacaleche.glue.client.render.gizmo.GizmoSpace;
+import fr.lacaleche.glue.client.render.gizmo.GizmoView;
+import fr.lacaleche.glue.client.render.gizmo.WorldGizmos;
 import fr.lacaleche.glue.client.render.scene.BlockSceneRenderer;
+import fr.lacaleche.glue.client.ui.UiPanelScreen;
 import fr.lacaleche.glue.client.ui.UiRowList;
 import fr.lacaleche.glue.client.ui.UiToggle;
 import fr.lacaleche.glue.data.components.TransformationComponent;
@@ -15,18 +21,24 @@ import fr.lacaleche.glue.testmod.scene.GizmoTestScreen;
 import fr.lacaleche.glue.testmod.scene.SceneDemos;
 import fr.lacaleche.glue.testmod.scene.SceneTestController;
 import fr.lacaleche.glue.testmod.scene.UpdateBlockCommand;
+import fr.lacaleche.glue.testmod.scene.WorldGizmoDemo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
+import org.joml.Vector2f;
+import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.function.Supplier;
 
-/** The three scene previews behind {@code /showcase scene}: camera input, history and target disposal. */
+/**
+ * The scene previews behind {@code /showcase scene}: camera input, history and target disposal, and the
+ * gizmo dragged in a preview and in the world.
+ */
 @SuppressWarnings({"PMD.TestClassWithoutTestCases", "PMD.CompareObjectsWithEquals"})
 @ClientTestSpec("scenes")
 public final class SceneClientTest extends WorldClientTest {
@@ -36,6 +48,7 @@ public final class SceneClientTest extends WorldClientTest {
         this.orbit();
         this.fps();
         this.gizmo();
+        this.worldGizmo();
     }
 
     private void orbit() {
@@ -105,16 +118,16 @@ public final class SceneClientTest extends WorldClientTest {
         });
         this.game.expect("picked block", client -> require(screen.getSceneController().getSelectedBlockPos() != null, "No selected block"));
         this.context.getInput().pressKey(GLFW.GLFW_KEY_R);
-        this.game.expect("rotation shortcut", client -> require(screen.getSceneController().getGizmoController().getCurrentOperation() == GizmoOperation.ROTATE, "Rotation"));
+        this.game.expect("rotation shortcut", client -> require(screen.getGizmo().operation() == GizmoOperation.ROTATE, "Rotation"));
         this.context.getInput().pressKey(GLFW.GLFW_KEY_S);
-        this.game.expect("scale shortcut", client -> require(screen.getSceneController().getGizmoController().getCurrentOperation() == GizmoOperation.SCALE, "Scale"));
+        this.game.expect("scale shortcut", client -> require(screen.getGizmo().operation() == GizmoOperation.SCALE, "Scale"));
         this.context.getInput().pressKey(GLFW.GLFW_KEY_T);
-        GizmoSpace space = this.context.computeOnClient(client -> screen.getSceneController().getGizmoController().getCurrentMode());
-        boolean snap = this.context.computeOnClient(client -> screen.getSceneController().getGizmoController().isUsingSnap());
+        GizmoSpace space = this.context.computeOnClient(client -> screen.getGizmo().space());
+        boolean snap = this.context.computeOnClient(client -> screen.getGizmo().isSnapping());
         this.context.getInput().pressKey(GLFW.GLFW_KEY_TAB);
         this.context.getInput().pressKey(GLFW.GLFW_KEY_G);
-        this.game.expect("space and snap shortcuts", client -> require(screen.getSceneController().getGizmoController().getCurrentMode() != space
-                && screen.getSceneController().getGizmoController().isUsingSnap() != snap, "Space/snap did not toggle"));
+        this.game.expect("space and snap shortcuts", client -> require(screen.getGizmo().space() != space
+                && screen.getGizmo().isSnapping() != snap, "Space/snap did not toggle"));
         BlockPos selected = this.context.computeOnClient(client -> screen.getSceneController().getSelectedBlockPos());
         this.context.runOnClient(client -> {
             UiToggle toggle = control(screen, UiToggle.class);
@@ -123,7 +136,7 @@ public final class SceneClientTest extends WorldClientTest {
             screen.mouseClicked(x, y, 0);
             screen.mouseReleased(x, y, 0);
         });
-        this.game.expect("panel click", client -> require(screen.getSceneController().getGizmoController().isUsingSnap() == snap
+        this.game.expect("panel click", client -> require(screen.getGizmo().isSnapping() == snap
                 && selected.equals(screen.getSceneController().getSelectedBlockPos()), "The panel must take the click before the camera"));
         this.screenshot("scene-gizmo-selected");
         BlockState worldState = this.context.computeOnClient(client -> client.level.getBlockState(selected));
@@ -140,10 +153,67 @@ public final class SceneClientTest extends WorldClientTest {
         this.context.runOnClient(client -> screen.getSceneController().redo());
         this.game.expect("redo only affects preview", client -> require(after.equals(screen.getSceneController().getBlockTransform(selected))
                 && worldState.equals(client.level.getBlockState(selected)), "Redo changed the world or lost the preview"));
+        int commands = this.context.computeOnClient(client -> screen.getSceneController().getHistoryManager().getCursor());
+        this.context.runOnClient(client -> this.dragAxis(screen, screen.getGizmo(), screen.getGizmoView(), GizmoHandle.X));
+        this.game.expect("X arrow drag", client -> {
+            TransformationComponent dragged = screen.getSceneController().getBlockTransform(selected);
+            require(dragged.translation().x() > after.translation().x() + 0.1f
+                    && Math.abs(dragged.translation().y() - after.translation().y()) < 1.0E-4f
+                    && Math.abs(dragged.translation().z() - after.translation().z()) < 1.0E-4f, "The drag must move along X only");
+            require(screen.getSceneController().getHistoryManager().getCursor() == commands + 1, "The drag must be one undoable step");
+        });
+        this.screenshot("scene-gizmo-dragged");
+        this.context.runOnClient(client -> screen.getSceneController().undo());
+        this.game.expect("drag undo", client -> require(after.equals(screen.getSceneController().getBlockTransform(selected)), "Undo did not restore the drag"));
         this.context.getInput().pressKey(GLFW.GLFW_KEY_DELETE);
         this.game.expect("deselect", client -> require(screen.getSceneController().getSelectedBlockPos() == null, "Selection remains"));
         this.close();
         this.game.expect("gizmo disposed", client -> require(screen.getSceneRenderer().getFramebuffer() == null, "Gizmo target leaked"));
+    }
+
+    private void worldGizmo() {
+        UiPanelScreen screen = this.open(SceneDemos::openWorldGizmo);
+        Gizmo gizmo = this.context.computeOnClient(client -> screen.gizmo());
+        WorldGizmoDemo demo = this.context.computeOnClient(client -> (WorldGizmoDemo) gizmo.target());
+        this.context.waitTicks(2);
+        GizmoPose start = this.context.computeOnClient(client -> demo.pose());
+        GizmoHandle handle = this.context.computeOnClient(client -> {
+            GizmoView view = GizmoView.world();
+            require(view != null && WorldGizmos.isShown(gizmo), "The gizmo must be shown in the world");
+            return gizmo.grabPoint(view, GizmoHandle.X) != null ? GizmoHandle.X : GizmoHandle.Z;
+        });
+        int axis = handle == GizmoHandle.X ? 0 : 2;
+        this.context.runOnClient(client -> this.dragAxis(screen, gizmo, GizmoView.world(), handle));
+        this.game.expect("world drag", client -> {
+            Vector3d moved = demo.pose().position().sub(start.position());
+            require(moved.get(axis) > 0.1 && Math.abs(moved.get(1)) < 1.0E-6 && Math.abs(moved.get(2 - axis)) < 1.0E-6,
+                    "The drag must move the box along its axis only");
+            require(demo.commits() == 1 && !gizmo.isDragging(), "The drag must commit once");
+        });
+        this.screenshot("scene-world-gizmo");
+        GizmoPose dragged = this.context.computeOnClient(client -> demo.pose());
+        this.context.runOnClient(client -> {
+            GizmoView view = GizmoView.world();
+            Vector2f arrow = gizmo.grabPoint(view, handle);
+            require(screen.mouseClicked(arrow.x, arrow.y, 0), "The arrow must take the press");
+            screen.mouseDragged(arrow.x + 40, arrow.y + 40, 0, 40, 40);
+            screen.mouseClicked(arrow.x + 40, arrow.y + 40, 1);
+        });
+        this.game.expect("world cancel", client -> require(dragged.equals(demo.pose()) && demo.commits() == 1
+                && !gizmo.isDragging(), "A right click must put the box back without a commit"));
+        this.close();
+        this.game.expect("world gizmo hidden", client -> require(!WorldGizmos.isShown(gizmo), "The gizmo outlived its screen"));
+    }
+
+    /** Drags a handle thirty pixels outward, away from the gizmo's centre on screen. */
+    private void dragAxis(Screen screen, Gizmo gizmo, GizmoView view, GizmoHandle handle) {
+        Vector2f center = gizmo.grabPoint(view, GizmoHandle.CENTER);
+        Vector2f arrow = gizmo.grabPoint(view, handle);
+        require(center != null && arrow != null, "The arrow must be on screen");
+        Vector2f to = new Vector2f(arrow).sub(center).normalize().mul(30).add(arrow);
+        require(screen.mouseClicked(arrow.x, arrow.y, 0) && gizmo.isDragging(), "The arrow must take the press");
+        screen.mouseDragged(to.x, to.y, 0, to.x - arrow.x, to.y - arrow.y);
+        screen.mouseReleased(to.x, to.y, 0);
     }
 
     private <T extends Screen> T open(Supplier<T> scene) {

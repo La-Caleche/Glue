@@ -84,6 +84,9 @@ public final class ShowcaseMenu {
                     SceneDemos::openFps);
             builder.button(Component.literal("Gizmo"), Component.literal("Pick a block, move, rotate and scale it, "
                     + "and undo. The world is never changed."), Component.literal("Open"), SceneDemos::openGizmo);
+            builder.button(Component.literal("World gizmo"), Component.literal("The same gizmo on a box in front of "
+                    + "you, dragged in the world beside a panel."), Component.literal("Open"),
+                    SceneDemos::openWorldGizmo);
         }
     }
 

@@ -1,9 +1,10 @@
 package fr.lacaleche.glue.testmod.scene;
 
 import fr.lacaleche.glue.client.camera.OrbitCameraController;
-import fr.lacaleche.glue.client.render.gizmo.GlfwGizmoController;
+import fr.lacaleche.glue.client.render.gizmo.Gizmo;
 import fr.lacaleche.glue.client.render.gizmo.GizmoOperation;
 import fr.lacaleche.glue.client.render.gizmo.GizmoSpace;
+import fr.lacaleche.glue.client.render.gizmo.GizmoView;
 import fr.lacaleche.glue.client.render.scene.BlockSceneRenderer;
 import fr.lacaleche.glue.client.ui.UiButton;
 import fr.lacaleche.glue.client.ui.UiCycle;
@@ -17,19 +18,20 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import org.joml.Matrix4f;
+import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 import java.util.Locale;
 
-/** Block picking, translate/rotate/scale gizmos, snap and undo/redo in an isolated scene preview. */
+/** Block picking, a translate, rotate and scale gizmo, snap and undo/redo in an isolated scene preview. */
 public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraController> {
 
     private final Screen parent;
     private final SceneTestPreviewRenderer renderer;
     private final SceneTestController controller;
-    private final GlfwGizmoController gizmo = new GlfwGizmoController();
+    private final Gizmo gizmo = new Gizmo();
     private UiRowList panel;
 
     public GizmoTestScreen() {
@@ -40,7 +42,6 @@ public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraCon
         super(Component.literal("Gizmo scene"), new OrbitCameraController(new Vector3f()));
         this.parent = parent;
         Minecraft client = Minecraft.getInstance();
-        this.gizmo.setWindowHandle(client.getWindow().getWindow());
         BlockPos center = SceneTestAnchor.aroundPlayer(client);
         this.controller = new SceneTestController(center, this.gizmo);
         this.renderer = new SceneTestPreviewRenderer(this.controller);
@@ -54,14 +55,14 @@ public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraCon
             Component operation = Component.literal("Operation");
             rows.row(operation, Component.literal("What dragging the gizmo does. T, R and S pick one."),
                     new UiCycle<>(operation, List.of(GizmoOperation.values()), GizmoTestScreen::title,
-                            this.gizmo::getCurrentOperation, this.gizmo::setOperation));
+                            this.gizmo::operation, this.gizmo::setOperation));
             Component space = Component.literal("Space");
             rows.row(space, Component.literal("Axes along the block or along the world. Tab switches."),
                     new UiCycle<>(space, List.of(GizmoSpace.values()), GizmoTestScreen::title,
-                            this.gizmo::getCurrentMode, this.gizmo::setMode));
+                            this.gizmo::space, this.gizmo::setSpace));
             Component snap = Component.literal("Snap");
-            rows.row(snap, Component.literal("Moves by whole steps. G switches it."),
-                    new UiToggle(snap, this.gizmo::isUsingSnap, this.gizmo::setUseSnap));
+            rows.row(snap, Component.literal("Moves by whole steps. G switches it, Ctrl inverts it while dragging."),
+                    new UiToggle(snap, this.gizmo::isSnapping, this.gizmo::setSnapping));
 
             rows.section(Component.literal("Selection"));
             Component block = Component.literal("Block");
@@ -99,23 +100,52 @@ public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraCon
         return this.renderer.renderToTexture((int) width, (int) height, client);
     }
 
-    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        this.gizmo.updateMousePosition(mouseX, mouseY);
-        this.gizmo.updateFrame();
-        super.render(graphics, mouseX, mouseY, partialTick);
-        this.gizmo.getBackend().render(graphics);
+    /** The preview's camera; a block's translation is its centre, half a block off the renderer's corner. */
+    public GizmoView getGizmoView() {
+        Matrix4f view = this.cameraController.buildViewMatrix().translate(-0.5f, -0.5f, -0.5f);
+        Matrix4f projection = new Matrix4f().setPerspective((float) Math.toRadians(this.cameraController.getFov()),
+                (float) this.width / this.height, 0.1f, 1000f);
+        return new GizmoView(new Vector3d(), view, projection, 0, 0, this.width, this.height);
     }
 
     @Override
-    protected void onRenderOverlay(float x, float y, float width, float height) {
-        if (this.controller.getSelectedBlockPos() == null) return;
-        float[] view = this.cameraController.buildViewMatrix().translate(-0.5f, -0.5f, -0.5f).get(new float[16]);
-        float[] projection = new Matrix4f().setPerspective((float) Math.toRadians(this.cameraController.getFov()),
-                width / height, 0.1f, 1000f).get(new float[16]);
-        this.gizmo.manipulate(view, projection, x, y, width, height, !this.cameraController.isDragging());
-        this.controller.updateGizmoInteraction();
-        if (this.gizmo.isDragging()) this.controller.applyGizmoTransform();
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        if (this.cameraController.isDragging() || this.panel.isMouseOver(mouseX, mouseY)) {
+            this.gizmo.clearHover();
+        } else {
+            this.gizmo.hover(this.getGizmoView(), mouseX, mouseY);
+        }
+        super.render(graphics, mouseX, mouseY, partialTick);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.gizmo.isDragging()) {
+            if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) this.gizmo.cancel();
+            return true;
+        }
+        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && !this.panel.isMouseOver(mouseX, mouseY)
+                && this.gizmo.press(this.getGizmoView(), mouseX, mouseY)) {
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (!this.gizmo.isDragging()) return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+
+        this.gizmo.drag(this.getGizmoView(), mouseX, mouseY, hasControlDown());
+        return true;
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (!this.gizmo.isDragging() || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+            return super.mouseReleased(mouseX, mouseY, button);
+        }
+        this.gizmo.release();
+        return true;
     }
 
     @Override
@@ -124,22 +154,19 @@ public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraCon
     }
 
     @Override
-    protected boolean isOverlayCapturingInput() {
-        return this.controller.getSelectedBlockPos() != null && (this.gizmo.isHovered() || this.gizmo.isDragging());
-    }
-
-    @Override
     public boolean keyPressed(int key, int scanCode, int modifiers) {
-        if (key == GLFW.GLFW_KEY_T) {
+        if (key == GLFW.GLFW_KEY_ESCAPE && this.gizmo.isDragging()) {
+            this.gizmo.cancel();
+        } else if (key == GLFW.GLFW_KEY_T) {
             this.gizmo.setOperation(GizmoOperation.TRANSLATE);
         } else if (key == GLFW.GLFW_KEY_R) {
             this.gizmo.setOperation(GizmoOperation.ROTATE);
         } else if (key == GLFW.GLFW_KEY_S && !hasControlDown()) {
             this.gizmo.setOperation(GizmoOperation.SCALE);
         } else if (key == GLFW.GLFW_KEY_TAB) {
-            this.gizmo.setMode(this.gizmo.getCurrentMode() == GizmoSpace.LOCAL ? GizmoSpace.WORLD : GizmoSpace.LOCAL);
+            this.gizmo.setSpace(this.gizmo.space() == GizmoSpace.LOCAL ? GizmoSpace.WORLD : GizmoSpace.LOCAL);
         } else if (key == GLFW.GLFW_KEY_G) {
-            this.gizmo.setUseSnap(!this.gizmo.isUsingSnap());
+            this.gizmo.setSnapping(!this.gizmo.isSnapping());
         } else if (key == GLFW.GLFW_KEY_HOME) {
             this.cameraController.reset();
         } else if (key == GLFW.GLFW_KEY_Z && hasControlDown()) {
@@ -157,6 +184,7 @@ public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraCon
 
     @Override
     protected void renderHud(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        this.gizmo.render(graphics, this.getGizmoView());
         ScenePanel.renderHud(graphics, this.font, this.panel, "LMB: Pick/orbit | RMB: Pan | Wheel: Zoom | Esc: Back");
     }
 
@@ -181,5 +209,9 @@ public final class GizmoTestScreen extends AbstractViewportScreen<OrbitCameraCon
 
     public SceneTestController getSceneController() {
         return this.controller;
+    }
+
+    public Gizmo getGizmo() {
+        return this.gizmo;
     }
 }

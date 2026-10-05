@@ -1,7 +1,9 @@
 package fr.lacaleche.glue.testmod.scene;
 
+import fr.lacaleche.glue.client.ui.UiPanelScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
 
 import java.util.function.Function;
 
@@ -21,6 +23,13 @@ public final class SceneDemos {
 
     public static GizmoTestScreen openGizmo() {
         return open(GizmoTestScreen::new);
+    }
+
+    public static UiPanelScreen openWorldGizmo() {
+        return open(parent -> {
+            LocalPlayer player = Minecraft.getInstance().player;
+            return WorldGizmoDemo.screen(player.getEyePosition(), player.getLookAngle());
+        });
     }
 
     private static <S extends Screen> S open(Function<Screen, S> factory) {
