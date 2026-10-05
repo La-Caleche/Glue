@@ -6,6 +6,7 @@ import fr.lacaleche.glue.client.debug.DeveloperMenu;
 import fr.lacaleche.glue.client.shader.PostShaderHandle;
 import fr.lacaleche.glue.client.ui.UiPage;
 import fr.lacaleche.glue.client.ui.UiPageBuilder;
+import fr.lacaleche.glue.client.ui.UiPanelScreen;
 import fr.lacaleche.glue.client.ui.UiScreen;
 import fr.lacaleche.glue.client.ui.UiTextureView;
 import fr.lacaleche.glue.math.Color;
@@ -24,7 +25,7 @@ import java.util.Locale;
 
 /**
  * {@code /showcase}: the showcase's demos as pages of a {@link UiScreen}, then every kit widget on one
- * page and a borrowed texture on another.
+ * page, which also opens as a {@link UiPanelScreen}, and a borrowed texture on another.
  */
 public final class ShowcaseMenu {
 
@@ -184,6 +185,11 @@ public final class ShowcaseMenu {
                             | Color.hsbToRgb((float) (radius / 16.0), 0.6F, 1.0F) & 0xFFFFFF));
             builder.button(Component.literal("Action"), Component.literal("Runs an action."),
                     Component.literal("Press"), () -> presses++);
+
+            builder.section(Component.literal("Panel"));
+            builder.button(Component.literal("Panel"), Component.literal("These widgets in a panel over the world, "
+                    + "which keeps running: the pointer is free and the game is not paused."), Component.literal("Open"),
+                    () -> Minecraft.getInstance().setScreen(new UiPanelScreen(this.title(), new WidgetsPage())));
         }
     }
 

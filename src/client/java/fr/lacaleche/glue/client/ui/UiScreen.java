@@ -2,9 +2,6 @@ package fr.lacaleche.glue.client.ui;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.events.ContainerEventHandler;
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.Screen;
@@ -12,7 +9,6 @@ import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -28,11 +24,8 @@ public class UiScreen extends Screen {
 
     private final @Nullable Screen parent;
     private final List<Group> groups;
-    private final List<AbstractWidget> pageWidgets = new ArrayList<>();
+    private final UiPageHost host = new UiPageHost(this::addRenderableWidget, this::removeWidget);
     private UiPage page;
-    private @Nullable UiPage shown;
-    private @Nullable UiRowList rows;
-    private @Nullable Component unavailable;
     private UiLayout layout;
 
     public UiScreen(Component title, @Nullable Screen parent, List<Group> groups) {
@@ -64,18 +57,18 @@ public class UiScreen extends Screen {
         UiButton done = this.addRenderableWidget(new UiButton(CommonComponents.GUI_DONE, this::onClose));
         ScreenRectangle doneArea = this.layout.done();
         done.setRectangle(doneArea.width(), doneArea.height(), doneArea.left(), doneArea.top());
-        this.showPage();
+        this.host.show(this.page, this.layout.content(), this.layout.description() == null);
     }
 
     @Override
     protected void rebuildWidgets() {
-        this.hidePage();
+        this.host.hide();
         super.rebuildWidgets();
     }
 
     @Override
     public void removed() {
-        this.hidePage();
+        this.host.hide();
     }
 
     @Override
@@ -101,13 +94,15 @@ public class UiScreen extends Screen {
 
         int padding = style.padding();
         ScreenRectangle content = this.layout.content();
-        if (this.unavailable != null) {
-            graphics.drawWordWrap(this.font, this.unavailable, content.left() + padding, content.top() + padding,
+        Component unavailable = this.host.unavailable();
+        if (unavailable != null) {
+            graphics.drawWordWrap(this.font, unavailable, content.left() + padding, content.top() + padding,
                     content.width() - 2 * padding, style.muted());
         }
 
         ScreenRectangle panel = this.layout.description();
-        Component description = this.rows != null ? this.rows.description() : null;
+        UiRowList rows = this.host.rows();
+        Component description = rows != null ? rows.description() : null;
         if (panel != null && description != null) {
             graphics.drawWordWrap(this.font, description, panel.left() + padding, panel.top() + padding,
                     panel.width() - 2 * padding, style.muted());
@@ -117,43 +112,8 @@ public class UiScreen extends Screen {
     private void select(UiPage selected) {
         if (selected.equals(this.page)) return;
 
-        this.hidePage();
         this.page = selected;
-        this.showPage();
-    }
-
-    private void showPage() {
-        this.shown = this.page;
-        this.unavailable = this.page.unavailableReason();
-        if (this.unavailable != null) return;
-
-        UiPageBuilder builder = new UiPageBuilder(this.layout.content(), this.layout.description() == null,
-                widget -> this.pageWidgets.add(this.addRenderableWidget(widget)));
-        this.page.build(builder);
-        this.rows = builder.builtRows();
-    }
-
-    private void hidePage() {
-        if (this.shown == null) return;
-
-        releaseTextures(this.pageWidgets);
-        this.pageWidgets.forEach(this::removeWidget);
-        this.pageWidgets.clear();
-        this.rows = null;
-        this.unavailable = null;
-        UiPage hidden = this.shown;
-        this.shown = null;
-        hidden.close();
-    }
-
-    private static void releaseTextures(List<? extends GuiEventListener> listeners) {
-        for (GuiEventListener listener : listeners) {
-            if (listener instanceof UiTextureView view) {
-                view.release();
-            } else if (listener instanceof ContainerEventHandler container) {
-                releaseTextures(container.children());
-            }
-        }
+        this.host.show(this.page, this.layout.content(), this.layout.description() == null);
     }
 
     private static void fillPanel(GuiGraphics graphics, @Nullable ScreenRectangle area) {

@@ -1,8 +1,8 @@
 # UI kit and developer menu: design
 
 Status, 5 October 2026: steps 1 to 3 are implemented: the kit in `client/ui`, and the developer menu
-with its Framebuffers and Raycast pages in `client/debug`. The `glue-docs` pages and the in-game
-check remain. Target: Glue 3.3.0, additive.
+with its Framebuffers and Raycast pages in `client/debug`, shipped in Glue 3.3.0; the panel screen
+follows in 3.4.0, additive, for Lumos's light editor. The `glue-docs` pages remain.
 
 Glue needs simple native screens for its own tools: a developer menu shipped in the player jar, real
 screens for the framebuffer and raycast debug, and a page Lumos can register for its lights. Today it
@@ -122,6 +122,20 @@ sidebar keeps its scroll and focus.
 Pages are built when shown and closed when hidden, so a page costs nothing while it is not on
 screen. `UiScreen` is public: a mod can show its own pages without the developer menu.
 
+### Panel screen
+
+`UiPanelScreen` shows one page in a panel docked to the right edge, for a tool used while playing,
+such as Lumos's light editor. The world behind it is not dimmed and the game is not paused, so the
+world keeps running and rendering while the pointer is free. Descriptions show as tooltips, and a Done
+button closes the screen.
+
+- A click outside the panel that no widget takes goes to `clickedOutside(mouseX, mouseY, button)`,
+  so the owner can pick what is under the pointer in the world.
+- `refresh()` builds the page again in place, keeping its scroll, for rows that depend on state
+  that changed, such as a selection.
+- It does not grab the pointer back or let movement keys through. The owner closes it to play, and a
+  key of its own reopens it.
+
 ## Developer menu
 
 - One `UiScreen`, opened by a key binding, **F8** by default. In a world it does not pause the game,
@@ -182,7 +196,8 @@ gobo, shadow frustums) needs a world debug-draw library. That library is separat
 - Unit tests: the screen layout across widths, slider stepping and formatting, and the page
   registry's order and closing.
 - Showcase: `/showcase` opens a `UiScreen` whose pages open the scene previews, play the post
-  effects, open the developer menu, and show every widget and a borrowed texture. The scene
+  effects, open the developer menu, and show every widget, also in a panel screen, and a borrowed
+  texture. The scene
   previews carry a panel of rows for what their shortcuts do, which needs `AbstractViewportScreen` to
   draw its widgets and give them the pointer before the camera. The showcase also registers a page in
   the developer menu as the example for mods.
@@ -190,7 +205,9 @@ gobo, shadow frustums) needs a world debug-draw library. That library is separat
   check world pages are disabled; then in a world, switch pages, click a toggle and drag a slider
   through `glue-gametest`'s input helpers, then check the values. On the framebuffers page, check
   that a registered texture appears, and that closing the menu releases its texture locations. On
-  the Raycast page, check its toggle switches Glue's overlay.
+  the Raycast page, check its toggle switches Glue's overlay. Last, a panel screen: the world keeps
+  ticking behind it, its toggle takes a click, a click beside it reaches `clickedOutside`, and
+  `refresh` builds its page again.
 - In-game check: GUI scales 1 to 4 and auto, a small window, keyboard-only navigation, and a narrator
   pass.
 

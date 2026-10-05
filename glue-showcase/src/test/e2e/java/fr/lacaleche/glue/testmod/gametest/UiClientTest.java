@@ -3,6 +3,9 @@ package fr.lacaleche.glue.testmod.gametest;
 import fr.lacaleche.glue.client.debug.internal.Framebuffers;
 import fr.lacaleche.glue.client.debug.internal.RaycastPage;
 import fr.lacaleche.glue.client.ui.UiButton;
+import fr.lacaleche.glue.client.ui.UiPage;
+import fr.lacaleche.glue.client.ui.UiPageBuilder;
+import fr.lacaleche.glue.client.ui.UiPanelScreen;
 import fr.lacaleche.glue.client.ui.UiRowList;
 import fr.lacaleche.glue.client.ui.UiScreen;
 import fr.lacaleche.glue.client.ui.UiSlider;
@@ -29,13 +32,16 @@ import org.lwjgl.glfw.GLFW;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 /**
  * The developer menu: F8 on the title screen with its world pages disabled, then in a world switching
  * pages, a toggle and a slider driven through real input, the framebuffer viewer listing a registered
  * texture, the raycast overlay switched from its page, Show on HUD, and the texture locations released
- * when the menu closes.
+ * when the menu closes. Last, a panel screen over the world that keeps running, takes clicks on its rows,
+ * hands clicks beside it to its owner and rebuilds its page in place.
  */
 @SuppressWarnings("PMD.TestClassWithoutTestCases")
 @ClientTestSpec("ui")
@@ -59,6 +65,7 @@ public final class UiClientTest implements FabricClientGameTest {
         try (TestSingleplayerContext world = context.worldBuilder().create()) {
             world.getClientWorld().waitForChunksRender();
             this.inWorld();
+            this.panel();
         } finally {
             context.setScreen(() -> null);
         }
@@ -138,6 +145,60 @@ public final class UiClientTest implements FabricClientGameTest {
         this.context.waitForScreen(null);
         this.game.expect("closed menu released", client -> require(Framebuffers.INSTANCE.buffers().isEmpty()
                 && textureViews(client) == 0, "Closing the menu must take the grid off the HUD and free it"));
+    }
+
+    private void panel() {
+        AtomicBoolean value = new AtomicBoolean();
+        AtomicInteger builds = new AtomicInteger();
+        AtomicInteger outside = new AtomicInteger();
+        UiPage page = new UiPage() {
+            @Override
+            public Component title() {
+                return Component.literal("Panel");
+            }
+
+            @Override
+            public void build(UiPageBuilder builder) {
+                builds.incrementAndGet();
+                builder.toggle(Component.literal("Value"), Component.literal("A toggle in the panel."),
+                        value::get, value::set);
+            }
+        };
+        this.context.setScreen(() -> new UiPanelScreen(Component.literal("Panel"), page) {
+            @Override
+            protected boolean clickedOutside(double mouseX, double mouseY, int button) {
+                outside.incrementAndGet();
+                return true;
+            }
+        });
+        this.context.waitTicks(2);
+        long time = this.context.computeOnClient(client -> client.level.getGameTime());
+        this.context.waitTicks(10);
+        this.game.expect("world runs behind the panel", client -> require(client.level.getGameTime() > time
+                && !client.isPaused(), "A panel screen must not pause the game"));
+
+        UiToggle toggle = this.context.computeOnClient(client -> panelControl(client, UiToggle.class));
+        this.click(toggle);
+        this.game.expect("panel toggle clicked", client -> require(value.get(), "Clicking the panel's toggle must set it"));
+        this.game.movePointer(20, 20);
+        this.context.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        this.game.expect("click beside the panel", client -> require(outside.get() == 1,
+                "A click beside the panel must reach clickedOutside"));
+        this.context.runOnClient(client -> ((UiPanelScreen) client.screen).refresh());
+        this.game.expect("panel refreshed", client -> require(builds.get() == 2
+                && panelControl(client, UiToggle.class) != toggle, "Refreshing the panel must build its page again"));
+        this.context.takeScreenshot("ui-panel");
+        this.context.getInput().pressKey(GLFW.GLFW_KEY_ESCAPE);
+        this.context.waitForScreen(null);
+    }
+
+    private static <T extends AbstractWidget> T panelControl(Minecraft client, Class<T> type) {
+        return client.screen.children().stream()
+                .filter(UiRowList.class::isInstance).map(UiRowList.class::cast)
+                .flatMap(list -> list.children().stream())
+                .flatMap(entry -> entry.children().stream())
+                .filter(type::isInstance).map(type::cast)
+                .findFirst().orElseThrow(() -> new AssertionError("No " + type.getSimpleName() + " in the panel"));
     }
 
     private void selectPage(String title) {
