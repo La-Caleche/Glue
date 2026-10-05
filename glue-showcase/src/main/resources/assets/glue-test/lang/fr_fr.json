@@ -20,5 +20,5 @@
   "item.glue-test.test_component.tooltip.scale": "Échelle : %s",
   "item.glue-test.test_component.tooltip.use": "Clic droit pour changer ; accroupi pour réinitialiser",
   "key.categories.glue_test": "Test Glue",
-  "key.glue-test.toggle_raycast_debug": "Basculer le débogage du raycast"
+  "key.glue-test.open_showcase_menu": "Ouvrir le menu du showcase"
 }

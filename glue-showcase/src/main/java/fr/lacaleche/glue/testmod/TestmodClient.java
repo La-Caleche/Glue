@@ -1,12 +1,11 @@
 package fr.lacaleche.glue.testmod;
 
-import fr.lacaleche.glue.client.debug.DebugManager;
-import fr.lacaleche.glue.client.debug.RaycastDebugRenderer;
 import fr.lacaleche.glue.testmod.registries.TestBlocksRenderer;
 import fr.lacaleche.glue.testmod.registries.TestKeybinds;
 import fr.lacaleche.glue.testmod.registries.TestShaders;
 import fr.lacaleche.glue.testmod.render.AdditiveSpriteRenderer;
 import fr.lacaleche.glue.testmod.render.TestPostShaderHandler;
+import fr.lacaleche.glue.testmod.ui.ShowcaseDeveloperPage;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
@@ -23,7 +22,6 @@ public class TestmodClient implements ClientModInitializer {
     public static final String MOD_ID = Testmod.MOD_ID;
     public static final Logger LOGGER = Testmod.LOGGER;
     private static TestmodClient instance;
-    private RaycastDebugRenderer raycastDebugRenderer;
 
     public static TestmodClient getInstance() {
         return instance;
@@ -37,25 +35,14 @@ public class TestmodClient implements ClientModInitializer {
     public void onInitializeClient() {
         instance = this;
 
-        this.raycastDebugRenderer = new RaycastDebugRenderer();
-        DebugManager.getInstance().register(this.raycastDebugRenderer);
-
         TestKeybinds.register();
         TestBlocksRenderer.registerBlocksRenderer();
         TestShaders.registerShaders();
 
         TestPostShaderHandler.INSTANCE.register();
         ShowcaseCommands.register();
+        ShowcaseDeveloperPage.register();
 
         AdditiveSpriteRenderer.init();
-    }
-
-    public void toggleRaycastDebug() {
-        if (this.raycastDebugRenderer != null) {
-            this.raycastDebugRenderer.enabled = !this.raycastDebugRenderer.enabled;
-            if (!this.raycastDebugRenderer.enabled) {
-                this.raycastDebugRenderer.clear();
-            }
-        }
     }
 }

@@ -25,17 +25,19 @@ is installed during normal play: use the showcase commands, F2, or an explicit t
 
 ## Controls
 
-Post-effect and scene examples use client commands:
+`/showcase` alone opens the showcase menu, a `UiScreen` built with Glue's UI kit. Its Demos pages
+open the scene previews and play the post effects; its UI kit pages show
+every kit widget and a borrowed texture. The same demos also have client commands:
 
 - `/showcase effects blur` or `grayscale` toggles a steady post effect.
 - `/showcase effects chromatic`, `shattered`, or `impact` triggers a Java-built timed effect.
 - `/showcase effects chromatic-registry`, `vortex`, or `pulse` exercises registry-driven effects.
-- `/showcase raycast` toggles raycast debugging.
 - `/showcase scene orbit`, `fps`, or `gizmo` opens a scene preview after joining a world.
 
-Press **R** by default to toggle the raycast debug HUD independently. It compares vanilla, oversized-outline,
-and final block hits, labels every candidate shape in the world, and reports linear hit distances
-over the full 20-block ray.
+Press **R** by default to open the same menu while playing. Raycast debugging moved to Glue: press
+**F8** for the developer menu and open its Raycast page. It compares vanilla, cell and final block
+hits, lists the blocks reaching past their cells, and switches an overlay that marks them in the
+world over the full 20-block ray. The showcase also adds its own page and a texture to that menu.
 
 ## Feature → file index
 
@@ -65,16 +67,18 @@ over the full 20-block ray.
 
 ## Scene demos
 
-Join a world, then run `/showcase scene orbit`, `/showcase scene fps` or `/showcase scene gizmo`.
-They use `AbstractViewportScreen` directly, with native rendering and input. Each samples nearby
+Join a world, then open them from the Scenes page of `/showcase`, or run `/showcase scene orbit`,
+`/showcase scene fps` or `/showcase scene gizmo`. They use `AbstractViewportScreen` directly, with
+native rendering and input, and each has a panel of UI kit rows at the top right (`ScenePanel`) for
+what its shortcuts also do. Each samples nearby
 terrain into an owned render target; moving the preview camera or transforming a preview block does
 not change the world or the real player. Escape returns to the screen that was open, or to gameplay.
 
 | Example | Controls |
 |---|---|
-| Orbit | Left drag rotates, right drag pans, wheel zooms. `+`/`-` changes the horizontal region, Page Up/Down extends its height, Home resets camera rotation and zoom. |
-| FPS | Left click captures the pointer; WASD moves, Space/Shift goes up/down, Ctrl accelerates, wheel changes speed. Escape first releases capture; another Escape returns. Right drag pans while uncaptured. |
-| Gizmo | Click selects a block, drag elsewhere orbits, right drag pans, wheel zooms. `T`/`R`/`S` selects translate/rotate/scale, Tab switches local/world, `G` toggles snap, Ctrl+Z undoes, Ctrl+Y or Ctrl+Shift+Z redoes, Delete clears selection. |
+| Orbit | Left drag rotates, right drag pans, wheel zooms. The panel sizes the region and resets the camera; `+`/`-` changes the horizontal region, Page Up/Down extends its height, Home resets camera rotation and zoom. |
+| FPS | The panel shows the camera's position and speed. Left click captures the pointer; WASD moves, Space/Shift goes up/down, Ctrl accelerates, wheel changes speed. Escape first releases capture; another Escape returns. Right drag pans while uncaptured. |
+| Gizmo | Click selects a block, drag elsewhere orbits, right drag pans, wheel zooms. The panel picks the operation, space and snap, clears the selection, undoes and redoes; `T`/`R`/`S` selects translate/rotate/scale, Tab switches local/world, `G` toggles snap, Ctrl+Z undoes, Ctrl+Y or Ctrl+Shift+Z redoes, Delete clears selection. |
 
 `SceneTestAnchor` locates terrain even when the player is flying. The gizmo's saved transforms and
 history are preview-only. Picking uses translated unit cubes, as in the original demo; rotation and
