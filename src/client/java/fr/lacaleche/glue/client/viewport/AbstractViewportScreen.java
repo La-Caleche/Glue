@@ -1,7 +1,7 @@
 package fr.lacaleche.glue.client.viewport;
 
 import fr.lacaleche.glue.client.camera.AbstractCameraController;
-import fr.lacaleche.glue.client.viewport.internal.BorrowedSceneTexture;
+import fr.lacaleche.glue.client.ui.internal.BorrowedSceneTexture;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -15,7 +15,8 @@ import org.lwjgl.glfw.GLFW;
  * Handles camera interaction (drag, scroll, FPS capture) and renders the
  * scene texture as a fullscreen quad. Subclasses provide the scene via
  * {@link #renderSceneToTexture} and optionally overlay content via
- * {@link #onRenderOverlay}.
+ * {@link #onRenderOverlay}. Widgets the subclass adds are drawn above the HUD and receive the
+ * pointer before the camera, except while the camera holds it.
  *
  * @param <C> the concrete camera controller passed to the constructor; {@link #cameraController}
  *            and {@link #getCameraController()} keep that type, so subclasses never downcast
@@ -93,6 +94,7 @@ public abstract class AbstractViewportScreen<C extends AbstractCameraController>
 
         onRenderOverlay(0, 0, this.width, this.height);
         renderHud(guiGraphics, mouseX, mouseY, partialTick);
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
     protected void renderHud(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
@@ -100,6 +102,7 @@ public abstract class AbstractViewportScreen<C extends AbstractCameraController>
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (!isCapturing && super.mouseClicked(mouseX, mouseY, button)) return true;
         if (isOverlayCapturingInput()) return true;
 
         if (cameraController.capturesMouseOnClick() && button == 0) {
@@ -136,6 +139,8 @@ public abstract class AbstractViewportScreen<C extends AbstractCameraController>
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (!isCapturing && super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
+
         cameraController.handleScroll((float) verticalAmount);
         return true;
     }

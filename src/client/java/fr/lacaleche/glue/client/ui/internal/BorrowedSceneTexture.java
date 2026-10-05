@@ -1,4 +1,4 @@
-package fr.lacaleche.glue.client.viewport.internal;
+package fr.lacaleche.glue.client.ui.internal;
 
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.opengl.GlTextureView;
@@ -61,8 +61,11 @@ public final class BorrowedSceneTexture {
     private static final class ExternalGlTexture extends GlTexture {
 
         private ExternalGlTexture(int id, int width, int height) {
-            super(GpuTexture.USAGE_TEXTURE_BINDING, "glue scene viewport", TextureFormat.RGBA8,
+            super(GpuTexture.USAGE_TEXTURE_BINDING, "glue borrowed texture", TextureFormat.RGBA8,
                     width, height, 1, 1, id);
+            // The owner keeps its filter and wrap modes: flushing this wrapper's defaults on first bind
+            // would overwrite them for good, since the owner's own texture object never flushes again.
+            this.modesDirty = false;
         }
 
         @Override
