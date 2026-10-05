@@ -114,7 +114,8 @@ public interface UiPage {
 ```
 
 `UiPageBuilder` offers one method per row widget, `rows()` for the list itself, and `area()` with
-`add` for a page that places its own widgets. Switching pages swaps only the page's widgets, so the
+`add` for a page that places its own widgets. `rows(ScreenRectangle)` keeps the rows to part of the
+area, for a page that places other widgets beside them. Switching pages swaps only the page's widgets, so the
 sidebar keeps its scroll and focus.
 
 Pages are built when shown and closed when hidden, so a page costs nothing while it is not on
@@ -139,17 +140,19 @@ screen. `UiScreen` is public: a mod can show its own pages without the developer
 
 ### Framebuffers page
 
-It replaces the F8 HUD.
+It replaces the F8 HUD. `DeveloperMenu` is public in `client/debug`; the viewer, its page and its
+grid live in `client/debug/internal`.
 
-- The sidebar lists the textures with a visibility toggle each. A filter (all, colour, depth), an Iris
-  alternates toggle and a grid size slider (1 to 4) sit above the grid. The grid is a `GridLayout` of
-  `UiTextureView`s, paged with buttons and the mouse wheel.
+- The page's rows, on the left, hold a filter (all, colour, depth), an Iris alternates toggle, a grid
+  size slider (1 to 4), the page number with Previous and Next, Show on HUD, and a visibility toggle
+  per texture. The grid, on the right, is one widget that lays its `UiTextureView`s out each frame for
+  the grid size, so the HUD draws the same widget; the mouse wheel over it turns pages.
 - The main-colour copy and the depth capture move to `POST_WORLD_RENDER` and run only while the page
   is shown, behind `SavedGlState`. They no longer run during GUI submission.
 - The depth preview is captured only while a depth tile is visible. Its synchronous readback stays
   for now, and the page says so; a GPU linearization is a separate change.
 - **Show on HUD** closes the menu and keeps the grid drawn on the HUD, without input, so the buffers
-  can be watched while playing. F8 reopens the menu, and the page hides it.
+  can be watched while playing. F8 reopens the menu, and opening it takes the grid off the HUD.
 - `FboDebugHud.registerTexture(String, IntSupplier)` keeps its signature and meaning, because Lumos
   uses it. The rest of `FboDebugHud` (`toggle`, `tick`, `render`, `captureDepthNow`) was never an
   extension point, and it goes. The class keeps its name until a major version.

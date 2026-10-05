@@ -16,9 +16,10 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * What a {@link UiPage} builds with. A page either adds rows, which fill the content area with one
- * {@link UiRowList}, or lays out its own widgets in {@link #area()} and adds them with {@link #add};
- * not both. Every row method returns its control, so the page can keep it.
+ * What a {@link UiPage} builds with. A page adds rows, which fill the content area with one
+ * {@link UiRowList}, or lays out its own widgets in {@link #area()} and adds them with {@link #add}, or
+ * both, keeping its rows to a part of the area with {@link #rows(ScreenRectangle)}. Every row method
+ * returns its control, so the page can keep it.
  */
 public final class UiPageBuilder {
 
@@ -48,6 +49,17 @@ public final class UiPageBuilder {
     public UiRowList rows() {
         if (this.rows == null) this.rows = this.add(new UiRowList(this.area, this.descriptionTooltips));
 
+        return this.rows;
+    }
+
+    /**
+     * The page's row list over part of the content area, for a page that places other widgets beside
+     * it. Call it before any row method; the screen's description panel still follows its rows.
+     */
+    public UiRowList rows(ScreenRectangle part) {
+        if (this.rows != null) throw new IllegalStateException("The page's rows already exist");
+
+        this.rows = this.add(new UiRowList(part, this.descriptionTooltips));
         return this.rows;
     }
 
