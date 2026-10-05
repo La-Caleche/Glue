@@ -1,7 +1,8 @@
 # UI kit and developer menu: design
 
-Status, 5 October 2026: step 1, the kit, is implemented in `client/ui` (about 1,250 lines); the
-developer menu is not. Target: Glue 3.3.0, additive.
+Status, 5 October 2026: steps 1 to 3 are implemented: the kit in `client/ui`, and the developer menu
+with its Framebuffers and Raycast pages in `client/debug`. The `glue-docs` pages and the in-game
+check remain. Target: Glue 3.3.0, additive.
 
 Glue needs simple native screens for its own tools: a developer menu shipped in the player jar, real
 screens for the framebuffer and raycast debug, and a page Lumos can register for its lights. Today it
@@ -129,7 +130,8 @@ screen. `UiScreen` is public: a mod can show its own pages without the developer
   opened from.
 - Anyone can open it, as F3: it holds nothing secret, and it costs nothing while closed.
 - Pages come from a registry, `DeveloperMenu.register(ResourceLocation id, boolean needsWorld,
-  Supplier<UiPage> page)`, grouped in the sidebar by the id's namespace and ordered by registration.
+  Supplier<UiPage> page)`, grouped in the sidebar by the id's namespace and ordered by registration, except that Glue's group
+  comes first, since mods initialise in no fixed order.
   Without a world, a page that needs one is listed muted, and shows its `unavailableReason`. Registering happens during
   client initialisation; the registry is closed afterwards.
 - Page settings, such as an overlay switched on or Show on HUD, reset each launch. Nothing is saved,
@@ -164,6 +166,11 @@ vanilla hit, the cell hit, the final hit and the blocks reaching into the cells 
 overlay stays a world and HUD overlay. The page only switches it, because the pick needs the player
 to move and look.
 
+- Glue registers the one overlay, in `client/debug/internal` beside the page. The showcase no longer
+  owns one: its R key opens the showcase menu, and its Debug page opens the developer menu.
+- The overlay and the page share one trace, `RaycastProbe`. The page traces at most once a tick
+  while it is shown, and lists up to six reaching blocks after their count.
+
 ### Lumos page (in Lumos)
 
 Lumos registers its own page through `DeveloperMenu.register`: its lights in a filtered `UiRowList`,
@@ -175,14 +182,15 @@ gobo, shadow frustums) needs a world debug-draw library. That library is separat
 - Unit tests: the screen layout across widths, slider stepping and formatting, and the page
   registry's order and closing.
 - Showcase: `/showcase` opens a `UiScreen` whose pages open the scene previews, play the post
-  effects, switch the raycast overlay, and show every widget and a borrowed texture. The scene
+  effects, open the developer menu, and show every widget and a borrowed texture. The scene
   previews carry a panel of rows for what their shortcuts do, which needs `AbstractViewportScreen` to
   draw its widgets and give them the pointer before the camera. The showcase also registers a page in
   the developer menu as the example for mods.
 - Client test `ui` (vanilla, Sodium, Iris): open the menu with its key from the title screen and
   check world pages are disabled; then in a world, switch pages, click a toggle and drag a slider
   through `glue-gametest`'s input helpers, then check the values. On the framebuffers page, check
-  that a registered texture appears, and that closing the menu releases its texture locations.
+  that a registered texture appears, and that closing the menu releases its texture locations. On
+  the Raycast page, check its toggle switches Glue's overlay.
 - In-game check: GUI scales 1 to 4 and auto, a small window, keyboard-only navigation, and a narrator
   pass.
 

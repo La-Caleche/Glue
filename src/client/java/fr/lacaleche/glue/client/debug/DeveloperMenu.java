@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import fr.lacaleche.glue.client.debug.internal.DeveloperPages;
 import fr.lacaleche.glue.client.debug.internal.Framebuffers;
 import fr.lacaleche.glue.client.debug.internal.FramebuffersPage;
+import fr.lacaleche.glue.client.debug.internal.RaycastPage;
 import fr.lacaleche.glue.client.ui.UiPage;
 import fr.lacaleche.glue.client.ui.UiPageBuilder;
 import fr.lacaleche.glue.client.ui.UiScreen;
@@ -27,19 +28,23 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * The developer menu: a {@link UiScreen} of the pages mods register, grouped by mod, opened with F8 in
- * a world or on the title screen. Glue registers its framebuffer viewer here. Pages register during
- * client initialisation; the menu builds new pages each time it opens. Client thread only.
+ * The developer menu: a {@link UiScreen} of the pages mods register, grouped by mod with Glue's first,
+ * opened with F8 in a world or on the title screen. Glue registers its framebuffer viewer and raycast
+ * overlay here. Pages register during client initialisation; the menu builds new pages each time it
+ * opens. Client thread only.
  */
 public final class DeveloperMenu {
 
     private static final KeyMapping KEY = new KeyMapping("key.glue.developer_menu", InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_F8, "key.categories.glue");
     private static final DeveloperPages PAGES = new DeveloperPages();
+    private static final String GLUE = "glue";
 
     private DeveloperMenu() {
     }
@@ -60,9 +65,13 @@ public final class DeveloperMenu {
     public static void open() {
         Framebuffers.INSTANCE.setOnHud(false);
         Minecraft minecraft = Minecraft.getInstance();
+        List<Map.Entry<String, List<DeveloperPages.Entry>>> mods = new ArrayList<>(PAGES.groups().entrySet());
+        mods.sort(Comparator.comparing(mod -> !GLUE.equals(mod.getKey())));
         List<UiScreen.Group> groups = new ArrayList<>();
-        PAGES.groups().forEach((namespace, entries) -> groups.add(new UiScreen.Group(modName(namespace),
-                entries.stream().map(DeveloperMenu::page).toList())));
+        for (Map.Entry<String, List<DeveloperPages.Entry>> mod : mods) {
+            groups.add(new UiScreen.Group(modName(mod.getKey()),
+                    mod.getValue().stream().map(DeveloperMenu::page).toList()));
+        }
         if (groups.isEmpty()) return;
 
         minecraft.setScreen(new MenuScreen(minecraft.screen, groups));
@@ -72,7 +81,9 @@ public final class DeveloperMenu {
     public static void bootstrap() {
         KeyBindingHelper.registerKeyBinding(KEY);
         Framebuffers.INSTANCE.register();
-        register(ResourceLocation.fromNamespaceAndPath("glue", "framebuffers"), true, FramebuffersPage::new);
+        register(ResourceLocation.fromNamespaceAndPath(GLUE, "framebuffers"), true, FramebuffersPage::new);
+        RaycastPage.register();
+        register(ResourceLocation.fromNamespaceAndPath(GLUE, "raycast"), true, RaycastPage::new);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (KEY.consumeClick()) {
