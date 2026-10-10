@@ -1,6 +1,8 @@
 package fr.lacaleche.glue.client.render.gl;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import fr.lacaleche.glue.client.mixin.shader.capture.GlCommandEncoderAccessor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.lwjgl.opengl.*;
@@ -183,9 +185,15 @@ public final class SavedGlState {
      * bindings) is restored through it, forced past the redundancy check by setting a throwaway
      * value first. Uncached state (program, VAO, draw/read buffers, viewport, scissor box, blend
      * equation, clear colour) stays raw.</p>
+     *
+     * <p>The program is uncached by {@code GlStateManager} but not by Blaze3D's command encoder,
+     * which skips {@code glUseProgram} when a draw reuses the program it last bound. Restoring a
+     * different program than the encoder last bound would leave the next such draw with the wrong
+     * program, or none, so the encoder is told to forget it.</p>
      */
     public void restore() {
         GL20.glUseProgram(program);
+        forgetAppliedPipeline();
         bindFramebufferSynced(GL30.GL_DRAW_FRAMEBUFFER, drawFbo);
         bindFramebufferSynced(GL30.GL_READ_FRAMEBUFFER, readFbo);
         GL20.glDrawBuffers(drawBuffers);
@@ -262,6 +270,16 @@ public final class SavedGlState {
         }
         GlStateManager._activeTexture(activeTexture);
         GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+    }
+
+    /**
+     * Makes Blaze3D's command encoder bind its program and apply its pipeline state again on the
+     * next draw. Call after binding a program with raw GL outside a save and restore.
+     */
+    public static void forgetAppliedPipeline() {
+        if (!(RenderSystem.getDevice().createCommandEncoder() instanceof GlCommandEncoderAccessor encoder)) return;
+        encoder.glue$setLastProgram(null);
+        encoder.glue$setLastPipeline(null);
     }
 
     /** Never-rendered scratch objects used as throwaway bind targets; one of each per process. */

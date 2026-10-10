@@ -2,6 +2,7 @@ package fr.lacaleche.glue.client.mixin.shader.capture;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import fr.lacaleche.glue.client.events.RenderEvents;
+import fr.lacaleche.glue.client.render.gl.SavedGlState;
 import fr.lacaleche.glue.client.shader.ShaderContext;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import net.minecraft.client.DeltaTracker;
@@ -25,6 +26,7 @@ public class GluePostCompositeMixin {
         RenderTarget mainTarget = Minecraft.getInstance().getMainRenderTarget();
         int mainFbo = FramebufferHelper.getFramebufferId(mainTarget);
         GL20.glUseProgram(0);
+        SavedGlState.forgetAppliedPipeline();
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, mainFbo);
         GL11.glViewport(0, 0, mainTarget.width, mainTarget.height);
 

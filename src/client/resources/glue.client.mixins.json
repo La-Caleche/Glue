@@ -15,6 +15,7 @@
     "shader.pipeline.CompositeStateAccessor",
     "DebugRendererMixin",
     "DebugScreenOverlayMixin",
+    "shader.capture.GlCommandEncoderAccessor",
     "shader.capture.GlueDrawBufferFixMixin",
     "shader.capture.GluePostCompositeMixin",
     "GuiMixin",
