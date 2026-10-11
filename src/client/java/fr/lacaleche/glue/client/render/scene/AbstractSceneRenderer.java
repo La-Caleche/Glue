@@ -14,6 +14,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.ARGB;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.system.MemoryStack;
+
+import java.nio.ByteBuffer;
 
 public abstract class AbstractSceneRenderer {
 
@@ -55,17 +58,7 @@ public abstract class AbstractSceneRenderer {
     public int renderToTexture(int width, int height, Minecraft client) {
         try {
             framebuffer = FramebufferHelper.resizeOrCreate(framebuffer, width, height);
-
-            if (projectionBuffer == null || projectionBuffer.isClosed()) {
-                projectionBuffer = RenderSystem.getDevice().createBuffer(() -> "SceneRenderer Projection",
-                        GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_MAP_WRITE, RenderSystem.PROJECTION_MATRIX_UBO_SIZE);
-            }
-
-            Matrix4f projection = createProjectionMatrix(width, height);
-            try (GpuBuffer.MappedView view = RenderSystem.getDevice().createCommandEncoder()
-                    .mapBuffer(projectionBuffer, false, true)) {
-                Std140Builder.intoBuffer(view.data()).putMat4f(projection);
-            }
+            uploadProjection(createProjectionMatrix(width, height));
 
             // The viewport is not part of RenderSystem's backup/restore, and this
             // renderer can run mid-frame (light shadow maps), so snapshot it here.
@@ -114,15 +107,7 @@ public abstract class AbstractSceneRenderer {
      */
     public void renderRedirected(int width, int height, Minecraft client) {
         try {
-            if (projectionBuffer == null || projectionBuffer.isClosed()) {
-                projectionBuffer = RenderSystem.getDevice().createBuffer(() -> "SceneRenderer Projection",
-                        GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_MAP_WRITE, RenderSystem.PROJECTION_MATRIX_UBO_SIZE);
-            }
-            Matrix4f projection = createProjectionMatrix(width, height);
-            try (GpuBuffer.MappedView view = RenderSystem.getDevice().createCommandEncoder()
-                    .mapBuffer(projectionBuffer, false, true)) {
-                Std140Builder.intoBuffer(view.data()).putMat4f(projection);
-            }
+            uploadProjection(createProjectionMatrix(width, height));
 
             int[] prevViewport = new int[4];
             GL11.glGetIntegerv(GL11.GL_VIEWPORT, prevViewport);
@@ -143,6 +128,24 @@ public abstract class AbstractSceneRenderer {
             }
         } catch (Exception e) {
             Glue.LOGGER.error("Error rendering redirected scene", e);
+        }
+    }
+
+    /**
+     * Writes {@code projection} into {@link #projectionBuffer} through the command encoder, as vanilla's
+     * projection buffers do. A mapped buffer is mapped persistently and written unsynchronized, so a
+     * renderer run several times a frame (one light's shadow faces after another) would overwrite the
+     * projection the draws of its previous run are still reading on the GPU.
+     */
+    private void uploadProjection(Matrix4f projection) {
+        if (projectionBuffer == null || projectionBuffer.isClosed()) {
+            projectionBuffer = RenderSystem.getDevice().createBuffer(() -> "SceneRenderer Projection",
+                    GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST, RenderSystem.PROJECTION_MATRIX_UBO_SIZE);
+        }
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            ByteBuffer data = Std140Builder.onStack(stack, RenderSystem.PROJECTION_MATRIX_UBO_SIZE)
+                    .putMat4f(projection).get();
+            RenderSystem.getDevice().createCommandEncoder().writeToBuffer(projectionBuffer.slice(), data);
         }
     }
 
