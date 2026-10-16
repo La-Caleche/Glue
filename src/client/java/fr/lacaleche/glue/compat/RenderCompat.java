@@ -17,6 +17,7 @@ public class RenderCompat {
     // Per-frame cache for Iris depth IDs. -2 = not yet resolved this frame, -1 = unavailable.
     private static int cachedIrisMainDepthId = -2;
     private static int cachedIrisSceneDepthId = -2;
+    private static int cachedIrisOpaqueDepthId = -2;
 
     /**
      * Must be called at the start of each frame (e.g. WorldRenderEvents.START) to invalidate the cache.
@@ -24,6 +25,7 @@ public class RenderCompat {
     public static void resetFrameCache() {
         cachedIrisMainDepthId = -2;
         cachedIrisSceneDepthId = -2;
+        cachedIrisOpaqueDepthId = -2;
     }
 
     public static void assignIrisProgram(RenderPipeline pipeline, String programName) {
@@ -108,6 +110,20 @@ public class RenderCompat {
         Object depthTex = ModCompatManager.invokeRuntime(rts, "getDepthTextureNoHand", false, new Class[0], new Object[0], Object.class, null);
         if (depthTex == null) return cachedIrisSceneDepthId = -1;
         return cachedIrisSceneDepthId = ModCompatManager.invokeRuntime(depthTex, "glId", false, new Class[0], new Object[0], Integer.class, -1);
+    }
+
+    /**
+     * The GL id of the pack's depth copied before translucent geometry was drawn ({@code depthtex1}):
+     * the opaque scene, with every pane and water surface left out. -1 when no pack is active.
+     */
+    public static int getIrisOpaqueDepthGlId() {
+        if (!HAS_IRIS) return -1;
+        if (cachedIrisOpaqueDepthId != -2) return cachedIrisOpaqueDepthId;
+        Object rts = getRenderTargets();
+        if (rts == null) return cachedIrisOpaqueDepthId = -1;
+        Object depthTex = ModCompatManager.invokeRuntime(rts, "getDepthTextureNoTranslucents", false, new Class[0], new Object[0], Object.class, null);
+        if (depthTex == null) return cachedIrisOpaqueDepthId = -1;
+        return cachedIrisOpaqueDepthId = ModCompatManager.invokeRuntime(depthTex, "glId", false, new Class[0], new Object[0], Integer.class, -1);
     }
 
     public static Object[] getIrisRenderTargetArray() {
