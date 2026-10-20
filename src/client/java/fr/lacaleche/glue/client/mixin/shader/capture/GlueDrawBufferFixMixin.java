@@ -31,6 +31,11 @@ public class GlueDrawBufferFixMixin {
                                            Collection<String> collection,
                                            CallbackInfoReturnable<Boolean> cir) {
         ShaderContext ctx = ShaderContext.get();
+        if (ctx.isCapturingOverSceneDepth()) {
+            int sceneDepthFboId = ctx.sceneDepthCaptureFbo(boundDepthTextureId());
+            redirectToFbo(sceneDepthFboId > 0 ? sceneDepthFboId : ctx.getCaptureFboId(), false);
+            return;
+        }
         if (ctx.isCapturing()) {
             int captureFboId = ctx.getCaptureFboId();
             if (captureFboId > 0) {
@@ -45,6 +50,15 @@ public class GlueDrawBufferFixMixin {
                 redirectToFbo(isolatedFboId, false);
             }
         }
+    }
+
+    @Unique
+    private static int boundDepthTextureId() {
+        int type = GL30.glGetFramebufferAttachmentParameteri(GL30.GL_DRAW_FRAMEBUFFER,
+                GL30.GL_DEPTH_ATTACHMENT, GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE);
+        if (type != GL11.GL_TEXTURE) return 0;
+        return GL30.glGetFramebufferAttachmentParameteri(GL30.GL_DRAW_FRAMEBUFFER,
+                GL30.GL_DEPTH_ATTACHMENT, GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME);
     }
 
     @Unique

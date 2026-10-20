@@ -183,13 +183,14 @@ public class GlDirectRenderer {
         state.restore();
     }
 
-    public void blitCapture(int captureColorId, int captureDepthId, int sceneDepthId, boolean additive) {
+    public void blitCapture(int captureColorId, int captureDepthId, int sceneDepthId, boolean additive,
+                            boolean compareDepth) {
         int program = getOrCreateProgram("glue_depth_blit", "glue_depth_blit.vsh", "glue_depth_blit.fsh");
         if (program == 0) return;
         SavedGlState state = SavedGlState.save();
 
         setupBlitState(program, additive);
-        bindUniforms(program, captureColorId, captureDepthId, sceneDepthId, additive);
+        bindUniforms(program, captureColorId, captureDepthId, sceneDepthId, additive, compareDepth);
         drawFullscreenQuad(program);
 
         state.restore();
@@ -263,7 +264,7 @@ public class GlDirectRenderer {
     }
 
     private void bindUniforms(int program, int captureColorId, int captureDepthId,
-                              int sceneDepthId, boolean additive) {
+                              int sceneDepthId, boolean additive, boolean compareDepth) {
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, captureColorId);
         int loc0 = GL20.glGetUniformLocation(program, "CaptureColor");
@@ -289,7 +290,7 @@ public class GlDirectRenderer {
 
         int locHas = GL20.glGetUniformLocation(program, "HasSceneDepth");
         if (locHas >= 0)
-            GL20.glUniform1i(locHas, hasSceneDepth ? 1 : 0);
+            GL20.glUniform1i(locHas, hasSceneDepth && compareDepth ? 1 : 0);
 
         int locAdditive = GL20.glGetUniformLocation(program, "IsAdditive");
         if (locAdditive >= 0)

@@ -44,6 +44,7 @@ public final class AdditiveSpriteRenderer {
                 .blend(BlendFunction.ADDITIVE)
                 .alphaCutout(0.1f)
                 .cull(false)
+                .depthWrite(false)
                 .samplers("Sampler0")
                 .category(GluePipeline.PipelineCategory.ENTITY)
                 .irisProgram("EMISSIVE_ENTITIES")

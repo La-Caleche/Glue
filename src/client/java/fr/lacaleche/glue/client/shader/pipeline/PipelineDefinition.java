@@ -25,6 +25,7 @@ public record PipelineDefinition(
         Optional<PipelineCodecs.BlendFunctionKey> blend,
         Optional<Float> alphaCutout,
         boolean cull,
+        boolean depthWrite,
         List<String> samplers,
         Optional<String> irisProgram,
         GluePipeline.PipelineCategory category
@@ -51,6 +52,8 @@ public record PipelineDefinition(
                     .forGetter(PipelineDefinition::alphaCutout),
             Codec.BOOL.optionalFieldOf("cull", false)
                     .forGetter(PipelineDefinition::cull),
+            Codec.BOOL.optionalFieldOf("depth_write", true)
+                    .forGetter(PipelineDefinition::depthWrite),
             Codec.STRING.listOf()
                     .optionalFieldOf("samplers", DEFAULT_SAMPLERS)
                     .forGetter(PipelineDefinition::samplers),
@@ -70,6 +73,7 @@ public record PipelineDefinition(
                 .snippet(snippet.resolve())
                 .vertexFormat(vertexFormat.resolve(), vertexMode)
                 .cull(cull)
+                .depthWrite(depthWrite)
                 .samplers(samplers.toArray(new String[0]))
                 .category(category);
 

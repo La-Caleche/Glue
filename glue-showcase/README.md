@@ -153,7 +153,7 @@ use the full binary class name from `listClientTests` to disambiguate a short na
 | `test_outline` | data-driven outline, `GlueVoxelShape`, transform stack | `TickingBlockEntity` |
 | `test_spinning` | animated orbit rendering via transform stack | `TickingBlockEntity` |
 | `test_shader`  | cycle an item through every `GluePipeline` (right-click) | `TestShaderBlockEntity` (stateful) |
-| `test_additive_sprite` | additive-blended sprite via `ShadedBufferSource` | `TestAdditiveSpriteBlockEntity` |
+| `test_additive_sprite` | overlapping additive sprites without depth write | `TestAdditiveSpriteBlockEntity` |
 | `test_shape`   | outline and collision generated from its four models, per facing (right-click cycles) | — (no entity) |
 | `test_chair`   | Occamod's chair, placed in sixteen directions, its outline voxelized between quarter turns | `TickingBlockEntity` |
 | `test_stove`   | Occamod's stove, outline from its drawn model and collision from a simpler one (right-click lights it) | — (no entity) |

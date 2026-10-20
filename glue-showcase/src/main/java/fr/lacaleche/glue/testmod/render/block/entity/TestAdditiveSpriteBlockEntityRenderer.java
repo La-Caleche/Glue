@@ -19,17 +19,23 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 /**
- * Renderer for the additive sprite block entity: a camera-facing, additively-blended glow that
- * bobs and pulses above the block, drawn through a data-driven {@link GluePipeline}.
+ * Renderer for the additive sprite block entity: a cluster of overlapping, camera-facing glows that
+ * bob and pulse above the block, drawn in one {@link ShadedBufferSource}.
  *
- * <p>The pipeline's {@link ShadedBufferSource} captures the sprite and blits it additively
- * ({@code GL_ONE, GL_ONE}) so it composites correctly under both vanilla and Iris. The bob height
- * comes from {@link TestAdditiveSpriteBlockEntity#spriteCenterY}.</p>
+ * <p>The pipeline does not write depth, so the sprites add up whatever their order and their dark
+ * texels never hide one another. The bob height comes from {@link TestAdditiveSpriteBlockEntity#spriteCenterY}.</p>
  */
 public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRenderer<TestAdditiveSpriteBlockEntity> {
 
     private static final ResourceLocation SPRITE_TEXTURE =
             TestmodClient.id("textures/imported/particle01.png");
+    private static final float SPRITE_HALF_SIZE = 0.3f;
+    /** Each sprite's offset from its cluster's centre, as {x, y, z}: overlapping, at different depths. */
+    private static final float[][] CLUSTER_SPRITES = {
+            {0f, 0f, -0.3f},
+            {0.15f, 0.1f, 0f},
+            {-0.12f, -0.08f, 0.3f},
+    };
 
     private final BillboardSprite sprite = new BillboardSprite();
 
@@ -46,17 +52,22 @@ public class TestAdditiveSpriteBlockEntityRenderer implements BlockEntityRendere
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay, Vec3 cameraPos) {
         if (RenderCompat.isRenderingShadowPass()) return;
 
-        GluePipeline pipeline = AdditiveSpriteRenderer.getPipeline();
-        RenderType renderType = pipeline.renderType(SPRITE_TEXTURE);
-
-        float half = 0.5f * 0.75f * entity.pulse(partialTick);
+        float half = SPRITE_HALF_SIZE * entity.pulse(partialTick);
+        float centerY = (float) entity.spriteCenterY(partialTick);
         Matrix4f pose = poseStack.last().pose();
         sprite.facingCamera(Minecraft.getInstance().gameRenderer.getMainCamera());
 
+        drawCluster(AdditiveSpriteRenderer.getPipeline(), pose, 0.5f, centerY, half, 1.0f);
+    }
+
+    private void drawCluster(GluePipeline pipeline, Matrix4f pose, float centerX, float centerY, float half, float colorMultiplier) {
+        RenderType renderType = pipeline.renderType(SPRITE_TEXTURE);
         try (ShadedBufferSource shadedSource = pipeline.wrap()) {
-            sprite.emit(shadedSource.getBuffer(renderType), pose,
-                    0.5f, (float) entity.spriteCenterY(partialTick), 0.5f, half, half,
-                    255, 125, 185, 255, LightTexture.FULL_BRIGHT);
+            for (float[] offset : CLUSTER_SPRITES) {
+                sprite.emit(shadedSource.getBuffer(renderType), pose,
+                        centerX + offset[0], centerY + offset[1], 0.5f + offset[2], half, half,
+                        (int) (255 * colorMultiplier), (int) (125 * colorMultiplier), (int) (185 * colorMultiplier), 255, LightTexture.FULL_BRIGHT);
+            }
         }
     }
 }

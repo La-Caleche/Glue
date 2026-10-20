@@ -3,11 +3,15 @@ package fr.lacaleche.glue.client.shader;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fr.lacaleche.glue.client.shader.internal.GlDirectRenderer;
+import fr.lacaleche.glue.client.shader.internal.SceneDepthCapture;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
+import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import org.jetbrains.annotations.ApiStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -29,6 +33,8 @@ import java.util.Set;
 public final class ShaderContext {
 
     private static final ShaderContext INSTANCE = new ShaderContext();
+    private static final Logger LOGGER = LoggerFactory.getLogger("glue/shader");
+    private static final int UNRESOLVED = -1;
 
     private final List<RenderTarget> availableFbos = new ArrayList<>();
     private final List<QueuedCapture> compositeQueue = new ArrayList<>();
@@ -36,6 +42,7 @@ public final class ShaderContext {
     private final Set<String> warnedNoopTypes = new HashSet<>();
 
     private final GlDirectRenderer renderer = new GlDirectRenderer();
+    private final SceneDepthCapture sceneDepthCapture = new SceneDepthCapture();
 
     private boolean capturing = false;
     private int activeCaptureTargetFboId = 0;
@@ -44,6 +51,9 @@ public final class ShaderContext {
     private boolean blitPathLogged = false;
     private int sceneDepthTextureId = -1;
     private boolean isolatedCapture = false;
+    private RenderTarget sceneDepthCaptureTarget;
+    private int sceneDepthCaptureFboId = UNRESOLVED;
+    private boolean sceneDepthRefusalReported = false;
 
     /**
      * Permanent isolated-capture FBO — not pooled because callers (post-processors)
@@ -115,6 +125,47 @@ public final class ShaderContext {
         }
         this.capturing = capturing;
         this.activeCaptureTargetFboId = capturing ? captureFboId : 0;
+        if (!capturing) {
+            sceneDepthCaptureTarget = null;
+            sceneDepthCaptureFboId = UNRESOLVED;
+        }
+    }
+
+    /**
+     * Makes the coming capture draw into {@code target}'s colour over the scene's own depth, instead of
+     * the target's depth; cleared with the capture by {@link #setCapturing}.
+     */
+    @ApiStatus.Internal
+    public void captureOverSceneDepth(RenderTarget target) {
+        this.sceneDepthCaptureTarget = target;
+        this.sceneDepthCaptureFboId = UNRESOLVED;
+    }
+
+    public boolean isCapturingOverSceneDepth() {
+        return capturing && sceneDepthCaptureTarget != null;
+    }
+
+    /**
+     * The framebuffer pairing the capture's colour with the scene depth, resolved on the capture's first
+     * pass: Iris's main depth when a pack is active, else {@code boundDepthTextureId}, the depth of the
+     * framebuffer the pass was set up on. 0 when no pairing is possible; the capture then draws unoccluded.
+     */
+    @ApiStatus.Internal
+    public int sceneDepthCaptureFbo(int boundDepthTextureId) {
+        if (sceneDepthCaptureFboId != UNRESOLVED) return sceneDepthCaptureFboId;
+        int depthTextureId = RenderCompat.isIrisShaderEnabled()
+                ? RenderCompat.getIrisMainDepthGlId()
+                : boundDepthTextureId;
+        int colorTextureId = FramebufferHelper.getColorTextureId(sceneDepthCaptureTarget);
+        sceneDepthCaptureFboId = depthTextureId > 0 && colorTextureId > 0
+                ? sceneDepthCapture.attach(colorTextureId, depthTextureId)
+                : 0;
+        if (sceneDepthCaptureFboId == 0 && !sceneDepthRefusalReported) {
+            sceneDepthRefusalReported = true;
+            LOGGER.warn("[Glue] No scene depth to test a capture against (depth texture {}): "
+                    + "pipelines that do not write depth draw over terrain this session", depthTextureId);
+        }
+        return sceneDepthCaptureFboId;
     }
 
     @ApiStatus.Internal
@@ -153,9 +204,13 @@ public final class ShaderContext {
         return FramebufferHelper.resizeOrCreate(fbo, w, h);
     }
 
+    /**
+     * Queues {@code fbo} for the composite after world rendering. {@code compareDepth} drops the pixels the
+     * scene drew in front of the capture's own depth; a capture that wrote no depth was already tested.
+     */
     @ApiStatus.Internal
-    public void enqueueComposite(RenderTarget fbo, boolean additive) {
-        compositeQueue.add(new QueuedCapture(fbo, additive));
+    public void enqueueComposite(RenderTarget fbo, boolean additive, boolean compareDepth) {
+        compositeQueue.add(new QueuedCapture(fbo, additive, compareDepth));
     }
 
     /**
@@ -164,18 +219,18 @@ public final class ShaderContext {
      */
     public void postCompositeBlit() {
         for (QueuedCapture qc : compositeQueue) {
-            blitCaptureToScreen(qc.fbo(), qc.additive());
+            blitCaptureToScreen(qc.fbo(), qc.additive(), qc.compareDepth());
             availableFbos.add(qc.fbo());
         }
         compositeQueue.clear();
     }
 
-    private void blitCaptureToScreen(RenderTarget fbo, boolean additive) {
+    private void blitCaptureToScreen(RenderTarget fbo, boolean additive, boolean compareDepth) {
         if (fbo == null) return;
         int captureColorId = FramebufferHelper.getColorTextureId(fbo);
         int captureDepthId = FramebufferHelper.getDepthTextureId(fbo);
         if (captureColorId <= 0 || captureDepthId <= 0) return;
-        renderer.blitCapture(captureColorId, captureDepthId, sceneDepthTextureId, additive);
+        renderer.blitCapture(captureColorId, captureDepthId, sceneDepthTextureId, additive, compareDepth);
     }
 
     @ApiStatus.Internal
@@ -207,12 +262,16 @@ public final class ShaderContext {
             isolatedFbo.destroyBuffers();
             isolatedFbo = null;
         }
+        sceneDepthCapture.cleanup();
         capturing = false;
+        sceneDepthCaptureTarget = null;
+        sceneDepthCaptureFboId = UNRESOLVED;
+        sceneDepthRefusalReported = false;
         isolatedCapture = false;
         blitPathLogged = false;
         renderer.cleanup();
     }
 
-    record QueuedCapture(RenderTarget fbo, boolean additive) {
+    record QueuedCapture(RenderTarget fbo, boolean additive, boolean compareDepth) {
     }
 }

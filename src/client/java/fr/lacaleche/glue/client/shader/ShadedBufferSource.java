@@ -111,6 +111,10 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         pending = false;
         if (useIsolatedCapture) {
             endBatchIsolated();
+        } else if (additive && !pipeline.writesDepth()) {
+            // Additive without depth write: tested against the scene's own depth, so overlapping
+            // sprites add up whatever order they are drawn in, dark texels included.
+            captureOverSceneDepth();
         } else if (RenderCompat.isIrisShaderEnabled()) {
             // Iris path: skip depth copy when additive (we want the captured
             // sprite to draw unconditionally; final blit composites additively).
@@ -130,7 +134,7 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         ShaderContext ctx = ShaderContext.get();
         RenderTarget targetFbo = ctx.acquirePooledFbo();
         FramebufferHelper.clear(targetFbo, 0f, 0f, 0f, 0f);
-        ctx.enqueueComposite(targetFbo, additive);
+        ctx.enqueueComposite(targetFbo, additive, true);
 
         ctx.setShouldCopyDepth(copyDepth);
         ctx.setDepthAlreadyCopied(false);
@@ -148,6 +152,26 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         if (!ctx.isBlitPathLogged()) {
             ctx.markBlitPathLogged();
             LOGGER.info("[Glue-Path] {} capture using pooled FBO (additive={})", pathLabel, additive);
+        }
+    }
+
+    private void captureOverSceneDepth() {
+        ShaderContext ctx = ShaderContext.get();
+        RenderTarget targetFbo = ctx.acquirePooledFbo();
+        FramebufferHelper.clear(targetFbo, 0f, 0f, 0f, 0f);
+        ctx.enqueueComposite(targetFbo, true, false);
+
+        ctx.setShouldCopyDepth(false);
+        ctx.setCapturing(true, FramebufferHelper.getFramebufferId(targetFbo));
+        ctx.captureOverSceneDepth(targetFbo);
+        try {
+            if (RenderCompat.isIrisShaderEnabled()) {
+                RenderCompat.withIrisBypass(ownSource::endBatch);
+            } else {
+                ownSource.endBatch();
+            }
+        } finally {
+            ctx.setCapturing(false, 0);
         }
     }
 

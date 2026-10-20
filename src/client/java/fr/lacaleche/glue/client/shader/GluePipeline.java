@@ -200,6 +200,10 @@ public class GluePipeline {
         return additive;
     }
 
+    public boolean writesDepth() {
+        return pipeline.isWriteDepth();
+    }
+
     public PipelineCategory getCategory() {
         return category;
     }
