@@ -1,0 +1,13 @@
+{
+  "package": "fr.lacaleche.glue.gametest.mixin",
+  "required": true,
+  "compatibilityLevel": "JAVA_21",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "client": [
+    "CameraFilmMixin",
+    "GameRendererFilmMixin",
+    "MinecraftFilmMixin"
+  ]
+}

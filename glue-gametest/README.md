@@ -87,6 +87,37 @@ Iris remains optional until `IrisTest` is used. A changed state waits for ten wo
 requires a valid selected shaderpack. Close this scope before closing the world so the initial
 shader state can be restored and rendered.
 
+## Film camera moves
+
+`FilmRecorder` films scripted camera moves straight to a video, with no one at the keyboard. Film
+time drives the game: before each frame the recorder ticks the game up to that frame's moment,
+renders it with a fixed partial tick and pipes it to ffmpeg. The film is therefore the same on any
+machine, and recording runs at real time or slower.
+
+```java
+Vec3 center = context.computeOnClient(client -> client.player.position());
+CameraPath orbit = CameraPath.orbit(center, 12, 6, 0, 180, 70, 3);
+CameraPath film = orbit.then(CameraPath.move(orbit.at(3), CameraPose.lookingAt(center.add(0, 30, -4), center, 70), 2));
+try (FilmRecorder recorder = FilmRecorder.start(context, Path.of("films", "orbit.mp4"), 1920, 1080, 30)) {
+    recorder.aim(film.at(0));
+    world.getClientWorld().waitForChunksRender();
+    recorder.record(film);
+}
+```
+
+`CameraPose` uses Minecraft's conventions: yaw 0 looks south (+Z), and positive pitch looks down.
+`CameraPath` offers `hold`, `move` (eased), `track` (eased, always facing a target) and `orbit`
+(constant speed); `then` chains them. A relative output path resolves against the game directory.
+Its extension picks the container: `mp4`, `mov` and `mkv` hold H.264, and `avi` holds MJPEG.
+ffmpeg must be on the `PATH` or named by `-Dglue.film.ffmpeg`; its messages go to `<output>.log`.
+
+The camera moves on its own while the player stays put and unrendered. Keep the player near the
+filmed area so its chunks load. `aim` points the camera without filming, so the first shot's sections
+can compile before recording starts. Code that animates a scene can follow `recorder.seconds()`
+instead of the wall clock; `Minecraft.getDeltaTracker()` returns the frame's fixed step. While
+recording, the window takes the film's size, the HUD and hand are hidden and view bobbing is off.
+`close()` finishes the file and restores all three.
+
 ## Run the showcase tests
 
 ```powershell

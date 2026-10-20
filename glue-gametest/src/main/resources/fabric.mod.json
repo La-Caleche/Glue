@@ -14,6 +14,9 @@
     },
     "environment": "client",
     "accessWidener": "glue-gametest.accesswidener",
+    "mixins": [
+        "glue-gametest.mixins.json"
+    ],
     "depends": {
         "fabricloader": ">=0.14.6",
         "minecraft": "~1.21.8",

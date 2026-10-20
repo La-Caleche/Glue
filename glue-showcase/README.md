@@ -125,6 +125,7 @@ Select one or more discovered tests by short name, class name, or wildcard:
 | `scenes` | Orbit/FPS/gizmo previews opened as `/showcase scene` opens them, their controls, undo/redo and target disposal, and a gizmo dragged in a preview and in the world. |
 | `shapes` | Every state of `test_shape` gets its generated outline and collision, on the server and the client; the Occamod chair's sixteen turns and the stove's separate collision follow their models. |
 | `viewport-sky` | Full-window and inset sky views, day/night and Nether; Iris optional. |
+| `film` | A half orbit and a crane up, filmed to `films/showcase.mp4` in the run directory; needs ffmpeg. |
 | `native-dialogs` | Human-assisted: cancel the open/save/folder OS dialogs. |
 
 Every client-test task copies [`src/test/assets`](src/test/assets/README.md) into its profile before
@@ -140,8 +141,8 @@ selected tests sequentially and stops on the first failure. `WorldClientTest` ca
 and closes the world; rendering scenarios clean up viewport state in `finally` blocks.
 See the [helper guide](../glue-gametest/README.md) for API, registration and assertion semantics.
 
-`auto` (the default) selects the first three scenarios in the table. The native-dialog test uses
-`@ClientTestSpec(explicitOnly = true)` and requires explicit selection.
+`auto` (the default) selects the first three scenarios in the table. The film and native-dialog tests use
+`@ClientTestSpec(explicitOnly = true)` and require explicit selection.
 `all` or `*` includes them as well. An unknown or ambiguous selector fails before the game launches;
 use the full binary class name from `listClientTests` to disambiguate a short name.
 
