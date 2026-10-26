@@ -2,14 +2,17 @@ package fr.lacaleche.glue.client.shader;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import fr.lacaleche.glue.client.shader.internal.GlDirectRenderer;
 import fr.lacaleche.glue.client.shader.internal.SceneDepthCapture;
+import fr.lacaleche.glue.client.shader.internal.SceneDepthCopy;
 import fr.lacaleche.glue.client.utils.FramebufferHelper;
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +46,7 @@ public final class ShaderContext {
 
     private final GlDirectRenderer renderer = new GlDirectRenderer();
     private final SceneDepthCapture sceneDepthCapture = new SceneDepthCapture();
+    private final SceneDepthCopy sceneDepthCopy = new SceneDepthCopy();
 
     private boolean capturing = false;
     private int activeCaptureTargetFboId = 0;
@@ -104,6 +108,18 @@ public final class ShaderContext {
     @ApiStatus.Internal
     public void setSceneDepthTextureId(int id) {
         this.sceneDepthTextureId = id;
+    }
+
+    /**
+     * The scene depth as it stands the first time this is asked for in a frame, for a shader that samples
+     * depth while drawing into the scene: Iris's main depth when a pack is active, else the main target's.
+     * GL state is restored, so a {@link RenderPassBinder} may call it. Null when there is no depth to copy.
+     */
+    public @Nullable GpuTextureView sceneDepthCopy() {
+        int source = RenderCompat.isIrisShaderEnabled() ? RenderCompat.getIrisMainDepthGlId() : -1;
+        if (source <= 0) source = FramebufferHelper.getDepthTextureId(Minecraft.getInstance().getMainRenderTarget());
+        if (source <= 0) return null;
+        return sceneDepthCopy.copy(source);
     }
 
     public boolean hasDepthBeenCopied() {
@@ -223,6 +239,7 @@ public final class ShaderContext {
             availableFbos.add(qc.fbo());
         }
         compositeQueue.clear();
+        sceneDepthCopy.endFrame();
     }
 
     private void blitCaptureToScreen(RenderTarget fbo, boolean additive, boolean compareDepth) {
@@ -263,6 +280,7 @@ public final class ShaderContext {
             isolatedFbo = null;
         }
         sceneDepthCapture.cleanup();
+        sceneDepthCopy.cleanup();
         capturing = false;
         sceneDepthCaptureTarget = null;
         sceneDepthCaptureFboId = UNRESOLVED;

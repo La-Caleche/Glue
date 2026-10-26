@@ -3,8 +3,12 @@ package fr.lacaleche.glue.client.shader;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.shaders.UniformType;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import fr.lacaleche.glue.client.shader.internal.RenderPassBinders;
+import fr.lacaleche.glue.client.shader.internal.RuntimePipelines;
 import fr.lacaleche.glue.compat.RenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -15,9 +19,12 @@ import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -41,6 +48,12 @@ public class GluePipeline {
     private final RenderPipeline pipeline;
     private final boolean additive;
     private final PipelineCategory category;
+    private final boolean runtime;
+
+    /** RenderTypes from {@link #createRenderType}, each with a vertex buffer kept across wraps once drawn. */
+    private final Set<RenderType> ownedTypes = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Map<RenderType, ByteBufferBuilder> ownedBuffers = new IdentityHashMap<>();
+    private boolean released;
 
     /**
      * LRU cache: prefixed string key → RenderType. Keys are
@@ -57,11 +70,13 @@ public class GluePipeline {
                 }
             };
 
-    private GluePipeline(String name, RenderPipeline pipeline, boolean additive, PipelineCategory category) {
+    private GluePipeline(String name, RenderPipeline pipeline, boolean additive, PipelineCategory category,
+                         boolean runtime) {
         this.name = name;
         this.pipeline = pipeline;
         this.additive = additive;
         this.category = category;
+        this.runtime = runtime;
     }
 
     /**
@@ -180,6 +195,14 @@ public class GluePipeline {
         return new Builder(location, vertShader, fragShader);
     }
 
+    /**
+     * Creates a {@link Builder} for a pipeline whose GLSL is text in memory rather than resources, finished
+     * with {@link Builder#buildRuntime}. Same defaults as {@link #builder}.
+     */
+    public static Builder runtimeBuilder(ResourceLocation location) {
+        return new Builder(location, null, null);
+    }
+
     private static boolean isAdditiveBlend(@Nullable BlendFunction blend) {
         return blend == BlendFunction.LIGHTNING || blend == BlendFunction.ADDITIVE;
     }
@@ -206,6 +229,81 @@ public class GluePipeline {
 
     public PipelineCategory getCategory() {
         return category;
+    }
+
+    /** Whether this pipeline came from {@link Builder#buildRuntime} and must be {@linkplain #release() released}. */
+    public boolean isRuntime() {
+        return runtime;
+    }
+
+    /**
+     * Deletes a runtime pipeline's program and shaders and the vertex buffers of its
+     * {@linkplain #createRenderType owned RenderTypes}. Call it on the render thread, outside any wrap,
+     * once nothing draws through it. A second call does nothing.
+     *
+     * @throws IllegalStateException for a pipeline built from resources, which the resource reload owns
+     */
+    public void release() {
+        if (!runtime)
+            throw new IllegalStateException("Pipeline '" + name + "' is built from resources and cannot be released");
+        if (released) return;
+
+        released = true;
+        for (RenderType type : List.copyOf(ownedTypes))
+            releaseRenderType(type);
+        RuntimePipelines.release(this);
+    }
+
+    /**
+     * A {@link RenderType} of this pipeline that the caller owns: outside the LRU of {@link #renderType},
+     * kept by {@link ShadedBufferSource} instead of swapped, drawn from a vertex buffer the pipeline keeps
+     * across wraps. Its composite state is the category default for {@code texture}. On a pipeline built
+     * from resources nothing releases it for the caller: free it with {@link #releaseRenderType}.
+     *
+     * @param stateKey names the type in debug output
+     * @param binder   binds the type's own uniforms and samplers on each draw, after vanilla's samplers; may be null
+     */
+    public RenderType createRenderType(ResourceLocation texture, String stateKey, @Nullable RenderPassBinder binder) {
+        RenderType type = RenderType.create("glue_" + name + "_" + stateKey,
+                GlueConstants.DEFAULT_BUFFER_SIZE, false, true, pipeline, defaultState(texture, category == PipelineCategory.ENTITY));
+        ownedTypes.add(type);
+        if (binder != null)
+            RenderPassBinders.register(type, binder);
+        return type;
+    }
+
+    /** Frees what {@link #createRenderType} made; the type must not be drawn again. */
+    public void releaseRenderType(RenderType type) {
+        if (!ownedTypes.remove(type)) return;
+        RenderPassBinders.unregister(type);
+        ByteBufferBuilder buffer = ownedBuffers.remove(type);
+        if (buffer != null)
+            buffer.close();
+    }
+
+    boolean ownsRenderType(RenderType type) {
+        return ownedTypes.contains(type);
+    }
+
+    ByteBufferBuilder ownedBuffer(RenderType type) {
+        return ownedBuffers.computeIfAbsent(type, t -> new ByteBufferBuilder(t.bufferSize()));
+    }
+
+    /** A batch that failed may leave unbuilt vertices behind; the next draw starts from a fresh buffer. */
+    void dropOwnedBuffer(RenderType type) {
+        ByteBufferBuilder buffer = ownedBuffers.remove(type);
+        if (buffer != null)
+            buffer.close();
+    }
+
+    /** The state of the category types: the texture and the lightmap, and the overlay for entities. */
+    private static RenderType.CompositeState defaultState(ResourceLocation texture, boolean overlay) {
+        RenderType.CompositeState.CompositeStateBuilder state = RenderType.CompositeState.builder()
+                .setTextureState(new RenderStateShard.TextureStateShard(texture, false))
+                .setLightmapState(RenderStateShard.LIGHTMAP);
+        if (overlay)
+            state.setOverlayState(RenderStateShard.OVERLAY);
+        return state.createCompositeState(false);
     }
 
     /**
@@ -271,43 +369,24 @@ public class GluePipeline {
      * Entity-category {@link RenderType} with lightmap and overlay state.
      */
     public RenderType entityType(ResourceLocation texture) {
-        return renderTypeCache.computeIfAbsent("entity#" + texture, k -> {
-            RenderType.CompositeState state = RenderType.CompositeState.builder()
-                    .setTextureState(new RenderStateShard.TextureStateShard(texture, false))
-                    .setLightmapState(RenderStateShard.LIGHTMAP)
-                    .setOverlayState(RenderStateShard.OVERLAY)
-                    .createCompositeState(false);
-            return RenderType.create("glue_" + name + "_entity",
-                    GlueConstants.DEFAULT_BUFFER_SIZE, false, true, pipeline, state);
-        });
+        return renderTypeCache.computeIfAbsent("entity#" + texture, k -> RenderType.create("glue_" + name + "_entity",
+                GlueConstants.DEFAULT_BUFFER_SIZE, false, true, pipeline, defaultState(texture, true)));
     }
 
     /**
      * Block-category {@link RenderType} with lightmap state.
      */
     public RenderType blockType(ResourceLocation texture) {
-        return renderTypeCache.computeIfAbsent("block#" + texture, k -> {
-            RenderType.CompositeState state = RenderType.CompositeState.builder()
-                    .setTextureState(new RenderStateShard.TextureStateShard(texture, false))
-                    .setLightmapState(RenderStateShard.LIGHTMAP)
-                    .createCompositeState(false);
-            return RenderType.create("glue_" + name + "_block",
-                    GlueConstants.DEFAULT_BUFFER_SIZE, false, true, pipeline, state);
-        });
+        return renderTypeCache.computeIfAbsent("block#" + texture, k -> RenderType.create("glue_" + name + "_block",
+                GlueConstants.DEFAULT_BUFFER_SIZE, false, true, pipeline, defaultState(texture, false)));
     }
 
     /**
      * Particle-category {@link RenderType} with lightmap state.
      */
     public RenderType particleType(ResourceLocation texture) {
-        return renderTypeCache.computeIfAbsent("particle#" + texture, k -> {
-            RenderType.CompositeState state = RenderType.CompositeState.builder()
-                    .setTextureState(new RenderStateShard.TextureStateShard(texture, false))
-                    .setLightmapState(RenderStateShard.LIGHTMAP)
-                    .createCompositeState(false);
-            return RenderType.create("glue_" + name + "_particle",
-                    GlueConstants.DEFAULT_BUFFER_SIZE, false, true, pipeline, state);
-        });
+        return renderTypeCache.computeIfAbsent("particle#" + texture, k -> RenderType.create("glue_" + name + "_particle",
+                GlueConstants.DEFAULT_BUFFER_SIZE, false, true, pipeline, defaultState(texture, false)));
     }
 
     /**
@@ -341,8 +420,8 @@ public class GluePipeline {
     public static class Builder {
 
         private final ResourceLocation location;
-        private final ResourceLocation vertShader;
-        private final ResourceLocation fragShader;
+        private final @Nullable ResourceLocation vertShader;
+        private final @Nullable ResourceLocation fragShader;
 
         private RenderPipeline.Snippet snippet = RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET;
         private VertexFormat vertexFormat = DefaultVertexFormat.NEW_ENTITY;
@@ -359,8 +438,10 @@ public class GluePipeline {
         private String irisProgram = "ENTITIES_TRANSLUCENT";
         private PipelineCategory category = PipelineCategory.ENTITY;
         private List<String> samplers = new ArrayList<>(List.of("Sampler0", "Sampler1", "Sampler2"));
+        private final Map<String, UniformType> uniforms = new LinkedHashMap<>();
 
-        private Builder(ResourceLocation location, ResourceLocation vertShader, ResourceLocation fragShader) {
+        private Builder(ResourceLocation location, @Nullable ResourceLocation vertShader,
+                        @Nullable ResourceLocation fragShader) {
             this.location = location;
             this.vertShader = vertShader;
             this.fragShader = fragShader;
@@ -472,12 +553,55 @@ public class GluePipeline {
             return this;
         }
 
+        /**
+         * Declares a uniform the shaders read beyond the snippet's, bound per draw by a
+         * {@link RenderPassBinder} (see {@link #createRenderType}).
+         *
+         * @throws IllegalArgumentException for a texel buffer, which only uniform blocks replace here
+         */
+        public Builder uniform(String name, UniformType type) {
+            if (type == UniformType.TEXEL_BUFFER)
+                throw new IllegalArgumentException("Uniform '" + name + "': a texel buffer needs a texture format the builder does not take");
+            this.uniforms.put(name, type);
+            return this;
+        }
+
         public GluePipeline build() {
+            if (vertShader == null || fragShader == null)
+                throw new IllegalStateException("A runtime builder is finished with buildRuntime(ShaderSources)");
+            RenderPipeline pipeline = RenderPipelines.register(pipelineBuilder(location.getPath(), vertShader, fragShader).build());
+            RenderCompat.assignIrisProgram(pipeline, irisProgram);
+
+            return new GluePipeline(location.getPath(), pipeline, isAdditiveBlend(blendFunction), category, false);
+        }
+
+        /**
+         * Compiles {@code sources} now, on the render thread, into a pipeline no resource reload knows of:
+         * Glue compiles it again after each reload, and the caller {@linkplain GluePipeline#release() releases}
+         * it once done. Nothing stays allocated when the sources fail to compile or link.
+         *
+         * @throws IllegalStateException on a builder from {@link GluePipeline#builder}
+         */
+        public RuntimePipelineResult buildRuntime(ShaderSources sources) {
+            if (vertShader != null || fragShader != null)
+                throw new IllegalStateException("A builder with shader resources is finished with build()");
+            ResourceLocation shaderId = RuntimePipelines.nextShaderId(location);
+            RenderPipeline pipeline = pipelineBuilder(shaderId.getPath(), shaderId, shaderId).build();
+            String log = RuntimePipelines.compile(pipeline, sources);
+            if (log != null)
+                return new RuntimePipelineResult.Failed(log);
+            RenderCompat.assignIrisProgram(pipeline, irisProgram);
+
+            GluePipeline built = new GluePipeline(location.getPath(), pipeline, isAdditiveBlend(blendFunction), category, true);
+            RuntimePipelines.register(built, sources);
+            return new RuntimePipelineResult.Compiled(built);
+        }
+
+        private RenderPipeline.Builder pipelineBuilder(String path, ResourceLocation vertex, ResourceLocation fragment) {
             RenderPipeline.Builder pb = RenderPipeline.builder(snippet)
-                    .withLocation(ResourceLocation.fromNamespaceAndPath(
-                            location.getNamespace(), "pipeline/" + location.getPath()))
-                    .withVertexShader(vertShader)
-                    .withFragmentShader(fragShader)
+                    .withLocation(ResourceLocation.fromNamespaceAndPath(location.getNamespace(), "pipeline/" + path))
+                    .withVertexShader(vertex)
+                    .withFragmentShader(fragment)
                     .withCull(cull)
                     .withColorWrite(colorWrite)
                     .withDepthWrite(depthWrite)
@@ -499,17 +623,16 @@ public class GluePipeline {
                 pb.withSampler(sampler);
             }
 
+            for (Map.Entry<String, UniformType> uniform : uniforms.entrySet()) {
+                pb.withUniform(uniform.getKey(), uniform.getValue());
+            }
+
             if (blendFunction != null) {
                 pb.withBlend(blendFunction);
             } else {
                 pb.withoutBlend();
             }
-
-            boolean isAdditive = isAdditiveBlend(blendFunction);
-            RenderPipeline pipeline = RenderPipelines.register(pb.build());
-            RenderCompat.assignIrisProgram(pipeline, irisProgram);
-
-            return new GluePipeline(location.getPath(), pipeline, isAdditive, category);
+            return pb;
         }
     }
 }

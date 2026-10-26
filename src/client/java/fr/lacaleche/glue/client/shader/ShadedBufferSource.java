@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.SequencedMap;
 
@@ -59,6 +60,7 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
 
     private boolean pending;
     private boolean closed;
+    private boolean broken;
 
     public ShadedBufferSource(GluePipeline pipeline) {
         this(pipeline, false);
@@ -88,6 +90,12 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
 
     @Override
     public VertexConsumer getBuffer(RenderType renderType) {
+        if (pipeline.ownsRenderType(renderType)) {
+            fixedBuffers.computeIfAbsent(renderType, pipeline::ownedBuffer);
+            pending = true;
+            return ownSource.getBuffer(renderType);
+        }
+
         ResourceLocation texture = extractTexture(renderType);
 
         if (texture != null) {
@@ -109,6 +117,13 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
         if (!pending) return;
 
         pending = false;
+        // Cleared only once the flush returns: a throw leaves the owned buffers mid-batch.
+        broken = true;
+        flush();
+        broken = false;
+    }
+
+    private void flush() {
         if (useIsolatedCapture) {
             endBatchIsolated();
         } else if (additive && !pipeline.writesDepth()) {
@@ -209,8 +224,13 @@ public class ShadedBufferSource implements MultiBufferSource, AutoCloseable {
             endBatch();
         } finally {
             sharedBuffer.close();
-            for (ByteBufferBuilder buffer : fixedBuffers.values()) {
-                buffer.close();
+            for (Map.Entry<RenderType, ByteBufferBuilder> entry : fixedBuffers.entrySet()) {
+                // The pipeline keeps the buffers of the RenderTypes it owns across wraps.
+                if (!pipeline.ownsRenderType(entry.getKey())) {
+                    entry.getValue().close();
+                } else if (broken) {
+                    pipeline.dropOwnedBuffer(entry.getKey());
+                }
             }
             fixedBuffers.clear();
         }
