@@ -31,6 +31,8 @@ public abstract class AbstractSceneRenderer {
 
     protected RenderTarget framebuffer = null;
     protected GpuBuffer projectionBuffer;
+    /** What {@link #projectionBuffer} holds, or {@code null} once it holds nothing yet. */
+    private Matrix4f uploadedProjection;
 
     public float[] getClearColor() {
         return clearColor;
@@ -134,13 +136,18 @@ public abstract class AbstractSceneRenderer {
      * Writes {@code projection} into {@link #projectionBuffer} through the command encoder, as vanilla's
      * projection buffers do. A mapped buffer is mapped persistently and written unsynchronized, so a
      * renderer run several times a frame (one light's shadow faces after another) would overwrite the
-     * projection the draws of its previous run are still reading on the GPU.
+     * projection the draws of its previous run are still reading on the GPU. A projection equal to the
+     * one the buffer already holds is not written again, so a renderer run many times a frame with one
+     * projection uploads it once.
      */
     private void uploadProjection(Matrix4f projection) {
         if (projectionBuffer == null || projectionBuffer.isClosed()) {
             projectionBuffer = RenderSystem.getDevice().createBuffer(() -> "SceneRenderer Projection",
                     GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST, RenderSystem.PROJECTION_MATRIX_UBO_SIZE);
+            uploadedProjection = null;
         }
+        if (projection.equals(uploadedProjection)) return;
+        uploadedProjection = new Matrix4f(projection);
         try (MemoryStack stack = MemoryStack.stackPush()) {
             ByteBuffer data = Std140Builder.onStack(stack, RenderSystem.PROJECTION_MATRIX_UBO_SIZE)
                     .putMat4f(projection).get();
@@ -199,5 +206,6 @@ public abstract class AbstractSceneRenderer {
             projectionBuffer.close();
             projectionBuffer = null;
         }
+        uploadedProjection = null;
     }
 }
