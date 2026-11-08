@@ -67,11 +67,10 @@ public abstract class AbstractSceneRenderer {
 
             RenderSystem.backupProjectionMatrix();
             PoseStack matrices = buildModelViewMatrix(buildViewMatrix(), getScale());
-            RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
-                    framebuffer.getColorTexture(),
-                    ARGB.colorFromFloat(1.0f, clearColor[0], clearColor[1], clearColor[2]),
-                    framebuffer.getDepthTexture(),
-                    1.0d);
+            if (!clearsInRenderPass()) {
+                RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
+                        framebuffer.getColorTexture(), clearColorArgb(), framebuffer.getDepthTexture(), 1.0d);
+            }
             RenderSystem.setProjectionMatrix(projectionBuffer.slice(), ProjectionType.PERSPECTIVE);
             RenderSystem.getModelViewStack().pushMatrix().mul(matrices.last().pose());
             RenderSystem.outputColorTextureOverride = framebuffer.getColorTextureView();
@@ -150,6 +149,22 @@ public abstract class AbstractSceneRenderer {
     }
 
     protected abstract void renderScene(Minecraft client, PoseStack matrices);
+
+    /**
+     * Whether {@link #renderScene} clears {@link #framebuffer} itself, in the first render pass it opens,
+     * to {@link #clearColorArgb()} and depth 1. {@link #renderToTexture} then skips its own clear, which
+     * binds the framebuffer once more: a renderer run many times a frame, such as one shadow map per light
+     * face, saves a render target switch per run. Such a {@code renderScene} opens that pass on every run,
+     * even with nothing to draw, or the target keeps its last run's contents.
+     */
+    protected boolean clearsInRenderPass() {
+        return false;
+    }
+
+    /** {@link #clearColor} as the opaque packed ARGB the target clears to. */
+    protected int clearColorArgb() {
+        return ARGB.colorFromFloat(1.0f, clearColor[0], clearColor[1], clearColor[2]);
+    }
 
     protected abstract Matrix4f buildViewMatrix();
 
