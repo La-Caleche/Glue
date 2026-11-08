@@ -24,8 +24,10 @@ import org.lwjgl.opengl.*;
  *
  * <p>The snapshot covers the program, read and draw framebuffers and draw buffers, read buffer,
  * vertex array and array buffer, blend, depth, cull, scissor, colour mask, viewport, clear colour,
- * the active texture unit and the 2D texture bound on units 0 to 12. Anything else a pass changes, it
- * restores itself. Save and restore on the render thread, around the pass only.</p>
+ * the active texture unit and the 2D texture bound on units 0 to 12. A pass that binds a 2D-array or
+ * 3D texture, or a 2D texture on a higher unit, saves those units with {@link SavedTextureBindings};
+ * anything else a pass changes, it restores itself. Save and restore on the render thread, around the
+ * pass only.</p>
  */
 @Environment(EnvType.CLIENT)
 public final class SavedGlState {
@@ -181,9 +183,10 @@ public final class SavedGlState {
      * item-icon pre-renders coming out black for every icon first drawn after such a pass.</p>
      *
      * <p>So every state {@code GlStateManager} caches (depth, blend enable/function, cull,
-     * scissor enable, colour mask, active texture, per-unit 2D bindings, read/draw framebuffer
-     * bindings) is restored through it, forced past the redundancy check by setting a throwaway
-     * value first. Uncached state (program, VAO, draw/read buffers, viewport, scissor box, blend
+     * scissor enable, colour mask, active texture, per-unit 2D bindings) is restored through it,
+     * forced past the redundancy check by setting a throwaway value first. The read and draw
+     * framebuffers are bound with raw GL and then through it, which keeps its record without a
+     * throwaway bind. Uncached state (program, VAO, draw/read buffers, viewport, scissor box, blend
      * equation, clear colour) stays raw.</p>
      *
      * <p>The program is uncached by {@code GlStateManager} but not by Blaze3D's command encoder,
@@ -282,13 +285,15 @@ public final class SavedGlState {
         encoder.glue$setLastPipeline(null);
     }
 
-    /** Never-rendered scratch objects used as throwaway bind targets; one of each per process. */
-    private static int scratchFbo = -1;
+    /** A never-rendered scratch texture used as a throwaway bind target; one per process. */
     private static int scratchTex = -1;
 
+    /**
+     * Binds {@code fbo} with raw GL, so the context holds it whatever the cache believes, then through
+     * {@link GlStateManager}, which records it and binds again only when its record was stale.
+     */
     private static void bindFramebufferSynced(int target, int fbo) {
-        if (scratchFbo == -1) scratchFbo = GlStateManager.glGenFramebuffers();
-        GlStateManager._glBindFramebuffer(target, fbo == scratchFbo ? 0 : scratchFbo);
+        GL30.glBindFramebuffer(target, fbo);
         GlStateManager._glBindFramebuffer(target, fbo);
     }
 
