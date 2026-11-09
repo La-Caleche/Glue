@@ -3,6 +3,7 @@ package fr.lacaleche.glue.client.debug.internal;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
 import fr.lacaleche.glue.client.events.RenderEvents;
 import fr.lacaleche.glue.client.render.gl.SavedGlState;
@@ -14,9 +15,6 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL42;
-import org.lwjgl.opengl.GL43;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -46,9 +44,7 @@ public final class Framebuffers {
     private List<Buffer> buffers = List.of();
     private boolean iris;
     private @Nullable RenderTarget depthCopy;
-    private int colorCopy = -1;
-    private int colorCopyWidth;
-    private int colorCopyHeight;
+    private @Nullable RenderTarget colorCopy;
     private Filter filter = Filter.ALL;
     private boolean alternates;
     private int gridSize = 2;
@@ -240,20 +236,19 @@ public final class Framebuffers {
     }
 
     private void copyColor(RenderTarget main) {
-        if (!(main.getColorTexture() instanceof GlTexture source)) return;
+        GpuTexture source = main.getColorTexture();
+        if (source == null) return;
 
-        if (this.colorCopy == -1 || this.colorCopyWidth != main.width || this.colorCopyHeight != main.height) {
-            if (this.colorCopy != -1) GL11.glDeleteTextures(this.colorCopy);
-            this.colorCopy = GL11.glGenTextures();
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.colorCopy);
-            GL42.glTexStorage2D(GL11.GL_TEXTURE_2D, 1, GL11.GL_RGBA8, main.width, main.height);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
-            this.colorCopyWidth = main.width;
-            this.colorCopyHeight = main.height;
+        if (this.colorCopy == null || this.colorCopy.width != main.width || this.colorCopy.height != main.height) {
+            if (this.colorCopy != null) this.colorCopy.destroyBuffers();
+            this.colorCopy = new TextureTarget("Glue framebuffer viewer colour", main.width, main.height, false);
         }
-        GL43.glCopyImageSubData(source.glId(), GL11.GL_TEXTURE_2D, 0, 0, 0, 0,
-                this.colorCopy, GL11.GL_TEXTURE_2D, 0, 0, 0, 0, main.width, main.height, 1);
+        // The encoder's copy, not glCopyImageSubData: that one is GL 4.3, which macOS never reaches.
+        GpuTexture copy = this.colorCopy.getColorTexture();
+        if (copy != null) {
+            RenderSystem.getDevice().createCommandEncoder().copyTextureToTexture(source, copy, 0, 0, 0, 0, 0,
+                    main.width, main.height);
+        }
     }
 
     private void captureDepth(RenderTarget main) {
@@ -277,8 +272,8 @@ public final class Framebuffers {
     }
 
     private void free() {
-        if (this.colorCopy != -1) GL11.glDeleteTextures(this.colorCopy);
-        this.colorCopy = -1;
+        if (this.colorCopy != null) this.colorCopy.destroyBuffers();
+        this.colorCopy = null;
         this.depthPreview.free();
         if (this.depthCopy != null) this.depthCopy.destroyBuffers();
         this.depthCopy = null;
@@ -299,9 +294,9 @@ public final class Framebuffers {
     }
 
     private UiTextureView.@Nullable Texture colorCopyTexture() {
-        if (this.colorCopy == -1) return null;
+        if (this.colorCopy == null || !(this.colorCopy.getColorTexture() instanceof GlTexture copy)) return null;
 
-        return new UiTextureView.Texture(this.colorCopy, this.colorCopyWidth, this.colorCopyHeight, true);
+        return new UiTextureView.Texture(copy.glId(), this.colorCopy.width, this.colorCopy.height, true);
     }
 
     private static Supplier<UiTextureView.@Nullable Texture> fixed(int id, int width, int height) {
