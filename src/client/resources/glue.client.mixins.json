@@ -27,6 +27,7 @@
     "shader.runtime.CompositeRenderTypeDrawMixin",
     "shader.runtime.GlDeviceAccessor",
     "shader.runtime.GlDeviceMixin",
+    "shader.runtime.GlProgramInvoker",
     "shader.runtime.ShaderCompilationKeyAccessor",
     "PoseStackMixin",
     "shader.pipeline.TextureStateShardAccessor",

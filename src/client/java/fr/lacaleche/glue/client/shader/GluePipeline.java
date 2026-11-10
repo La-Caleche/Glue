@@ -583,11 +583,31 @@ public class GluePipeline {
          * @throws IllegalStateException on a builder from {@link GluePipeline#builder}
          */
         public RuntimePipelineResult buildRuntime(ShaderSources sources) {
+            RenderPipeline pipeline = runtimePipeline();
+            return complete(pipeline, sources, RuntimePipelines.compile(pipeline, sources));
+        }
+
+        /**
+         * As {@link #buildRuntime}, but the driver compiles in the background where it can: the caller
+         * {@linkplain PendingRuntimePipeline#poll() polls} the result from later frames, and draws nothing
+         * through it before.
+         *
+         * @throws IllegalStateException on a builder from {@link GluePipeline#builder}
+         */
+        public PendingRuntimePipeline buildRuntimeAsync(ShaderSources sources) {
+            RenderPipeline pipeline = runtimePipeline();
+            return new PendingRuntimePipeline(RuntimePipelines.start(pipeline, sources),
+                    log -> complete(pipeline, sources, log));
+        }
+
+        private RenderPipeline runtimePipeline() {
             if (vertShader != null || fragShader != null)
                 throw new IllegalStateException("A builder with shader resources is finished with build()");
             ResourceLocation shaderId = RuntimePipelines.nextShaderId(location);
-            RenderPipeline pipeline = pipelineBuilder(shaderId.getPath(), shaderId, shaderId).build();
-            String log = RuntimePipelines.compile(pipeline, sources);
+            return pipelineBuilder(shaderId.getPath(), shaderId, shaderId).build();
+        }
+
+        private RuntimePipelineResult complete(RenderPipeline pipeline, ShaderSources sources, @Nullable String log) {
             if (log != null)
                 return new RuntimePipelineResult.Failed(log);
             RenderCompat.assignIrisProgram(pipeline, irisProgram);

@@ -4,8 +4,8 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 /**
- * What {@link GluePipeline.Builder#buildRuntime} produced: a pipeline ready to draw, or the driver's
- * compile and link logs when the sources did not make one.
+ * What {@link GluePipeline.Builder#buildRuntime} or a {@link PendingRuntimePipeline} produced: a pipeline ready
+ * to draw, or the driver's compile and link logs when the sources did not make one.
  */
 @Environment(EnvType.CLIENT)
 public sealed interface RuntimePipelineResult {
