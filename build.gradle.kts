@@ -71,11 +71,15 @@ dependencies {
     "clientCompileOnly"(libs.iris)
 
     // Native OS file dialogs. Declared on main so the published POM, the jar's single dependency
-    // list, carries them.
+    // list, carries them. Minecraft ships LWJGL without NFD, so the player jar nests the binding and
+    // its natives for every platform the game runs on.
     implementation(libs.lwjgl.nfd)
+    include(libs.lwjgl.nfd)
     val nfdVersion = libs.versions.lwjgl.nfd.get()
     listOf("windows", "linux", "macos", "macos-arm64").forEach { platform ->
-        runtimeOnly("org.lwjgl:lwjgl-nfd:$nfdVersion:natives-$platform")
+        val natives = "org.lwjgl:lwjgl-nfd:$nfdVersion:natives-$platform"
+        runtimeOnly(natives)
+        include(natives)
     }
 }
 
