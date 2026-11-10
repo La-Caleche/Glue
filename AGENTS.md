@@ -77,8 +77,8 @@ see both source sets. No published project may depend on `glue-showcase`.
   than feature code. Development tests may call public Iris APIs only behind a mod-loaded guard.
   Everything must still load without Iris.
 - Lumos consumes `SavedGlState`, `FrameMatrices`, `FramebufferHelper`, `AbstractSceneRenderer`,
-  `GluePipeline`, `RenderEvents`, `RenderCompat` and `FboDebugHud`. Treat them as public contracts:
-  a change there is checked against Lumos.
+  `GluePipeline`, `ProgramCompile`, `RenderEvents`, `RenderCompat` and `FboDebugHud`. Treat them as
+  public contracts: a change there is checked against Lumos.
 
 ## Verification
 
