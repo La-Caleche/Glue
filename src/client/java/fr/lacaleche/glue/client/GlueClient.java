@@ -4,6 +4,7 @@ import fr.lacaleche.glue.Glue;
 import fr.lacaleche.glue.client.debug.DeveloperMenu;
 import fr.lacaleche.glue.client.events.DrawSelectionEvents;
 import fr.lacaleche.glue.client.events.ParticleManagerEvents;
+import fr.lacaleche.glue.client.options.internal.OptionsScreenScroll;
 import fr.lacaleche.glue.client.registries.GlueOutlineRenderers;
 import fr.lacaleche.glue.client.render.BlockRenderer;
 import fr.lacaleche.glue.client.render.model.GlueBlockModels;
@@ -39,6 +40,7 @@ public class GlueClient implements ClientModInitializer {
 
         WorldRenderEvents.START.register(ctx -> RenderCompat.resetFrameCache());
         RaycastUtils.register();
+        OptionsScreenScroll.register();
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             ShaderContext.get().cleanup();

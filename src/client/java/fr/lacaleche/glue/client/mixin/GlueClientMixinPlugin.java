@@ -22,7 +22,9 @@ public final class GlueClientMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        return !mixinClassName.contains(".axiom.") || FabricLoader.getInstance().isModLoaded("axiom");
+        if (mixinClassName.contains(".axiom.")) return FabricLoader.getInstance().isModLoaded("axiom");
+        if (mixinClassName.contains(".sodium.")) return FabricLoader.getInstance().isModLoaded("sodium");
+        return true;
     }
 
     @Override

@@ -37,6 +37,8 @@
     "viewport.MinecraftScreenViewportMixin",
     "viewport.MinecraftViewportMixin",
     "viewport.MouseHandlerViewportMixin",
-    "viewport.axiom.AxiomContextMenuViewportMixin"
+    "viewport.axiom.AxiomContextMenuViewportMixin",
+    "options.VideoSettingsScreenMixin",
+    "options.sodium.SodiumOptionsGUIMixin"
   ]
 }

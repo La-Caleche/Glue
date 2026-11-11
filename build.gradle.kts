@@ -69,6 +69,7 @@ val client = sourceSets.getByName("client")
 
 dependencies {
     "clientCompileOnly"(libs.iris)
+    "modClientCompileOnly"(libs.sodium)
 
     // Native OS file dialogs. Declared on main so the published POM, the jar's single dependency
     // list, carries them. Minecraft ships LWJGL without NFD, so the player jar nests the binding and
